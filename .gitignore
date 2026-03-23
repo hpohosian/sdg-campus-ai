@@ -1,8 +1,13 @@
 # Python virtual environment
 api/.venv
 
-api/__pycache__
+**/__pycache__/*
+
+.env
+
+# **/tests/*
 
 docker.md
 repository_structure.md
 work_plan.md
+chatbot_module_plan.md
