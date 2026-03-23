@@ -1,0 +1,8 @@
+# Python virtual environment
+api/.venv
+
+api/__pycache__
+
+docker.md
+repository_structure.md
+work_plan.md
