@@ -1,7 +1,6 @@
 from fastapi import FastAPI
+from chatbot.router import router as chatbot_router
 
 app = FastAPI()
 
-@app.get("/message")
-def read_root():
-    return {"message": "Hello World"}
+app.include_router(chatbot_router)
