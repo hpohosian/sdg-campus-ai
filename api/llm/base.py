@@ -1,20 +1,30 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any, AsyncIterator
 
 class BaseLLM(ABC):
     """
-    Abstract class for all LLM models.
+    Base interface for all LLM providers.
     """
-    
-    def generate(
+
+    @abstractmethod
+    async def chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         **kwargs: Any
     ) -> str:
         """
-        The main method for generating a response.
-        
-        :param messages: list of messages (chat history)
-        :return: model response (str)
+        Generate a full response from the model.
         """
-        pass
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stream(
+        self,
+        messages: list[dict[str, str]],
+        **kwargs: Any
+    ) -> AsyncIterator[str]:
+        """
+        Stream partial response chunks from the model.
+        """
+        raise NotImplementedError
+    
