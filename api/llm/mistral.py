@@ -1,7 +1,7 @@
 from typing import Any, AsyncIterator
 from mistralai.client import Mistral
-from api.llm.base import BaseLLM
-from api.settings import settings
+from llm.base import BaseLLM
+from settings import settings
 
 class MistralLLM(BaseLLM):
     """

@@ -1,15 +1,17 @@
-from fastapi import APIRouter
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
 from chatbot.schemas import ChatRequest, ChatResponse
 from chatbot.service import ChatService
+from dependencies import get_chat_service
+
 
 router = APIRouter()
 
-chat_service = ChatService()
-
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
-    response = chat_service.generate_response(request.message)
-
-    return ChatResponse(response=response)
+async def chat(
+    request: ChatRequest,
+    service: ChatService = Depends(get_chat_service), 
+):
+    response = await service.handle_message(request)
+    return response
