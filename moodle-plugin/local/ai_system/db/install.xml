@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/ai_system/db" VERSION="2026041300" COMMENT="AI System plugin database"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+
+  <TABLES>
+
+    <!-- ===================== SESSIONS ===================== -->
+    <TABLE NAME="local_ai_system_sessions" COMMENT="AI chatbot sessions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="session_id" TYPE="char" LENGTH="64" NOTNULL="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="updated_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="false"/>
+        <FIELD NAME="is_active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="session_id" UNIQUE="true" FIELDS="session_id"/>
+        <INDEX NAME="userid" UNIQUE="false" FIELDS="userid"/>
+      </INDEXES>
+    </TABLE>
+
+
+    <!-- ===================== MESSAGES ===================== -->
+    <TABLE NAME="local_ai_system_messages" COMMENT="Chat messages">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="session_id" TYPE="char" LENGTH="64" NOTNULL="true"/>
+        <FIELD NAME="role" TYPE="char" LENGTH="16" NOTNULL="true"/>
+        <FIELD NAME="content" TYPE="text" NOTNULL="true"/>
+        <FIELD NAME="tokens_used" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="session_id" UNIQUE="false" FIELDS="session_id"/>
+      </INDEXES>
+    </TABLE>
+
+
+    <!-- ===================== LOGS ===================== -->
+    <TABLE NAME="local_ai_system_logs" COMMENT="System logs">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="session_id" TYPE="char" LENGTH="64" NOTNULL="false"/>
+        <FIELD NAME="event_type" TYPE="char" LENGTH="64" NOTNULL="true"/>
+        <FIELD NAME="provider" TYPE="char" LENGTH="32" NOTNULL="false"/>
+        <FIELD NAME="latency_ms" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="error_message" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="session_id" UNIQUE="false" FIELDS="session_id"/>
+        <INDEX NAME="userid" UNIQUE="false" FIELDS="userid"/>
+      </INDEXES>
+    </TABLE>
+
+  </TABLES>
+</XMLDB>

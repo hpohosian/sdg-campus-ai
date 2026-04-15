@@ -4,6 +4,10 @@ from chatbot.schemas import ChatRequest, ChatResponse
 from chatbot.service import ChatService
 from dependencies import get_chat_service
 
+import logging
+
+logger = logging.getLogger("ai")
+
 
 router = APIRouter()
 

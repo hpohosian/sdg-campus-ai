@@ -1,0 +1,34 @@
+{{! templates/chatbot.mustache }}
+<div id="ai-chatbot" class="ai-chatbot-container" data-session-id="{{session_id}}">
+    <div class="ai-chatbot-header">
+        <h3>{{#str}} chatbot_title, local_ai_system {{/str}}</h3>
+        <button class="ai-chatbot-new-session btn btn-sm btn-secondary">
+            {{#str}} new_session, local_ai_system {{/str}}
+        </button>
+    </div>
+    
+    <div class="ai-chatbot-messages" id="ai-messages-container">
+        {{#messages}}
+            <div class="ai-message ai-message--{{role}}">
+                <div class="ai-message-content">{{{content_html}}}</div>
+                <span class="ai-message-time">{{created_at}}</span>
+            </div>
+        {{/messages}}
+    </div>
+    
+    <div class="ai-chatbot-input-area">
+        <div id="ai-typing-indicator" class="ai-typing-indicator" hidden>
+            <span></span><span></span><span></span>
+        </div>
+        <div class="ai-input-row">
+            <textarea id="ai-message-input" 
+                      class="form-control" 
+                      rows="2" 
+                      placeholder="{{#str}} type_message, local_ai_system {{/str}}"
+                      maxlength="4000"></textarea>
+            <button id="ai-send-btn" class="btn btn-primary">
+                {{#str}} send, local_ai_system {{/str}}
+            </button>
+        </div>
+    </div>
+</div>

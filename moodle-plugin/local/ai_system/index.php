@@ -1,45 +1,53 @@
 <?php
+
 require_once(__DIR__ . '/../../config.php');
 require_login();
 
+$context = context_system::instance();
+require_capability('local/ai_system:use_chatbot', $context);
+
 $PAGE->set_url(new moodle_url('/local/ai_system/index.php'));
-$PAGE->set_context(context_system::instance());
-$PAGE->set_title(get_string('chatpage', 'local_ai_system'));
-$PAGE->set_heading(get_string('chatpage', 'local_ai_system'));
+$PAGE->set_context($context);
+$PAGE->set_title('AI Chatbot');
+$PAGE->set_heading('AI Chatbot');
 
+
+// ==========================
+// 1. Session ID (temporary)
+// ==========================
+$session_id = optional_param('session_id', null, PARAM_TEXT);
+
+if (!$session_id) {
+    $session_id = uniqid('chat_', true);
+}
+
+// ==========================
+// 2. Load messages from service
+// ==========================
+$service = new \local_ai_system\chatbot\service();
+$history = $service->get_history($USER->id, $session_id);
+
+// ==========================
+// 3. Render page
+// ==========================
 echo $OUTPUT->header();
-?>
 
-<h2><?php echo get_string('chatpage', 'local_ai_system'); ?></h2>
+// Mustache template data
+$templatecontext = [
+    'session_id' => $session_id,
+    'messages'   => $history['messages'] ?? []
+];
 
-<input type="text" id="chat-input" placeholder="<?php echo get_string('message_placeholder', 'local_ai_system'); ?>">
-<button id="send-btn"><?php echo get_string('send', 'local_ai_system'); ?></button>
+// Render chatbot UI
+echo $OUTPUT->render_from_template('local_ai_system/chatbot', $templatecontext);
 
-<div id="chat-output" style="margin-top:20px;"></div>
+// ==========================
+// 4. Load JS (AMD init)
+// ==========================
+$PAGE->requires->js_call_amd(
+    'local_ai_system/chatbot',
+    'init',
+    [$session_id]
+);
 
-<script>
-document.getElementById('send-btn').addEventListener('click', async () => {
-    const message = document.getElementById('chat-input').value;
-    if (!message) return;
-
-    const outputDiv = document.getElementById('chat-output');
-    outputDiv.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
-
-    try {
-        const response = await fetch('http://localhost:8001/chat', { // <- твой FastAPI URL
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message: message})
-        });
-        const data = await response.json();
-        outputDiv.innerHTML += `<p><strong>AI:</strong> ${data.response}</p>`;
-    } catch (err) {
-        outputDiv.innerHTML += `<p style="color:red;">Error: ${err.message}</p>`;
-    }
-
-    document.getElementById('chat-input').value = '';
-});
-</script>
-
-<?php
 echo $OUTPUT->footer();

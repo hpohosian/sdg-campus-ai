@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     MISTRAL_API_KEY: str
     MISTRAL_MODEL: str = "mistral-medium"
 
-    # MOODLE_SECRET: str
+    MOODLE_SECRET: str
 
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "development"
