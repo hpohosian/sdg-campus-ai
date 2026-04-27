@@ -164,3 +164,55 @@ html, body {
     0%, 100% { opacity: 0.2; }
     50% { opacity: 1; }
 }
+
+.ai-session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-session-menu {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+}
+
+.ai-session-menu:hover {
+    opacity: 1;
+}
+
+.ai-session-edit {
+    cursor: pointer;
+    opacity: 0.6;
+    padding: 4px;
+}
+
+.ai-session-edit:hover {
+    opacity: 1;
+}
+
+.ai-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.ai-popup-content {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    width: 250px;
+}
+
+.ai-popup.hidden {
+    display: none;
+}

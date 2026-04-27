@@ -23,4 +23,12 @@ $functions = [
         'type' => 'write',
         'loginrequired' => true,
     ],
+    'local_ai_system_rename_session' => [
+        'classname'   => 'local_ai_system\external\chatbot_api',
+        'methodname'  => 'rename_session',
+        'description' => 'Rename chat session',
+        'type'        => 'write',
+        'ajax'        => true,
+        'loginrequired' => true,
+    ],
 ];

@@ -151,4 +151,37 @@ class chatbot_api extends external_api {
             'title' => new external_value(PARAM_TEXT)
         ]);
     }
+
+    public static function rename_session_parameters() {
+        return new \external_function_parameters([
+            'session_id' => new \external_value(PARAM_TEXT, 'Session ID'),
+            'title' => new \external_value(PARAM_TEXT, 'New title'),
+        ]);
+    }
+
+    public static function rename_session($session_id, $title) {
+        global $DB, $USER;
+
+        $record = $DB->get_record('ai_chat_sessions', [
+            'session_id' => $session_id,
+            'userid' => $USER->id
+        ]);
+
+        if (!$record) {
+            throw new \moodle_exception('invalidsession');
+        }
+
+        $record->title = $title;
+        $record->timemodified = time();
+
+        $DB->update_record('ai_chat_sessions', $record);
+
+        return ['success' => true];
+    }
+
+    public static function rename_session_returns() {
+        return new \external_single_structure([
+            'success' => new \external_value(PARAM_BOOL, 'Status')
+        ]);
+    }
 }

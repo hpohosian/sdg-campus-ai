@@ -123,6 +123,52 @@ define([
             container.scrollTop = container.scrollHeight;
         },
 
+        bindRenamePopup() {
+            const popup = document.getElementById('ai-rename-popup');
+            const input = document.getElementById('ai-rename-input');
+            let currentSessionId = null;
+
+            document.querySelectorAll('.ai-session-menu').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    currentSessionId = btn.dataset.sessionId;
+
+                    const titleEl = btn.parentElement.querySelector('.ai-session-title');
+                    input.value = titleEl.textContent.trim();
+
+                    popup.classList.remove('hidden');
+                });
+            });
+
+            document.getElementById('ai-rename-cancel').addEventListener('click', () => {
+                popup.classList.add('hidden');
+            });
+
+            document.getElementById('ai-rename-save').addEventListener('click', async () => {
+
+                const newTitle = input.value.trim();
+
+                if (!newTitle) return;
+
+                await Ajax.call([{
+                    methodname: 'local_ai_system_rename_session',
+                    args: {
+                        session_id: currentSessionId,
+                        title: newTitle
+                    }
+                }]);
+
+                location.reload();
+            });
+
+            popup.addEventListener('click', (e) => {
+                if (e.target === popup) {
+                    popup.classList.add('hidden');
+                }
+            });
+        },
+
         bindSessionEvents() {
             document.querySelectorAll('.ai-session-item').forEach(el => {
                 el.addEventListener('click', async () => {
@@ -156,6 +202,8 @@ define([
                     el.classList.add('active');
                 });
             });
+
+            this.bindRenamePopup();
         },
 
         bindNewSessionEvent() {
