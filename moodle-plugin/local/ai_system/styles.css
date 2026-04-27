@@ -1,13 +1,15 @@
+html, body {
+    height: 100%;
+    overflow-y: auto;
+}
 
 /* ===== GLOBAL LAYOUT ===== */
 .ai-chatbot-layout {
     display: flex;
-    height: 80vh;
+    min-height: 100vh;
     background: #f5f6f8;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    overflow: hidden;
     font-family: Arial, sans-serif;
+    overflow: hidden;
 }
 
 /* ===== SIDEBAR ===== */
@@ -42,7 +44,9 @@
     display: flex;
     flex-direction: column;
     background: #ffffff;
+    min-height: 0;
 }
+
 
 /* ===== HEADER ===== */
 .ai-chatbot-header {
@@ -57,7 +61,7 @@
 /* ===== MESSAGES AREA ===== */
 .ai-chatbot-messages {
     flex: 1;
-    overflow-y: auto;
+    overflow: visible;
     padding: 16px;
     display: flex;
     flex-direction: column;
