@@ -16,4 +16,11 @@ $functions = [
         'ajax'        => true,
         'loginrequired' => true,
     ],
+    'local_ai_system_create_session' => [
+        'classname' => 'local_ai_system\external\chatbot_api',
+        'methodname' => 'create_session',
+        'ajax' => true,
+        'type' => 'write',
+        'loginrequired' => true,
+    ],
 ];

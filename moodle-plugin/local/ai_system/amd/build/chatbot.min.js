@@ -1,4 +1,8 @@
-define(['core/ajax', 'core/str', 'core/notification'], function(Ajax, Str, Notification) {
+define([
+    'core/ajax',
+    'core/str',
+    'core/notification',
+], function(Ajax, Str, Notification, marked) {
 
     const ChatBot = {
         sessionId: null,
@@ -6,8 +10,18 @@ define(['core/ajax', 'core/str', 'core/notification'], function(Ajax, Str, Notif
 
         init(sessionId) {
             this.sessionId = sessionId;
+
+            if (window.marked) {
+                window.marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+            }
+
             this.bindEvents();
             this.scrollToBottom();
+            this.bindSessionEvents();
+            this.bindNewSessionEvent();
         },
 
         bindEvents() {
@@ -59,7 +73,7 @@ define(['core/ajax', 'core/str', 'core/notification'], function(Ajax, Str, Notif
                 console.log("RESPONSE:", result.message);
                 console.log("SESSION:", result.session_id);
                                 
-                this.appendMessage('assistant', response, true);
+                this.appendMessage('assistant', response);
             } catch (err) {
                 Notification.exception(err);
             } finally {
@@ -67,19 +81,26 @@ define(['core/ajax', 'core/str', 'core/notification'], function(Ajax, Str, Notif
             }
         },
 
-        appendMessage(role, content, isMarkdown = false) {
+        appendMessage(role, content) {
             const container = document.getElementById('ai-messages-container');
+
             const div = document.createElement('div');
             div.className = `ai-message ai-message--${role}`;
 
-            if (isMarkdown) {
-                // Use marked.js (load via AMD) for markdown rendering
-                div.innerHTML = this.renderMarkdown(content);
-            } else {
-                div.textContent = content;
-            }
+            const bubble = document.createElement('div');
+            bubble.className = 'ai-message-bubble';
 
+            const text = document.createElement('div');
+            text.className = 'ai-message-content';
+
+            const clean = (content || '').trim();
+
+            text.innerHTML = window.marked.parse(clean);
+
+            bubble.appendChild(text);
+            div.appendChild(bubble);
             container.appendChild(div);
+
             this.scrollToBottom();
         },
 
@@ -88,7 +109,7 @@ define(['core/ajax', 'core/str', 'core/notification'], function(Ajax, Str, Notif
             // Escape HTML first, then render markdown syntax
             // return marked.parse(text, {sanitize: true});
 
-            return text;
+            return marked.parse(text);
         },
 
         setLoading(state) {
@@ -100,7 +121,65 @@ define(['core/ajax', 'core/str', 'core/notification'], function(Ajax, Str, Notif
         scrollToBottom() {
             const container = document.getElementById('ai-messages-container');
             container.scrollTop = container.scrollHeight;
-        }
+        },
+
+        bindSessionEvents() {
+            document.querySelectorAll('.ai-session-item').forEach(el => {
+                el.addEventListener('click', async () => {
+
+                    const sessionId = el.dataset.sessionId;
+
+                    const result = await Ajax.call([{
+                        methodname: 'local_ai_system_get_history',
+                        args: { session_id: sessionId }
+                    }])[0];
+
+
+                    console.log("result", result);
+                    
+
+                    // const data = JSON.parse(result.messages);
+                    const data = result;
+
+                    const container = document.getElementById('ai-messages-container');
+                    container.innerHTML = '';
+
+                    result.messages.forEach(msg => {
+                        this.appendMessage(msg.role, msg.content_raw);
+                    });
+
+                    this.sessionId = sessionId;
+
+                    document.querySelectorAll('.ai-session-item')
+                        .forEach(e => e.classList.remove('active'));
+
+                    el.classList.add('active');
+                });
+            });
+        },
+
+        bindNewSessionEvent() {
+            const btn = document.querySelector('.ai-chatbot-new-session');
+
+            if (!btn) {
+                return;
+            }
+
+            btn.addEventListener('click', async () => {
+
+                const result = await Ajax.call([{
+                    methodname: 'local_ai_system_create_session',
+                    args: {}
+                }])[0];
+
+                this.sessionId = result.session_id;
+
+                const container = document.getElementById('ai-messages-container');
+                container.innerHTML = '';
+
+                location.reload();
+            });
+        },
     };
 
     return {init: (sessionId) => ChatBot.init(sessionId)};

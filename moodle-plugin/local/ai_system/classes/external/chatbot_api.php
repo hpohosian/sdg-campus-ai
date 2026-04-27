@@ -6,6 +6,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_value;
 use core_external\external_single_structure;
+use core_external\external_multiple_structure;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -96,19 +97,11 @@ class chatbot_api extends external_api {
 
         $context = \context_system::instance();
         self::validate_context($context);
-
         require_capability('local/ai_system:use_chatbot', $context);
 
         $service = new \local_ai_system\chatbot\service();
 
-        $history = $service->get_history(
-            $USER->id,
-            $params['session_id']
-        );
-
-        return [
-            'messages' => json_encode($history)
-        ];
+        return $service->get_history($USER->id, $params['session_id']);
     }
 
     // =========================
@@ -116,7 +109,46 @@ class chatbot_api extends external_api {
     // =========================
     public static function get_history_returns() {
         return new external_single_structure([
-            'messages' => new external_value(PARAM_RAW, 'Chat history JSON')
+            'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
+            'messages' => new external_multiple_structure(
+                new external_single_structure([
+                    'role' => new external_value(PARAM_TEXT),
+                    'content_raw' => new external_value(PARAM_RAW),
+                    'content_html' => new external_value(PARAM_RAW),
+                    'created_at' => new external_value(PARAM_TEXT)
+                ])
+            )
+        ]);
+    }
+
+    // =========================
+    // CREATE SESSION - PARAMETERS
+    // =========================
+    public static function create_session_parameters() {
+        return new external_function_parameters([]);
+    }
+
+    public static function create_session() {
+
+        global $USER;
+
+        $params = self::validate_parameters(
+            self::create_session_parameters(),
+            []
+        );
+
+        self::validate_context(\context_system::instance());
+        require_capability('local/ai_system:use_chatbot', \context_system::instance());
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->create_session($USER->id);
+    }
+
+    public static function create_session_returns() {
+        return new external_single_structure([
+            'session_id' => new external_value(PARAM_TEXT),
+            'title' => new external_value(PARAM_TEXT)
         ]);
     }
 }
