@@ -1,18 +1,14 @@
 from typing import Optional, List, Literal
 from pydantic import BaseModel
 
-class ChatRequest(BaseModel):
-    session_id: str       # unique session identifier
-    user_id: int          # Moodle user ID
-    message: str
-    course_id: Optional[int] = None
-
-class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system"]
-    content: str
-
-class ChatResponse(BaseModel):
-    session_id: str
-    message: str
-    # message_id: str
+class CreateSessionRequest(BaseModel):
+    user_id: int
+    course_id: int | None = None
+    title: str | None = None
     
+class SessionResponse(BaseModel):
+    session_id: str
+    user_id: int
+    course_id: int | None = None
+    title: str | None = None
+

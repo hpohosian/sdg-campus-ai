@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
+    
+    DATABASE_URL: str
 
     model_config = SettingsConfigDict(
         env_file=".env",
