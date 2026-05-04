@@ -11,8 +11,8 @@
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="session_id" TYPE="char" LENGTH="64" NOTNULL="true"/>
-        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true"/>
-        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="user_id" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="course_id" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
         <FIELD NAME="updated_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
         <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="false"/>
@@ -51,7 +51,7 @@
     <TABLE NAME="local_ai_system_logs" COMMENT="System logs">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false"/>
+        <FIELD NAME="user_id" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="session_id" TYPE="char" LENGTH="64" NOTNULL="false"/>
         <FIELD NAME="event_type" TYPE="char" LENGTH="64" NOTNULL="true"/>
         <FIELD NAME="provider" TYPE="char" LENGTH="32" NOTNULL="false"/>
