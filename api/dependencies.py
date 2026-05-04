@@ -1,5 +1,5 @@
 from functools import lru_cache
-from fastapi import Depends
+from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
 from llm.base import BaseLLM
@@ -30,3 +30,25 @@ def get_session_service(
 ):
     return SessionService(repo)
 
+
+def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:
+    """
+    Temporary auth system for development.
+    In production this will be replaced with Moodle token validation.
+    
+    Now in Postman - add Header (X-User-Id: n)
+    
+    Option 2 (correct for Moodle later)
+    def get_current_user_id(token: str = Header(...)):
+        # 1. check Moodle token
+        # 2. request in Moodle API
+        # 3. return user.id
+    """
+
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="Missing user header")
+
+    try:
+        return int(x_user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user id")

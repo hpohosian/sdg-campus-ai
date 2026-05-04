@@ -10,8 +10,8 @@ class SessionModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(64), unique=True, index=True, nullable=False)
 
-    userid = Column(Integer, nullable=False)
-    courseid = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=False)
+    course_id = Column(Integer, nullable=True)
 
     title = Column(String(255), nullable=True)
 

@@ -6,6 +6,10 @@ class SessionService:
     def __init__(self, session_repo: SessionRepository):
         self.session_repo = session_repo
 
+
+    # =========================
+    # CREATE 
+    # =========================
     async def create_session(
         self,
         user_id: int,
@@ -24,14 +28,82 @@ class SessionService:
         )
 
         # 3. save to DB (IMPORTANT: get result back)
-        db_session = await self.session_repo.create(session)
+        db_session = self.session_repo.create(session)
 
-        # 4. return response (NOT domain object)
-        return {
-            "session_id": db_session.session_id,
-            "user_id": db_session.userid,
-            "course_id": db_session.courseid,
-            "title": db_session.title,
-            "is_active": db_session.is_active,
-            "created_at": db_session.created_at,
-        }
+        # 4. return response (NOT domain object)        
+        return db_session
+
+
+    # =========================
+    # GET ONE
+    # =========================
+    async def get_session(self, session_id: str):
+        session = self.session_repo.get(session_id)
+
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        return session
+
+
+    # =========================
+    # GET USER SESSIONS
+    # =========================
+    async def get_user_sessions(self, user_id: int):
+        sessions = self.session_repo.get_by_user(user_id)
+        return sessions
+
+
+    # =========================
+    # UPDATE
+    # =========================
+    async def update_session(
+        self,
+        session_id: str,
+        title: str | None = None,
+    ):
+        session = self.session_repo.update(
+            session_id=session_id,
+            title=title,
+        )
+
+        if not session:
+            raise ValueError("Session not found")
+
+        return session
+
+
+    # =========================
+    # ARCHIVE SESSION (soft delete)
+    # =========================
+    async def archive_session(self, session_id: str):
+        session = self.session_repo.set_active(session_id, 0)
+
+        if not session:
+            raise ValueError("Session not found")
+
+        return session
+
+
+    # =========================
+    # DEARCHIVE SESSION
+    # =========================
+    async def dearchive_session(self, session_id: str):
+        session = self.session_repo.set_active(session_id, 1)
+
+        if not session:
+            raise ValueError("Session not found")
+
+        return session
+
+
+    # =========================
+    # DELETE
+    # =========================
+    async def delete_session(self, session_id: str):
+        result = self.session_repo.delete(session_id)
+
+        if not result:
+            raise ValueError("Session not found")
+
+        return result
