@@ -10,5 +10,6 @@ api/.venv
 docker.md
 repository_structure.md
 work_plan.md
+work_plan_global.md
 chatbot_module_plan.md
 plugin_dev.md
