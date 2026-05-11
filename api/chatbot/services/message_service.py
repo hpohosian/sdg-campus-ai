@@ -1,6 +1,10 @@
 from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.session_repository import SessionRepository
 
+from chatbot.services.ai_service import AIService
+
+from chatbot.schemas import MessageResponse
+
 # Позже здесь будут:
 # validation
 # permissions
@@ -9,9 +13,15 @@ from chatbot.repositories.session_repository import SessionRepository
 # LLM orchestration
 
 class MessageService:
-    def __init__(self, message_repo: MessageRepository, session_repo: SessionRepository):
+    def __init__(
+        self,
+        message_repo: MessageRepository,
+        session_repo: SessionRepository,
+        ai_service: AIService,
+    ):
         self.message_repo = message_repo
         self.session_repo = session_repo
+        self.ai_service = ai_service
 
 
     # =========================
@@ -53,3 +63,18 @@ class MessageService:
             role="assistant",
             content=content,
         )
+        
+        
+    async def chat(self, session_id: str, content: str):
+        user_message = await self.create_user_message(session_id, content)
+        
+        history = await self.get_session_messages(session_id)
+        ai_text = await self.ai_service.generate_response(history)
+        
+        assistant_message = await self.create_assistant_message(session_id, ai_text)
+        
+        return {
+            "user": MessageResponse.from_orm(user_message),
+            "assistant": MessageResponse.from_orm(assistant_message)
+        }
+        

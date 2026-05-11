@@ -26,6 +26,12 @@ def get_llm(settings: Settings = Depends(get_settings)) -> BaseLLM:
     return MistralLLM(api_key=settings.MISTRAL_API_KEY)
 
 
+def get_ai_service(
+    llm: BaseLLM = Depends(get_llm),
+):
+    return AIService(llm)
+
+
 def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository:
     return SessionRepository(db)
 
@@ -41,14 +47,9 @@ def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository
 def get_message_service(
     message_repo: MessageRepository = Depends(get_message_repository),
     session_repo: SessionRepository = Depends(get_session_repository),
+    ai_service: AIService = Depends(get_ai_service),
 ):
-    return MessageService(message_repo, session_repo)
-
-
-def get_ai_service(
-    llm: BaseLLM = Depends(get_llm),
-):
-    return AIService(llm)
+    return MessageService(message_repo, session_repo, ai_service)
 
 
 def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:

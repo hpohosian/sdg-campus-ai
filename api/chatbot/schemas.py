@@ -1,5 +1,6 @@
-from typing import Optional, List, Literal
+# from typing import Optional, List, Literal
 from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class CreateSessionRequest(BaseModel):
     course_id: int | None = None
@@ -18,6 +19,8 @@ class SendMessageRequest(BaseModel):
     content: str
     
 class MessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     session_id: str
     role: str
