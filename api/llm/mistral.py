@@ -52,12 +52,16 @@ class MistralLLM(BaseLLM):
         messages: list[dict[str, str]],
         **kwargs: Any
     ) -> AsyncIterator[str]:
-        """
-        Stream response chunks from the Mistral API.
-        For now this is a placeholder implementation.
-        """
 
-        full_response = await self.chat(messages, **kwargs)
+        stream = self.client.chat.stream(
+            model=self.model,
+            messages=messages,
+            **kwargs
+        )
 
-        yield full_response
+        for chunk in stream:
+            if chunk.data.choices:
+                delta = chunk.data.choices[0].delta.content
+                if delta:
+                    yield delta
         

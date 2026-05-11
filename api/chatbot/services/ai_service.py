@@ -20,14 +20,31 @@ class AIService:
         return await self.llm.chat(formatted)
 
 
+    async def stream_response(self, messages):
+        formatted = self._format(messages)
+
+        formatted.insert(0, {
+            "role": "system",
+            "content": self._system_prompt()
+        })
+
+        async for token in self.llm.stream(formatted):
+            yield token
+
+
     def _format(self, messages):
-        return [
+        formatted = [
             {
                 "role": m.role,
                 "content": m.content
             }
             for m in messages
         ]
+        
+        while formatted and formatted[-1]["role"] == "assistant":
+            formatted.pop()
+
+        return formatted
 
 
     def _system_prompt(self):

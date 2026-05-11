@@ -64,11 +64,14 @@ class MessageService:
             content=content,
         )
         
-        
+    # =========================
+    # GENERATE FULL RESPONSE
+    # =========================
     async def chat(self, session_id: str, content: str):
         user_message = await self.create_user_message(session_id, content)
         
         history = await self.get_session_messages(session_id)
+        
         ai_text = await self.ai_service.generate_response(history)
         
         assistant_message = await self.create_assistant_message(session_id, ai_text)
@@ -78,3 +81,20 @@ class MessageService:
             "assistant": MessageResponse.from_orm(assistant_message)
         }
         
+    
+    # =========================
+    # STREAM RESPONSE
+    # =========================
+    async def chat_stream(self, session_id: str, content: str):
+        # user_message = await self.create_user_message(session_id, content)
+        
+        history = await self.get_session_messages(session_id)
+        
+        full_response = ""
+
+        async for token in self.ai_service.stream_response(history):
+            full_response += token
+            yield token
+
+        await self.create_assistant_message(session_id, full_response)
+            
