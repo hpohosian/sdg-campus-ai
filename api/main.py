@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from chatbot.router.session_router import router as session_router
+from chatbot.routers.session_router import router as session_router
 
 app = FastAPI()
 
