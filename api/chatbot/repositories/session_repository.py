@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 
 # -------------------------
-# Domain model (можно оставить, но не обязателен здесь)
+# Domain model
 # -------------------------
 class Session:
     def __init__(

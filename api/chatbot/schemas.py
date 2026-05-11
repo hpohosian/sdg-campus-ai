@@ -14,3 +14,14 @@ class SessionResponse(BaseModel):
 class UpdateSessionRequest(BaseModel):
     title: str | None = None
     
+class SendMessageRequest(BaseModel):
+    content: str
+    
+class MessageResponse(BaseModel):
+    id: int
+    session_id: str
+    role: str
+    content: str
+    tokens_used: int | None = None
+    created_at: int
+    
