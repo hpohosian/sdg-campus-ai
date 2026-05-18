@@ -30,7 +30,7 @@ class api_client {
         return (int)($body['user_id'] ?? $body['userid'] ?? 0);
     }
 
-    private function request(string $method, string $path, array $body = []): array {
+    private function request(string $method, string $path, array $body = [], int $user_id = 0): array {
 
         $url = $this->base_url . $path;
 
@@ -56,7 +56,7 @@ class api_client {
             'Content-Type: application/json',
             'X-Timestamp: ' . $timestamp,
             'X-Signature: ' . $signature,
-            'X-User-Id: ' . $this->extractUserId($body),
+            'X-User-Id: ' . ($user_id ?: $this->extractUserId($body)),
         ]);
 
         switch (strtoupper($method)) {
@@ -95,19 +95,19 @@ class api_client {
         return is_array($decoded) ? $decoded : [];
     }
 
-    public function get(string $path): array {
-        return $this->request('GET', $path);
+    public function get(string $path, int $user_id = 0): array {
+        return $this->request('GET', $path, [], $user_id);
     }
 
-    public function post(string $path, array $body = []): array {
-        return $this->request('POST', $path, $body);
+    public function post(string $path, array $body = [], int $user_id = 0): array {
+        return $this->request('POST', $path, $body, $user_id);
     }
 
-    public function put(string $path, array $body = []): array {
-        return $this->request('PUT', $path, $body);
+    public function put(string $path, array $body = [], int $user_id = 0): array {
+        return $this->request('PUT', $path, $body, $user_id);
     }
 
-    public function delete(string $path, array $body = []): array {
-        return $this->request('DELETE', $path, $body);
+    public function delete(string $path, array $body = [], int $user_id = 0): array {
+        return $this->request('DELETE', $path, $body, $user_id);
     }
 }

@@ -17,8 +17,10 @@ async def create_session(
     user_id: int = Depends(get_current_user_id),
     service: SessionService = Depends(get_session_service),
 ):
+    resolved_user_id = user_id if user_id else request.user_id
+
     session = await service.create_session(
-        user_id=user_id,
+        user_id=resolved_user_id,
         course_id=request.course_id,
         title=request.title,
     )

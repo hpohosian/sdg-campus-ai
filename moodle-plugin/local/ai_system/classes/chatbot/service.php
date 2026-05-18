@@ -28,17 +28,19 @@ class service {
             [
                 'user_id' => $userid,
                 'title'   => $title
-            ]
+            ],
+            $userid
         );
     }
 
     /**
      * Get all user sessions
      */
-    public function get_sessions(): array {
+    public function get_sessions(int $userid): array {
 
         return $this->client->get(
-            '/sessions'
+            '/sessions',
+            $userid
         );
     }
 

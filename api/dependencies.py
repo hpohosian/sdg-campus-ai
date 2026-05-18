@@ -66,7 +66,7 @@ def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:
         # 3. return user.id
     """
 
-    if not x_user_id:
+    if not x_user_id or x_user_id == "0":
         raise HTTPException(status_code=401, detail="Missing user header")
 
     try:
