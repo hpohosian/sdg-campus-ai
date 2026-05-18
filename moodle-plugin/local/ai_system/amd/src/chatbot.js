@@ -36,10 +36,9 @@ define([
         },
 
         addSessionToSidebar(sessionId, title) {
-            const list = document.querySelector('.ai-chatbot-sidebar'); // замени на свой селектор
+            const list = document.querySelector('.ai-chatbot-sidebar');
             if (!list) return;
 
-            // Снимаем active со всех
             document.querySelectorAll('.ai-session-item')
                 .forEach(e => e.classList.remove('active'));
 
@@ -48,10 +47,8 @@ define([
             el.dataset.sessionId = sessionId;
             el.textContent = title;
 
-            // Вставляем в начало списка
             list.prepend(el);
 
-            // Вешаем обработчик клика (тот же что в bindSessions)
             el.addEventListener('click', async () => {
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_get_messages',
@@ -63,8 +60,10 @@ define([
                 const container = document.getElementById('ai-messages-container');
                 container.innerHTML = '';
 
-                result.messages.forEach(msg => {
-                    this.appendMessage(msg.role, msg.content_raw);
+                const messages = Array.isArray(result) ? result : (result.messages ?? []);
+
+                messages.forEach(msg => {
+                    this.appendMessage(msg.role, msg.content);
                 });
 
                 document.querySelectorAll('.ai-session-item')
@@ -79,6 +78,8 @@ define([
             if (this.state.sessionId) {
                 return this.state.sessionId;
             }
+
+            const sessionNumber = document.querySelectorAll('.ai-session-item').length + 1;
 
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_create_session',
@@ -96,14 +97,16 @@ define([
 
         // for new chat button
         async createNewSession() {
+            this.state.sessionId = result.session_id;
+
+            const sessionNumber = document.querySelectorAll('.ai-session-item').length + 1;
+
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_create_session',
                 args: {
                     title: `New Chat ${sessionNumber}`
                 }
             }])[0];
-
-            this.state.sessionId = result.session_id;
 
             this.addSessionToSidebar(result.session_id, `New Chat ${sessionNumber}`);
 
@@ -327,13 +330,14 @@ define([
                     }])[0];
 
                     this.state.sessionId = sessionId;
-                    this.state.activeMessages = result.messages;
 
                     const container = document.getElementById('ai-messages-container');
                     container.innerHTML = '';
 
-                    result.messages.forEach(msg => {
-                        this.appendMessage(msg.role, msg.content_raw);
+                    const messages = Array.isArray(result) ? result : (result.messages ?? []);
+
+                    messages.forEach(msg => {
+                        this.appendMessage(msg.role, msg.content);  // content, не content_raw
                     });
 
                     document.querySelectorAll('.ai-session-item')

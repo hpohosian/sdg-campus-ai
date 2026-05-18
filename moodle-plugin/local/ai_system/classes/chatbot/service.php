@@ -116,11 +116,13 @@ class service {
      * Get session messages
      */
     public function get_messages(
-        string $session_id
+        string $session_id,
+        int $userid
     ): array {
 
         return $this->client->get(
-            "/sessions/{$session_id}/messages"
+            "/sessions/{$session_id}/messages",
+            $userid
         );
     }
 

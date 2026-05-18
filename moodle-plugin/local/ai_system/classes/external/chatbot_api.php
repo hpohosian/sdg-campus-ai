@@ -112,13 +112,15 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local/ai_system:use_chatbot',
+            'local_ai_system:use_chatbot',
             $context
         );
 
+        global $USER;
+
         $service = new \local_ai_system\chatbot\service();
 
-        return $service->get_sessions();
+        return $service->get_sessions($USER->id);
     }
 
     public static function get_sessions_returns() {
@@ -398,14 +400,17 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local/ai_system:use_chatbot',
+            'local_ai_system:use_chatbot',
             $context
         );
 
         $service = new \local_ai_system\chatbot\service();
 
+        global $USER;
+
         return $service->get_messages(
-            $params['session_id']
+            $params['session_id'],
+            $USER->id
         );
     }
 
