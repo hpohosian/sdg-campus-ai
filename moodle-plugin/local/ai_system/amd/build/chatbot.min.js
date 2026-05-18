@@ -1,91 +1,232 @@
 define([
     'core/ajax',
-    'core/str',
-    'core/notification',
-], function(Ajax, Str, Notification, marked) {
+    'core/notification'
+], function(Ajax, Notification) {
 
     const ChatBot = {
-        sessionId: null,
-        isLoading: false,
+
+        state: {
+            sessionId: null,
+            sessions: [],
+            // messages: {},
+            // activeMessages: [],
+            isStreaming: false,
+            controller: null,
+            shouldAutoScroll: true,
+        },
 
         init(sessionId) {
-            this.sessionId = sessionId;
+            this.state.sessionId = sessionId;
 
+            this.initMarkdown();
+            this.bindUI();
+            this.bindSessions();
+            this.bindNewSession();
+
+            this.scrollToBottom();
+
+            const container = document.getElementById('ai-messages-container');
+
+            container.addEventListener('scroll', () => {
+                const nearBottom =
+                    container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+
+                this.shouldAutoScroll = nearBottom;
+            });
+        },
+
+        // for messages
+        async ensureSession() {
+            if (this.state.sessionId) {
+                return this.state.sessionId;
+            }
+
+            const result = await Ajax.call([{
+                methodname: 'local_ai_system_create_session',
+                args: {}
+            }])[0];
+
+            this.state.sessionId = result.session_id;
+
+            return this.state.sessionId;
+        },
+
+        // for new chat button
+        async createNewSession() {
+            const result = await Ajax.call([{
+                methodname: 'local_ai_system_create_session',
+                args: {}
+            }])[0];
+
+            this.state.sessionId = result.session_id;
+
+            return this.state.sessionId;
+        },
+
+        scrollToBottom() {
+            if (!this.shouldAutoScroll) return;
+
+            const container = document.getElementById('ai-messages-container');
+            container.scrollTop = container.scrollHeight;
+        },
+
+        // =========================
+        // MARKDOWN
+        // =========================
+        initMarkdown() {
             if (window.marked) {
                 window.marked.setOptions({
                     breaks: true,
                     gfm: true
                 });
             }
-
-            this.bindEvents();
-            this.scrollToBottom();
-            this.bindSessionEvents();
-            this.bindNewSessionEvent();
         },
 
-        bindEvents() {
+
+        updateUIState() {
+            const input = document.getElementById('ai-message-input');
+            const sendBtn = document.getElementById('ai-send-btn');
+            const stopBtn = document.getElementById('ai-stop-btn');
+
+            const isStreaming = this.state.isStreaming;
+
+            if (input) input.disabled = isStreaming;
+            if (sendBtn) sendBtn.disabled = isStreaming;
+
+            if (stopBtn) {
+                stopBtn.disabled = !isStreaming;
+            }
+        },
+
+        // =========================
+        // UI BINDINGS
+        // =========================
+        bindUI() {
             const sendBtn = document.getElementById('ai-send-btn');
             const input = document.getElementById('ai-message-input');
+            const stopBtn = document.getElementById('ai-stop-btn');
 
-            sendBtn.addEventListener('click', () => this.sendMessage());
+            const send = () => {
+                const message = input.value.trim();
+                if (!message) return;
+
+                input.value = '';
+                this.sendMessageStream(message);
+            };
+
+            sendBtn.addEventListener('click', () => {
+                if (this.state.isStreaming) return;
+                send();
+            });
+
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    this.sendMessage();
+                    if (this.state.isStreaming) return;
+                    send();
                 }
             });
+
+            if (stopBtn) {
+                stopBtn.addEventListener('click', () => {
+                    if (this.state.controller) {
+                        this.state.controller.abort();
+                        this.state.isStreaming = false;
+                        this.updateUIState();
+                    }
+                });
+            }
         },
 
-        async sendMessage() {
-            if (this.isLoading) {
-                return;
-            }
-            const input = document.getElementById('ai-message-input');
-            const message = input.value.trim();
-            if (!message) {
-                return;
-            }
+        // =========================
+        // STREAM MESSAGE
+        // =========================
+        async sendMessageStream(message) {
 
-            input.value = '';
-            this.setLoading(true);
+            if (this.state.isStreaming) return;
+
+            this.state.isStreaming = true;
+            this.state.controller = new AbortController();
+            this.updateUIState();
+
             this.appendMessage('user', message);
 
+            const bubble = this.createAssistantBubble();
+            let fullText = '';
+
+            await this.ensureSession();
+
             try {
-                const result = await Ajax.call([{
-                    methodname: 'local_ai_system_send_message',
-                    args: {
-                        session_id: this.sessionId,
-                        message: message,
+                const response = await fetch(
+                    M.cfg.wwwroot + '/local/ai_system/ajax/stream.php',
+                    {
+                        method: 'POST',
+                        signal: this.state.controller.signal,
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({
+                            session_id: this.state.sessionId,
+                            message: message
+                        })
                     }
-                }])[0];
+                );
 
-                console.log("REQUEST SENT:", message);
-                console.log("RAW RESULT:", result);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
 
-                const response = result.message; 
-                const newSessionId = result.session_id; 
+                let buffer = '';
 
-                if (newSessionId) {
-                    this.sessionId = newSessionId;
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+
+                    buffer += chunk;
+
+                    const lines = buffer.split('\n');
+
+                    buffer = lines.pop();
+                    
+                    for (let line of lines) {
+                        line = line.trim();
+
+                        if (!line.startsWith('data:')) continue;
+
+                        const text = line.replace('data:', '').trim();
+
+                        if (text === '[DONE]') continue;
+
+                        fullText += text;
+
+                        bubble.textContent = fullText;
+                        this.scrollToBottom();
+                    }
                 }
-
-                console.log("RESPONSE:", result.message);
-                console.log("SESSION:", result.session_id);
-                                
-                this.appendMessage('assistant', response);
-            } catch (err) {
-                Notification.exception(err);
+            } catch (e) {
+                console.error(e);
+                this.state.isStreaming = false;
+                this.state.controller = null;
+                this.updateUIState();
             } finally {
-                this.setLoading(false);
+                this.state.isStreaming = false;
+                this.state.controller = null;
+                this.updateUIState();
+                bubble.innerHTML = window.marked.parse(fullText || '');
+                this.scrollToBottom();
             }
         },
 
+        // =========================
+        // MESSAGES UI
+        // =========================
         appendMessage(role, content) {
+
             const container = document.getElementById('ai-messages-container');
 
-            const div = document.createElement('div');
-            div.className = `ai-message ai-message--${role}`;
+            const wrap = document.createElement('div');
+            wrap.className = `ai-message ai-message--${role}`;
 
             const bubble = document.createElement('div');
             bubble.className = 'ai-message-bubble';
@@ -93,99 +234,53 @@ define([
             const text = document.createElement('div');
             text.className = 'ai-message-content';
 
-            const clean = (content || '').trim();
-
-            text.innerHTML = window.marked.parse(clean);
+            text.innerHTML = window.marked.parse(content || '');
 
             bubble.appendChild(text);
-            div.appendChild(bubble);
-            container.appendChild(div);
+            wrap.appendChild(bubble);
+            container.appendChild(wrap);
 
             this.scrollToBottom();
         },
 
-        renderMarkdown(text) {
-            // Use marked.js or a simple custom renderer
-            // Escape HTML first, then render markdown syntax
-            // return marked.parse(text, {sanitize: true});
+        createAssistantBubble() {
 
-            return marked.parse(text);
-        },
-
-        setLoading(state) {
-            this.isLoading = state;
-            document.getElementById('ai-typing-indicator').hidden = !state;
-            document.getElementById('ai-send-btn').disabled = state;
-        },
-
-        scrollToBottom() {
             const container = document.getElementById('ai-messages-container');
-            container.scrollTop = container.scrollHeight;
+
+            const wrap = document.createElement('div');
+            wrap.className = 'ai-message ai-message--assistant';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'ai-message-bubble';
+
+            const text = document.createElement('div');
+            text.className = 'ai-message-content';
+
+            bubble.appendChild(text);
+            wrap.appendChild(bubble);
+            container.appendChild(wrap);
+
+            return text;
         },
 
-        bindRenamePopup() {
-            const popup = document.getElementById('ai-rename-popup');
-            const input = document.getElementById('ai-rename-input');
-            let currentSessionId = null;
+        // =========================
+        // SESSIONS
+        // =========================
+        bindSessions() {
 
-            document.querySelectorAll('.ai-session-menu').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-
-                    currentSessionId = btn.dataset.sessionId;
-
-                    const titleEl = btn.parentElement.querySelector('.ai-session-title');
-                    input.value = titleEl.textContent.trim();
-
-                    popup.classList.remove('hidden');
-                });
-            });
-
-            document.getElementById('ai-rename-cancel').addEventListener('click', () => {
-                popup.classList.add('hidden');
-            });
-
-            document.getElementById('ai-rename-save').addEventListener('click', async () => {
-
-                const newTitle = input.value.trim();
-
-                if (!newTitle) return;
-
-                await Ajax.call([{
-                    methodname: 'local_ai_system_rename_session',
-                    args: {
-                        session_id: currentSessionId,
-                        title: newTitle
-                    }
-                }]);
-
-                location.reload();
-            });
-
-            popup.addEventListener('click', (e) => {
-                if (e.target === popup) {
-                    popup.classList.add('hidden');
-                }
-            });
-        },
-
-        bindSessionEvents() {
             document.querySelectorAll('.ai-session-item').forEach(el => {
+
                 el.addEventListener('click', async () => {
 
                     const sessionId = el.dataset.sessionId;
 
                     const result = await Ajax.call([{
-                        methodname: 'local_ai_system_get_history',
+                        methodname: 'local_ai_system_get_messages',
                         args: { session_id: sessionId }
                     }])[0];
 
-
-                    console.log("result", result);
-                    
-
-                    // const data = JSON.parse(result.messages);
-                    const data = result;
+                    this.state.sessionId = sessionId;
+                    this.state.activeMessages = result.messages;
 
                     const container = document.getElementById('ai-messages-container');
                     container.innerHTML = '';
@@ -194,41 +289,32 @@ define([
                         this.appendMessage(msg.role, msg.content_raw);
                     });
 
-                    this.sessionId = sessionId;
-
                     document.querySelectorAll('.ai-session-item')
                         .forEach(e => e.classList.remove('active'));
 
                     el.classList.add('active');
                 });
             });
-
-            this.bindRenamePopup();
         },
 
-        bindNewSessionEvent() {
+        // =========================
+        // NEW SESSION
+        // =========================
+        bindNewSession() {
+
             const btn = document.querySelector('.ai-chatbot-new-session');
 
-            if (!btn) {
-                return;
-            }
+            if (!btn) return;
 
             btn.addEventListener('click', async () => {
+                await this.createNewSession();
 
-                const result = await Ajax.call([{
-                    methodname: 'local_ai_system_create_session',
-                    args: {}
-                }])[0];
-
-                this.sessionId = result.session_id;
-
-                const container = document.getElementById('ai-messages-container');
-                container.innerHTML = '';
-
-                location.reload();
+                document.getElementById('ai-messages-container').innerHTML = '';
             });
         },
     };
 
-    return {init: (sessionId) => ChatBot.init(sessionId)};
+    return {
+        init: (sessionId) => ChatBot.init(sessionId)
+    };
 });

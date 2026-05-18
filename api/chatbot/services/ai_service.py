@@ -33,13 +33,20 @@ class AIService:
 
 
     def _format(self, messages):
-        formatted = [
-            {
-                "role": m.role,
-                "content": m.content
-            }
-            for m in messages
-        ]
+        # formatted = [
+        #     {
+        #         "role": m.role,
+        #         "content": m.content
+        #     }
+        #     for m in messages
+        # ]
+        formatted = []
+
+        for m in messages:
+            formatted.append({
+                "role": m["role"] if isinstance(m, dict) else m.role,
+                "content": m["content"] if isinstance(m, dict) else m.content,
+            })
         
         while formatted and formatted[-1]["role"] == "assistant":
             formatted.pop()

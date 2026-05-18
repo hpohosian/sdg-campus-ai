@@ -7,12 +7,13 @@ $capabilities = [
     // =========================
     // Use chatbot
     // =========================
-    'local/ai_system:use_chatbot' => [
+    'local_ai_system:use_chatbot' => [
 
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
 
         'archetypes' => [
+            'user'    => CAP_ALLOW,
             'student' => CAP_ALLOW,
             'teacher' => CAP_ALLOW,
             'manager' => CAP_ALLOW,
@@ -23,7 +24,7 @@ $capabilities = [
     // =========================
     // View history
     // =========================
-    'local/ai_system:view_history' => [
+    'local_ai_system:view_history' => [
 
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
@@ -34,5 +35,4 @@ $capabilities = [
             'editingteacher' => CAP_ALLOW
         ],
     ],
-
 ];

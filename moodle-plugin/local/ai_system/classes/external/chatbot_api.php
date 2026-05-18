@@ -13,7 +13,7 @@ defined('MOODLE_INTERNAL') || die();
 class chatbot_api extends external_api {
 
     // =========================
-    // SEND MESSAGE - PARAMETERS
+    // SEND MESSAGE
     // =========================
     public static function send_message_parameters() {
         return new external_function_parameters([
@@ -23,12 +23,7 @@ class chatbot_api extends external_api {
         ]);
     }
 
-    // =========================
-    // SEND MESSAGE - MAIN LOGIC
-    // =========================
     public static function send_message($session_id, $message, $course_id = null) {
-
-        global $USER;
 
         // Input Validation
         $params = self::validate_parameters(
@@ -51,7 +46,6 @@ class chatbot_api extends external_api {
         $service = new \local_ai_system\chatbot\service();
 
         $result = $service->send_message(
-            $USER->id,
             $params['session_id'],
             $params['message']
         );
@@ -62,9 +56,6 @@ class chatbot_api extends external_api {
         ];
     }
 
-    // =========================
-    // SEND MESSAGE - RETURNS
-    // =========================
     public static function send_message_returns() {
         return new external_single_structure([
             'message'    => new external_value(PARAM_RAW, 'Bot response text'),
@@ -72,57 +63,9 @@ class chatbot_api extends external_api {
         ]);
     }
 
-    // =========================
-    // GET HISTORY - PARAMETERS
-    // =========================
-    public static function get_history_parameters() {
-        return new external_function_parameters([
-            'session_id' => new external_value(PARAM_TEXT, 'Session ID')
-        ]);
-    }
 
     // =========================
-    // GET HISTORY - MAIN LOGIC
-    // =========================
-    public static function get_history($session_id) {
-
-        global $USER;
-
-        $params = self::validate_parameters(
-            self::get_history_parameters(),
-            [
-                'session_id' => $session_id
-            ]
-        );
-
-        $context = \context_system::instance();
-        self::validate_context($context);
-        require_capability('local/ai_system:use_chatbot', $context);
-
-        $service = new \local_ai_system\chatbot\service();
-
-        return $service->get_history($USER->id, $params['session_id']);
-    }
-
-    // =========================
-    // GET HISTORY - RETURNS
-    // =========================
-    public static function get_history_returns() {
-        return new external_single_structure([
-            'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
-            'messages' => new external_multiple_structure(
-                new external_single_structure([
-                    'role' => new external_value(PARAM_TEXT),
-                    'content_raw' => new external_value(PARAM_RAW),
-                    'content_html' => new external_value(PARAM_RAW),
-                    'created_at' => new external_value(PARAM_TEXT)
-                ])
-            )
-        ]);
-    }
-
-    // =========================
-    // CREATE SESSION - PARAMETERS
+    // CREATE SESSION
     // =========================
     public static function create_session_parameters() {
         return new external_function_parameters([]);
@@ -138,7 +81,7 @@ class chatbot_api extends external_api {
         );
 
         self::validate_context(\context_system::instance());
-        require_capability('local/ai_system:use_chatbot', \context_system::instance());
+        require_capability('local_ai_system:use_chatbot', \context_system::instance());
 
         $service = new \local_ai_system\chatbot\service();
 
@@ -152,36 +95,405 @@ class chatbot_api extends external_api {
         ]);
     }
 
-    public static function rename_session_parameters() {
-        return new \external_function_parameters([
-            'session_id' => new \external_value(PARAM_TEXT, 'Session ID'),
-            'title' => new \external_value(PARAM_TEXT, 'New title'),
+
+    // =========================
+    // GET SESSIONS
+    // =========================
+    public static function get_sessions_parameters() {
+        return new external_function_parameters([]);
+    }
+
+    public static function get_sessions() {
+
+        $context = \context_system::instance();
+
+        self::validate_context($context);
+
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->get_sessions();
+    }
+
+    public static function get_sessions_returns() {
+
+        return new external_multiple_structure(
+            new external_single_structure([
+                'session_id' => new external_value(
+                    PARAM_TEXT
+                ),
+
+                'title' => new external_value(
+                    PARAM_TEXT
+                ),
+
+                'created_at' => new external_value(
+                    PARAM_INT,
+                    'Created timestamp',
+                    VALUE_OPTIONAL
+                ),
+
+                'updated_at' => new external_value(
+                    PARAM_INT,
+                    'Updated timestamp',
+                    VALUE_OPTIONAL
+                ),
+
+                'archived' => new external_value(
+                    PARAM_BOOL,
+                    'Archive state',
+                    VALUE_OPTIONAL
+                )
+            ])
+        );
+    }
+
+
+    // =========================
+    // UPDATE SESSION
+    // =========================
+
+    public static function update_session_parameters() {
+
+        return new external_function_parameters([
+            'session_id' => new external_value(
+                PARAM_TEXT,
+                'Session ID'
+            ),
+
+            'title' => new external_value(
+                PARAM_TEXT,
+                'New title'
+            )
         ]);
     }
 
-    public static function rename_session($session_id, $title) {
-        global $DB, $USER;
+    public static function update_session(
+        $session_id,
+        $title
+    ) {
 
-        $record = $DB->get_record('ai_chat_sessions', [
-            'session_id' => $session_id,
-            'userid' => $USER->id
-        ]);
+        $params = self::validate_parameters(
+            self::update_session_parameters(),
+            [
+                'session_id' => $session_id,
+                'title' => $title
+            ]
+        );
 
-        if (!$record) {
-            throw new \moodle_exception('invalidsession');
-        }
+        $context = \context_system::instance();
 
-        $record->title = $title;
-        $record->timemodified = time();
+        self::validate_context($context);
 
-        $DB->update_record('ai_chat_sessions', $record);
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
 
-        return ['success' => true];
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->update_session(
+            $params['session_id'],
+            [
+                'title' => $params['title']
+            ]
+        );
     }
 
-    public static function rename_session_returns() {
-        return new \external_single_structure([
-            'success' => new \external_value(PARAM_BOOL, 'Status')
+    public static function update_session_returns() {
+
+        return new external_single_structure([
+            'success' => new external_value(
+                PARAM_BOOL
+            )
         ]);
     }
+
+
+    // =========================
+    // DELETE SESSION
+    // =========================
+
+    public static function delete_session_parameters() {
+
+        return new external_function_parameters([
+            'session_id' => new external_value(
+                PARAM_TEXT
+            )
+        ]);
+    }
+
+    public static function delete_session(
+        $session_id
+    ) {
+
+        $params = self::validate_parameters(
+            self::delete_session_parameters(),
+            [
+                'session_id' => $session_id
+            ]
+        );
+
+        $context = \context_system::instance();
+
+        self::validate_context($context);
+
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->delete_session(
+            $params['session_id']
+        );
+    }
+
+    public static function delete_session_returns() {
+
+        return new external_single_structure([
+            'success' => new external_value(
+                PARAM_BOOL
+            )
+        ]);
+    }
+
+
+    // =========================
+    // ARCHIVE SESSION
+    // =========================
+
+    public static function archive_session_parameters() {
+
+        return new external_function_parameters([
+            'session_id' => new external_value(
+                PARAM_TEXT
+            )
+        ]);
+    }
+
+    public static function archive_session(
+        $session_id
+    ) {
+
+        $params = self::validate_parameters(
+            self::archive_session_parameters(),
+            [
+                'session_id' => $session_id
+            ]
+        );
+
+        $context = \context_system::instance();
+
+        self::validate_context($context);
+
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->archive_session(
+            $params['session_id']
+        );
+    }
+
+    public static function archive_session_returns() {
+
+        return new external_single_structure([
+            'success' => new external_value(
+                PARAM_BOOL
+            )
+        ]);
+    }
+
+
+    // =========================
+    // DEARCHIVE SESSION
+    // =========================
+
+    public static function dearchive_session_parameters() {
+
+        return new external_function_parameters([
+            'session_id' => new external_value(
+                PARAM_TEXT
+            )
+        ]);
+    }
+
+    public static function dearchive_session(
+        $session_id
+    ) {
+
+        $params = self::validate_parameters(
+            self::dearchive_session_parameters(),
+            [
+                'session_id' => $session_id
+            ]
+        );
+
+        $context = \context_system::instance();
+
+        self::validate_context($context);
+
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->dearchive_session(
+            $params['session_id']
+        );
+    }
+
+    public static function dearchive_session_returns() {
+
+        return new external_single_structure([
+            'success' => new external_value(
+                PARAM_BOOL
+            )
+        ]);
+    }
+
+
+    // =========================
+    // GET MESSAGES - PARAMETERS
+    // =========================
+    public static function get_messages_parameters() {
+
+        return new external_function_parameters([
+            'session_id' => new external_value(
+                PARAM_TEXT,
+                'Session ID'
+            )
+        ]);
+    }
+
+    // =========================
+    // GET MESSAGES - MAIN LOGIC
+    // =========================
+    public static function get_messages(
+        $session_id
+    ) {
+
+        $params = self::validate_parameters(
+            self::get_messages_parameters(),
+            [
+                'session_id' => $session_id
+            ]
+        );
+
+        $context = \context_system::instance();
+
+        self::validate_context($context);
+
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->get_messages(
+            $params['session_id']
+        );
+    }
+
+    // =========================
+    // GET MESSAGES - RETURNS
+    // =========================
+    public static function get_messages_returns() {
+
+        return new external_multiple_structure(
+            new external_single_structure([
+
+                'id' => new external_value(
+                    PARAM_INT,
+                    'Message ID',
+                    VALUE_OPTIONAL
+                ),
+
+                'role' => new external_value(
+                    PARAM_TEXT
+                ),
+
+                'content' => new external_value(
+                    PARAM_RAW
+                ),
+
+                'created_at' => new external_value(
+                    PARAM_TEXT,
+                    'Timestamp',
+                    VALUE_OPTIONAL
+                )
+            ])
+        );
+    }
+
+
+    // =========================
+    // STREAM MESSAGE
+    // =========================
+
+    public static function stream_message_parameters() {
+
+        return new external_function_parameters([
+            'session_id' => new external_value(
+                PARAM_TEXT,
+                'Session ID'
+            ),
+
+            'message' => new external_value(
+                PARAM_RAW,
+                'User message'
+            )
+        ]);
+    }
+
+    public static function stream_message(
+        $session_id,
+        $message
+    ) {
+
+        $params = self::validate_parameters(
+            self::stream_message_parameters(),
+            [
+                'session_id' => $session_id,
+                'message' => $message
+            ]
+        );
+
+        $context = \context_system::instance();
+
+        self::validate_context($context);
+
+        require_capability(
+            'local/ai_system:use_chatbot',
+            $context
+        );
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->stream_message(
+            $params['session_id'],
+            $params['message']
+        );
+    }
+
+    public static function stream_message_returns() {
+
+        return new external_value(
+            PARAM_RAW,
+            'Streaming response'
+        );
+    }
+
 }

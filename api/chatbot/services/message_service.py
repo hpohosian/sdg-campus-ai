@@ -86,9 +86,14 @@ class MessageService:
     # STREAM RESPONSE
     # =========================
     async def chat_stream(self, session_id: str, content: str):
-        # user_message = await self.create_user_message(session_id, content)
+        await self.create_user_message(session_id, content)
         
-        history = await self.get_session_messages(session_id)
+        raw_history = await self.get_session_messages(session_id)
+
+        history = [
+            {"role": msg.role, "content": msg.content}
+            for msg in raw_history
+        ]
         
         full_response = ""
 

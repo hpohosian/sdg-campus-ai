@@ -12,13 +12,13 @@ class api_client {
     private string $secret;
 
     public function __construct() {
-        // $this->base_url = get_config('local_ai_system', 'api_url');
         $this->base_url = 'http://127.0.0.1:8001';
         $this->secret   = get_config('local_ai_system', 'api_secret');
     }
 
-    private function log($message) {
+    private function log(string $message): void {
         global $CFG;
+
         file_put_contents(
             $CFG->dirroot . '/debug.log',
             "[" . date('H:i:s') . "] " . $message . "\n",
@@ -26,49 +26,62 @@ class api_client {
         );
     }
 
-    public function post(string $path, array $body): array {
+    private function extractUserId(array $body): int {
+        return (int)($body['user_id'] ?? $body['userid'] ?? 0);
+    }
 
-        $this->log("API CLIENT CALLED");
+    private function request(string $method, string $path, array $body = []): array {
 
-        if (empty($this->base_url)) {
-            $this->log("ERROR: API URL IS EMPTY");
-        }
+        $url = $this->base_url . $path;
 
-        $this->log("BASE URL: " . $this->base_url);
-        $this->log("FULL URL: " . $this->base_url . $path);
-        $this->log("REQUEST BODY: " . json_encode($body));
+        $this->log("METHOD: $method");
+        $this->log("URL: $url");
+        $this->log("BODY: " . json_encode($body));
 
         $timestamp = time();
+        $payload   = !empty($body)
+            ? json_encode($body, JSON_UNESCAPED_UNICODE)
+            : '';
 
         $signature = hash_hmac(
             'sha256',
-            $timestamp . json_encode($body),
+            $timestamp . $payload,
             $this->secret
         );
 
-        $this->log("TIMESTAMP: " . $timestamp);
-        $this->log("SIGNATURE GENERATED");
-
         $curl = new \curl();
-
         $curl->ignore_security_hosts = true;
 
         $curl->setHeader([
             'Content-Type: application/json',
             'X-Timestamp: ' . $timestamp,
             'X-Signature: ' . $signature,
+            'X-User-Id: ' . $this->extractUserId($body),
         ]);
 
-       $response = $curl->post(
-            $this->base_url . $path,
-            json_encode($body),
-            [
-                'timeout' => 30,
-                'CURLOPT_CONNECTTIMEOUT' => 10
-            ]
-        );
+        switch (strtoupper($method)) {
 
-        $this->log("CURL RESPONSE RAW: " . print_r($response, true));
+            case 'GET':
+                $response = $curl->get($url);
+                break;
+
+            case 'POST':
+                $response = $curl->post($url, $payload);
+                break;
+
+            case 'PUT':
+                $response = $curl->put($url, $payload);
+                break;
+
+            case 'DELETE':
+                $response = $curl->delete($url, $payload);
+                break;
+
+            default:
+                throw new \moodle_exception('Unsupported HTTP method');
+        }
+
+        $this->log("RAW RESPONSE: " . print_r($response, true));
 
         if ($curl->get_errno()) {
             $this->log("CURL ERROR: " . $curl->get_errno());
@@ -77,8 +90,24 @@ class api_client {
 
         $decoded = json_decode($response, true);
 
-        $this->log("DECODED RESPONSE: " . print_r($decoded, true));
+        $this->log("DECODED: " . print_r($decoded, true));
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    public function get(string $path): array {
+        return $this->request('GET', $path);
+    }
+
+    public function post(string $path, array $body = []): array {
+        return $this->request('POST', $path, $body);
+    }
+
+    public function put(string $path, array $body = []): array {
+        return $this->request('PUT', $path, $body);
+    }
+
+    public function delete(string $path, array $body = []): array {
+        return $this->request('DELETE', $path, $body);
     }
 }
