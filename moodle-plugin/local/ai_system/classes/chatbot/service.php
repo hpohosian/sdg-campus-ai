@@ -21,12 +21,13 @@ class service {
     /**
      * Create session
      */
-    public function create_session(int $userid): array {
+    public function create_session(int $userid, string $title = 'New Chat'): array {
 
         return $this->client->post(
             '/sessions',
             [
-                'user_id' => $userid
+                'user_id' => $userid,
+                'title'   => $title
             ]
         );
     }

@@ -68,7 +68,9 @@ class chatbot_api extends external_api {
     // CREATE SESSION
     // =========================
     public static function create_session_parameters() {
-        return new external_function_parameters([]);
+        return new external_function_parameters([
+            'title' => new external_value(PARAM_TEXT, 'Session title', VALUE_DEFAULT, 'New Chat')
+        ]);
     }
 
     public static function create_session() {
@@ -77,7 +79,7 @@ class chatbot_api extends external_api {
 
         $params = self::validate_parameters(
             self::create_session_parameters(),
-            []
+            ['title' => 'New Chat']
         );
 
         self::validate_context(\context_system::instance());
@@ -85,7 +87,7 @@ class chatbot_api extends external_api {
 
         $service = new \local_ai_system\chatbot\service();
 
-        return $service->create_session($USER->id);
+        return $service->create_session($USER->id, $params['title']);
     }
 
     public static function create_session_returns() {

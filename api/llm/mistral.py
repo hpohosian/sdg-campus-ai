@@ -53,15 +53,15 @@ class MistralLLM(BaseLLM):
         **kwargs: Any
     ) -> AsyncIterator[str]:
 
-        stream = self.client.chat.stream(
+        stream = await self.client.chat.stream_async(
             model=self.model,
             messages=messages,
             **kwargs
         )
 
-        for chunk in stream:
+        async for chunk in stream:
             if chunk.data.choices:
                 delta = chunk.data.choices[0].delta.content
                 if delta:
                     yield delta
-        
+            
