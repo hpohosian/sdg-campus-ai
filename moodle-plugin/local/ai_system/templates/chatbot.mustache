@@ -1,96 +1,87 @@
 {{! templates/chatbot.mustache }}
 <div class="ai-chatbot-layout">
 
-    <!-- SIDEBAR -->
-    <div class="ai-chatbot-sidebar">
-        {{#sessions}}
-            <div class="ai-session-item" data-session-id="{{session_id}}">
-
-                <span class="ai-session-title">
-                    {{title}}
-                </span>
-
-                <button class="ai-session-menu" data-session-id="{{session_id}}">
-                    <i class="fa fa-pencil ai-session-edit"></i>
-                </button>
-
+  <div class="ai-chatbot-sidebar">
+    <div class="ai-sb-top">
+      <button class="ai-chatbot-new-session ai-sb-new">
+        <i class="fa fa-edit" aria-hidden="true"></i>
+        {{#str}} new_session, local_ai_system {{/str}}
+      </button>
+      <div class="ai-sb-archive">
+        <i class="fa fa-archive" aria-hidden="true"></i>
+        {{#str}} archive, local_ai_system {{/str}}
+      </div>
+    </div>
+    <div class="ai-sb-divider"></div>
+    <div class="ai-sb-chats">
+      {{#sessions}}
+        <div class="ai-session-item" data-session-id="{{session_id}}">
+          <span class="ai-session-title">{{title}}</span>
+          <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Session menu">
+            <i class="fa fa-ellipsis-v"></i>
+          </button>
+          <div class="ai-session-dropdown hidden" data-session-id="{{session_id}}">
+            <div class="ai-dropdown-item ai-action-archive" data-session-id="{{session_id}}">
+              <i class="fa fa-archive"></i>
+              {{#str}} archive_chat, local_ai_system {{/str}}
             </div>
-        {{/sessions}}
-
-        <div id="ai-rename-popup" class="ai-popup hidden">
-            <div class="ai-popup-content">
-
-                <h5>{{#str}} rename_chat_header, local_ai_system {{/str}}</h5>
-
-                <input type="text" id="ai-rename-input" class="form-control">
-
-                <div style="margin-top:10px; display:flex; gap:8px;">
-                    <button id="ai-rename-save" class="btn btn-primary btn-sm">{{#str}} save_chat_name, local_ai_system {{/str}}</button>
-                    <button id="ai-rename-cancel" class="btn btn-secondary btn-sm">{{#str}} cancel_chat_name, local_ai_system {{/str}}</button>
-                </div>
-
+            <div class="ai-dropdown-item ai-action-rename" data-session-id="{{session_id}}">
+              <i class="fa fa-pencil"></i>
+              {{#str}} rename_chat, local_ai_system {{/str}}
             </div>
+            <div class="ai-dropdown-item ai-dropdown-danger ai-action-delete" data-session-id="{{session_id}}">
+              <i class="fa fa-trash"></i>
+              {{#str}} delete_chat, local_ai_system {{/str}}
+            </div>
+          </div>
         </div>
+      {{/sessions}}
+    </div>
+  </div>
+
+  <div id="ai-chatbot" class="ai-chatbot-container" data-session-id="{{session_id}}">
+    <div class="ai-chatbot-header">
+      <span class="ai-chat-title" id="ai-chat-title">
+        {{#str}} chatbot_title, local_ai_system {{/str}}
+      </span>
     </div>
 
-    <!-- MAIN CHAT -->
-    <div id="ai-chatbot" class="ai-chatbot-container" data-session-id="{{session_id}}">
-
-        <!-- HEADER -->
-        <div class="ai-chatbot-header">
-            <h3>{{#str}} chatbot_title, local_ai_system {{/str}}</h3>
-
-            <button class="ai-chatbot-new-session btn btn-sm btn-secondary">
-                {{#str}} new_session, local_ai_system {{/str}}
-            </button>
+    <div class="ai-chatbot-messages" id="ai-messages-container">
+      {{#messages}}
+        <div class="ai-message ai-message--{{role}}">
+          <div class="ai-message-bubble">
+            <div class="ai-message-content">{{{content_html}}}</div>
+            <div class="ai-message-time">{{created_at}}</div>
+          </div>
         </div>
-
-        <!-- MESSAGES -->
-        <div class="ai-chatbot-messages" id="ai-messages-container">
-
-            {{#messages}}
-                <div class="ai-message ai-message--{{role}}">
-
-                    <div class="ai-message-bubble">
-
-                        <div class="ai-message-content">
-                            {{{content_html}}}
-                        </div>
-
-                        <div class="ai-message-time">
-                            {{created_at}}
-                        </div>
-
-                    </div>
-
-                </div>
-            {{/messages}}
-
-        </div>
-
-        <!-- INPUT -->
-        <div class="ai-chatbot-input-area">
-
-            <div id="ai-typing-indicator" class="ai-typing-indicator" hidden>
-                <span></span><span></span><span></span>
-            </div>
-
-            <div class="ai-input-row">
-                <textarea id="ai-message-input"
-                          class="form-control"
-                          rows="2"
-                          placeholder="{{#str}} type_message, local_ai_system {{/str}}"
-                          maxlength="4000"></textarea>
-
-                <button id="ai-send-btn" class="btn btn-primary">
-                    {{#str}} send, local_ai_system {{/str}}
-                </button>
-                <button id="ai-stop-btn" class="btn btn-secondary">
-                    Stop
-                </button>
-            </div>
-
-        </div>
-
+      {{/messages}}
     </div>
+
+    <div class="ai-chatbot-input-area">
+      <div class="ai-input-row">
+        <textarea id="ai-message-input"
+                  class="ai-textarea"
+                  rows="1"
+                  placeholder="{{#str}} type_message, local_ai_system {{/str}}"
+                  maxlength="4000"></textarea>
+        <button id="ai-send-btn" class="ai-send-btn" aria-label="Send">
+          <i class="fa fa-arrow-up"></i>
+        </button>
+        <button id="ai-stop-btn" class="ai-stop-btn" aria-label="Stop">
+          <i class="fa fa-stop"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ai-rename-popup" class="ai-popup hidden">
+    <div class="ai-popup-content">
+      <h5>{{#str}} rename_chat_header, local_ai_system {{/str}}</h5>
+      <input type="text" id="ai-rename-input" class="form-control">
+      <div class="ai-popup-actions">
+        <button id="ai-rename-save" class="btn btn-primary btn-sm">{{#str}} save_chat_name, local_ai_system {{/str}}</button>
+        <button id="ai-rename-cancel" class="btn btn-secondary btn-sm">{{#str}} cancel_chat_name, local_ai_system {{/str}}</button>
+      </div>
+    </div>
+  </div>
 </div>

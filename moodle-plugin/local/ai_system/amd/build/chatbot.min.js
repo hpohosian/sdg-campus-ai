@@ -22,7 +22,7 @@ define([
             this.bindUI();
             this.bindSessions();
             this.bindNewSession();
-
+            this.bindDropdowns();
             this.scrollToBottom();
 
             const container = document.getElementById('ai-messages-container');
@@ -33,6 +33,94 @@ define([
 
                 this.shouldAutoScroll = nearBottom;
             });
+        },
+
+        bindDropdowns() {
+            document.querySelectorAll('.ai-session-menu-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const sessionId = btn.dataset.sessionId;
+
+                    // закрыть все остальные
+                    document.querySelectorAll('.ai-session-dropdown').forEach(d => {
+                        if (d.dataset.sessionId !== sessionId) d.classList.add('hidden');
+                    });
+
+                    // toggle текущий
+                    const dropdown = document.querySelector(
+                        `.ai-session-dropdown[data-session-id="${sessionId}"]`
+                    );
+                    dropdown.classList.toggle('hidden');
+                });
+            });
+
+            // клик вне — закрыть все
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.ai-session-dropdown')
+                    .forEach(d => d.classList.add('hidden'));
+            });
+
+            // archive / rename / delete
+            document.querySelectorAll('.ai-action-archive').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const sessionId = el.dataset.sessionId;
+                    // TODO: вызов Ajax archive
+                    document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+                });
+            });
+
+            document.querySelectorAll('.ai-action-rename').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const sessionId = el.dataset.sessionId;
+                    document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+                    // открыть попап
+                    const popup = document.getElementById('ai-rename-popup');
+                    popup.classList.remove('hidden');
+                    popup.dataset.sessionId = sessionId;
+                    document.getElementById('ai-rename-input').value = '';
+                    document.getElementById('ai-rename-input').focus();
+                });
+            });
+
+            document.querySelectorAll('.ai-action-delete').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const sessionId = el.dataset.sessionId;
+                    document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+                    // TODO: вызов Ajax delete
+                });
+            });
+
+            // rename popup save/cancel
+            document.getElementById('ai-rename-save')?.addEventListener('click', async () => {
+                const popup = document.getElementById('ai-rename-popup');
+                const sessionId = popup.dataset.sessionId;
+                const title = document.getElementById('ai-rename-input').value.trim();
+                if (!title) return;
+
+                await Ajax.call([{
+                    methodname: 'local_ai_system_update_session',
+                    args: { session_id: sessionId, title }
+                }])[0];
+
+                // обновить заголовок в сайдбаре
+                const el = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"] .ai-session-title`);
+                if (el) el.textContent = title;
+
+                popup.classList.add('hidden');
+            });
+
+            document.getElementById('ai-rename-cancel')?.addEventListener('click', () => {
+                document.getElementById('ai-rename-popup').classList.add('hidden');
+            });
+        },
+
+        formatTime(date) {
+            const h = date.getHours();
+            const m = date.getMinutes().toString().padStart(2, '0');
+            return `${h}:${m}`;
         },
 
         addSessionToSidebar(sessionId, title) {
@@ -50,6 +138,9 @@ define([
             list.prepend(el);
 
             el.addEventListener('click', async () => {
+                const chatTitle = document.getElementById('ai-chat-title');
+                if (chatTitle) chatTitle.textContent = title;
+                
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_get_messages',
                     args: { session_id: sessionId }
@@ -97,8 +188,6 @@ define([
 
         // for new chat button
         async createNewSession() {
-            this.state.sessionId = result.session_id;
-
             const sessionNumber = document.querySelectorAll('.ai-session-item').length + 1;
 
             const result = await Ajax.call([{
@@ -107,6 +196,8 @@ define([
                     title: `New Chat ${sessionNumber}`
                 }
             }])[0];
+
+            this.state.sessionId = result.session_id;
 
             this.addSessionToSidebar(result.session_id, `New Chat ${sessionNumber}`);
 
@@ -136,16 +227,16 @@ define([
         updateUIState() {
             const input = document.getElementById('ai-message-input');
             const sendBtn = document.getElementById('ai-send-btn');
-            const stopBtn = document.getElementById('ai-stop-btn');
+            // const stopBtn = document.getElementById('ai-stop-btn');
 
             const isStreaming = this.state.isStreaming;
 
             if (input) input.disabled = isStreaming;
             if (sendBtn) sendBtn.disabled = isStreaming;
 
-            if (stopBtn) {
-                stopBtn.disabled = !isStreaming;
-            }
+            // if (stopBtn) {
+            //     stopBtn.disabled = !isStreaming;
+            // }
         },
 
         // =========================
@@ -183,6 +274,8 @@ define([
                         this.state.controller.abort();
                         this.state.isStreaming = false;
                         this.updateUIState();
+                        document.getElementById('ai-send-btn').style.display = 'flex';
+                        document.getElementById('ai-stop-btn').style.display = 'none';
                     }
                 });
             }
@@ -198,6 +291,9 @@ define([
             this.state.isStreaming = true;
             this.state.controller = new AbortController();
             this.updateUIState();
+
+            document.getElementById('ai-send-btn').style.display = 'none';
+            document.getElementById('ai-stop-btn').style.display = 'flex';
 
             this.appendMessage('user', message);
 
@@ -264,6 +360,16 @@ define([
                 this.state.controller = null;
                 this.updateUIState();
                 bubble.innerHTML = window.marked.parse(fullText || '');
+                
+                const timeEl = document.getElementById('ai-streaming-time');
+                if (timeEl) {
+                    timeEl.textContent = this.formatTime(new Date());
+                    timeEl.removeAttribute('id');
+                }
+                
+                document.getElementById('ai-send-btn').style.display = 'flex';
+                document.getElementById('ai-stop-btn').style.display = 'none';
+                
                 this.scrollToBottom();
             }
         },
@@ -278,17 +384,25 @@ define([
             const wrap = document.createElement('div');
             wrap.className = `ai-message ai-message--${role}`;
 
+            const bubbleWrap = document.createElement('div');
+            bubbleWrap.className = 'ai-bubble-wrap';
+
             const bubble = document.createElement('div');
             bubble.className = 'ai-message-bubble';
 
             const text = document.createElement('div');
             text.className = 'ai-message-content';
-
             text.innerHTML = window.marked.parse(content || '');
 
+            const time = document.createElement('span');
+            time.className = 'ai-message-time';
+            time.textContent = this.formatTime(new Date());
+
             bubble.appendChild(text);
-            wrap.appendChild(bubble);
-            container.appendChild(wrap);
+            bubbleWrap.appendChild(bubble);
+            bubbleWrap.appendChild(time);
+            wrap.appendChild(bubbleWrap);
+            container.appendChild(wrap)
 
             this.scrollToBottom();
         },
@@ -300,14 +414,23 @@ define([
             const wrap = document.createElement('div');
             wrap.className = 'ai-message ai-message--assistant';
 
+            const bubbleWrap = document.createElement('div');
+            bubbleWrap.className = 'ai-bubble-wrap';
+
             const bubble = document.createElement('div');
             bubble.className = 'ai-message-bubble';
 
             const text = document.createElement('div');
             text.className = 'ai-message-content';
 
+            const time = document.createElement('span');
+            time.className = 'ai-message-time';
+            time.id = 'ai-streaming-time';
+
             bubble.appendChild(text);
-            wrap.appendChild(bubble);
+            bubbleWrap.appendChild(bubble);
+            bubbleWrap.appendChild(time);
+            wrap.appendChild(bubbleWrap);
             container.appendChild(wrap);
 
             return text;
@@ -323,6 +446,10 @@ define([
                 el.addEventListener('click', async () => {
 
                     const sessionId = el.dataset.sessionId;
+                    const title = el.querySelector('.ai-session-title').textContent.trim();
+
+                    const chatTitle = document.getElementById('ai-chat-title');
+                    if (chatTitle) chatTitle.textContent = title;
 
                     const result = await Ajax.call([{
                         methodname: 'local_ai_system_get_messages',
@@ -359,8 +486,10 @@ define([
 
             btn.addEventListener('click', async () => {
                 await this.createNewSession();
-
                 document.getElementById('ai-messages-container').innerHTML = '';
+
+                const chatTitle = document.getElementById('ai-chat-title');
+                if (chatTitle) chatTitle.textContent = 'New Chat';
             });
         },
     };
