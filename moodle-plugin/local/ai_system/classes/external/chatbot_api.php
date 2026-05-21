@@ -176,10 +176,7 @@ class chatbot_api extends external_api {
         ]);
     }
 
-    public static function update_session(
-        $session_id,
-        $title
-    ) {
+    public static function update_session($session_id, $title) {
 
         $params = self::validate_parameters(
             self::update_session_parameters(),
@@ -190,23 +187,22 @@ class chatbot_api extends external_api {
         );
 
         $context = \context_system::instance();
-
         self::validate_context($context);
+        require_capability('local_ai_system:use_chatbot', $context);
 
-        require_capability(
-            'local/ai_system:use_chatbot',
-            $context
-        );
+        global $USER;
 
         $service = new \local_ai_system\chatbot\service();
 
-        return $service->update_session(
+        $service->update_session(
             $params['session_id'],
-            [
-                'title' => $params['title']
-            ]
+            ['title' => $params['title']],
+            $USER->id
         );
+
+        return ['success' => true];
     }
+
 
     public static function update_session_returns() {
 
@@ -247,15 +243,20 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local/ai_system:use_chatbot',
+            'local_ai_system:use_chatbot',
             $context
         );
 
+        global $USER;
+
         $service = new \local_ai_system\chatbot\service();
 
-        return $service->delete_session(
-            $params['session_id']
+        $service->delete_session(
+            $params['session_id'],
+            $USER->id
         );
+
+        return ['success' => true];
     }
 
     public static function delete_session_returns() {
@@ -297,15 +298,20 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local/ai_system:use_chatbot',
+            'local_ai_system:use_chatbot',
             $context
         );
 
+        global $USER;
+
         $service = new \local_ai_system\chatbot\service();
 
-        return $service->archive_session(
-            $params['session_id']
+        $service->archive_session(
+            $params['session_id'],
+            $USER->id
         );
+
+        return ['success' => true];
     }
 
     public static function archive_session_returns() {
@@ -347,15 +353,20 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local/ai_system:use_chatbot',
+            'local_ai_system:use_chatbot',
             $context
         );
 
+        global $USER;
+
         $service = new \local_ai_system\chatbot\service();
 
-        return $service->dearchive_session(
-            $params['session_id']
+        $service->dearchive_session(
+            $params['session_id'],
+            $USER->id
         );
+
+        return ['success' => true];
     }
 
     public static function dearchive_session_returns() {

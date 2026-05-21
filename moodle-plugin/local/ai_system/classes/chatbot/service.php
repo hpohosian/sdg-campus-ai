@@ -61,12 +61,14 @@ class service {
      */
     public function update_session(
         string $session_id,
-        array $data
+        array $data,
+        int $userid
     ): array {
 
         return $this->client->put(
             "/sessions/{$session_id}",
-            $data
+            $data,
+            $userid
         );
     }
 
@@ -74,11 +76,14 @@ class service {
      * Delete session
      */
     public function delete_session(
-        string $session_id
+        string $session_id,
+        int $userid
     ): array {
 
         return $this->client->delete(
-            "/sessions/{$session_id}"
+            "/sessions/{$session_id}",
+            [],
+            $userid
         );
     }
 
@@ -86,12 +91,14 @@ class service {
      * Archive session
      */
     public function archive_session(
-        string $session_id
+        string $session_id,
+        int $userid
     ): array {
 
         return $this->client->put(
             "/sessions/archive/{$session_id}",
-            []
+            [],
+            $userid
         );
     }
 
@@ -99,12 +106,14 @@ class service {
      * Dearchive session
      */
     public function dearchive_session(
-        string $session_id
+        string $session_id,
+        int $userid
     ): array {
 
         return $this->client->put(
             "/sessions/dearchive/{$session_id}",
-            []
+            [],
+            $userid
         );
     }
 

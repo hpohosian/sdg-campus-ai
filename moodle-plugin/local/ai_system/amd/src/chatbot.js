@@ -41,12 +41,10 @@ define([
                     e.stopPropagation();
                     const sessionId = btn.dataset.sessionId;
 
-                    // закрыть все остальные
                     document.querySelectorAll('.ai-session-dropdown').forEach(d => {
                         if (d.dataset.sessionId !== sessionId) d.classList.add('hidden');
                     });
 
-                    // toggle текущий
                     const dropdown = document.querySelector(
                         `.ai-session-dropdown[data-session-id="${sessionId}"]`
                     );
@@ -54,28 +52,44 @@ define([
                 });
             });
 
-            // клик вне — закрыть все
             document.addEventListener('click', () => {
                 document.querySelectorAll('.ai-session-dropdown')
                     .forEach(d => d.classList.add('hidden'));
             });
 
-            // archive / rename / delete
+            // ARCHIVE
             document.querySelectorAll('.ai-action-archive').forEach(el => {
-                el.addEventListener('click', (e) => {
+                el.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const sessionId = el.dataset.sessionId;
-                    // TODO: вызов Ajax archive
                     document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                    await Ajax.call([{
+                        methodname: 'local_ai_system_archive_session',
+                        args: { session_id: sessionId }
+                    }])[0];
+
+                    // убираем из сайдбара
+                    const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
+                    if (item) item.remove();
+
+                    // если это активный чат — сбрасываем
+                    if (this.state.sessionId === sessionId) {
+                        this.state.sessionId = null;
+                        document.getElementById('ai-messages-container').innerHTML = '';
+                        const chatTitle = document.getElementById('ai-chat-title');
+                        if (chatTitle) chatTitle.textContent = 'SDG-Campus AI Chatbot';
+                    }
                 });
             });
 
+            // RENAME
             document.querySelectorAll('.ai-action-rename').forEach(el => {
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const sessionId = el.dataset.sessionId;
                     document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
-                    // открыть попап
+
                     const popup = document.getElementById('ai-rename-popup');
                     popup.classList.remove('hidden');
                     popup.dataset.sessionId = sessionId;
@@ -84,16 +98,35 @@ define([
                 });
             });
 
+            // DELETE
             document.querySelectorAll('.ai-action-delete').forEach(el => {
-                el.addEventListener('click', (e) => {
+                el.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const sessionId = el.dataset.sessionId;
                     document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
-                    // TODO: вызов Ajax delete
+
+                    if (!confirm('Delete this chat?')) return;
+
+                    await Ajax.call([{
+                        methodname: 'local_ai_system_delete_session',
+                        args: { session_id: sessionId }
+                    }])[0];
+
+                    // убираем из сайдбара
+                    const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
+                    if (item) item.remove();
+
+                    // если это активный чат — сбрасываем
+                    if (this.state.sessionId === sessionId) {
+                        this.state.sessionId = null;
+                        document.getElementById('ai-messages-container').innerHTML = '';
+                        const chatTitle = document.getElementById('ai-chat-title');
+                        if (chatTitle) chatTitle.textContent = 'SDG-Campus AI Chatbot';
+                    }
                 });
             });
 
-            // rename popup save/cancel
+            // RENAME POPUP SAVE/CANCEL
             document.getElementById('ai-rename-save')?.addEventListener('click', async () => {
                 const popup = document.getElementById('ai-rename-popup');
                 const sessionId = popup.dataset.sessionId;
@@ -105,9 +138,14 @@ define([
                     args: { session_id: sessionId, title }
                 }])[0];
 
-                // обновить заголовок в сайдбаре
                 const el = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"] .ai-session-title`);
                 if (el) el.textContent = title;
+
+                // обновить заголовок чата если это активный
+                if (this.state.sessionId === sessionId) {
+                    const chatTitle = document.getElementById('ai-chat-title');
+                    if (chatTitle) chatTitle.textContent = title;
+                }
 
                 popup.classList.add('hidden');
             });
