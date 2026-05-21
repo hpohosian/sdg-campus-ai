@@ -7,10 +7,13 @@ class CreateSessionRequest(BaseModel):
     title: str | None = None
     
 class SessionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     session_id: str
     user_id: int
     course_id: int | None = None
     title: str | None = None
+    is_active: int
 
 class UpdateSessionRequest(BaseModel):
     title: str | None = None

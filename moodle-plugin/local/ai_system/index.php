@@ -51,7 +51,7 @@ $session_id = $current['session_id'] ?? null;
 $history = ['messages' => []];
 
 if ($session_id) {
-    $history = $service->get_messages($session_id);
+    $history = $service->get_messages($session_id, $USER->id);
 }
 
 // ==========================
@@ -59,10 +59,17 @@ if ($session_id) {
 // ==========================
 echo $OUTPUT->header();
 
+$active_sessions = array_filter($sessions, fn($s) => ($s['is_active'] ?? 1) == 1);
+$archived_sessions = array_filter($sessions, fn($s) => ($s['is_active'] ?? 1) == 0);
+
+// var_dump($sessions);
+// exit();
+
 $templatecontext = [
     'session_id' => $session_id ?? '',
     'messages'   => $history['messages'] ?? [],
-    'sessions'   => $sessions
+    'sessions'   => array_values($active_sessions),
+    'archived_sessions' => array_values($archived_sessions),
 ];
 
 echo $OUTPUT->render_from_template(

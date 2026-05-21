@@ -72,6 +72,7 @@ async def get_user_sessions(
             user_id=s.user_id,
             course_id=s.course_id,
             title=s.title,
+            is_active=s.is_active
         )
         for s in sessions
     ]

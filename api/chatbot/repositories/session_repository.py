@@ -58,9 +58,14 @@ class SessionRepository:
     
     def get_by_user(self, user_id: int):
         result = self.db.execute(
-            select(SessionModel).where(SessionModel.user_id == user_id)
+            select(SessionModel)
+            .where(SessionModel.user_id == user_id)
+            .order_by(SessionModel.updated_at.desc())
         )
-        return result.scalars().all()
+        sessions = result.scalars().all()
+        for s in sessions:
+            print(f"SESSION {s.session_id}: is_active={s.is_active}")
+        return sessions
     
     def update(self, session_id: str, title: str | None = None):
         db_session = self.get(session_id)

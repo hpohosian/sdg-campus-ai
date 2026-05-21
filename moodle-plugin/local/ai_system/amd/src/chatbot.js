@@ -24,6 +24,7 @@ define([
             this.bindNewSession();
             this.bindDropdowns();
             this.scrollToBottom();
+            this.bindArchive();
 
             const container = document.getElementById('ai-messages-container');
 
@@ -32,6 +33,67 @@ define([
                     container.scrollHeight - container.scrollTop - container.clientHeight < 50;
 
                 this.shouldAutoScroll = nearBottom;
+            });
+        },
+
+        bindArchive() {
+            const toggle = document.getElementById('ai-archive-toggle');
+            const dropdown = document.getElementById('ai-archive-dropdown');
+            if (!toggle || !dropdown) return;
+
+            toggle.addEventListener('click', () => {
+                toggle.classList.toggle('open');
+                dropdown.classList.toggle('hidden');
+            });
+
+            // клик на архивный чат — только просмотр, без возможности писать
+            document.querySelectorAll('.ai-session-archived').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    if (e.target.closest('.ai-session-menu-btn') || e.target.closest('.ai-session-dropdown')) return;
+
+                    const sessionId = el.dataset.sessionId;
+                    const title = el.querySelector('.ai-session-title').textContent.trim();
+
+                    const result = await Ajax.call([{
+                        methodname: 'local_ai_system_get_messages',
+                        args: { session_id: sessionId }
+                    }])[0];
+
+                    const container = document.getElementById('ai-messages-container');
+                    container.innerHTML = '';
+
+                    const messages = Array.isArray(result) ? result : (result.messages ?? []);
+                    messages.forEach(msg => this.appendMessage(msg.role, msg.content));
+
+                    // заголовок с пометкой архива
+                    const chatTitle = document.getElementById('ai-chat-title');
+                    if (chatTitle) chatTitle.textContent = `${title} (archived)`;
+
+                    // блокируем инпут
+                    const input = document.getElementById('ai-message-input');
+                    const sendBtn = document.getElementById('ai-send-btn');
+                    if (input) { input.disabled = true; input.placeholder = 'Unarchive to send messages'; }
+                    if (sendBtn) sendBtn.disabled = true;
+
+                    this.state.sessionId = null; // не даём отправлять сообщения
+                });
+            });
+
+            // дезархивация
+            document.querySelectorAll('.ai-action-dearchive').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const sessionId = el.dataset.sessionId;
+                    document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                    await Ajax.call([{
+                        methodname: 'local_ai_system_dearchive_session',
+                        args: { session_id: sessionId }
+                    }])[0];
+
+                    // перезагружаем страницу чтобы обновить списки
+                    window.location.reload();
+                });
             });
         },
 
@@ -482,6 +544,10 @@ define([
             document.querySelectorAll('.ai-session-item').forEach(el => {
 
                 el.addEventListener('click', async () => {
+                    const input = document.getElementById('ai-message-input');
+                    const sendBtn = document.getElementById('ai-send-btn');
+                    if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
+                    if (sendBtn) sendBtn.disabled = false;
 
                     const sessionId = el.dataset.sessionId;
                     const title = el.querySelector('.ai-session-title').textContent.trim();

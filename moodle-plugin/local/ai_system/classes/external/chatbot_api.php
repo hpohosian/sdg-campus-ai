@@ -147,11 +147,11 @@ class chatbot_api extends external_api {
                     VALUE_OPTIONAL
                 ),
 
-                'archived' => new external_value(
-                    PARAM_BOOL,
-                    'Archive state',
+                'is_active'  => new external_value(
+                    PARAM_INT,
+                    'Active state',
                     VALUE_OPTIONAL
-                )
+                ),
             ])
         );
     }

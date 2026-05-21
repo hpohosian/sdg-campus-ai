@@ -12,3 +12,5 @@ $string['archive'] = 'Archive';
 $string['archive_chat'] = 'Archive';
 $string['rename_chat'] = 'Rename';
 $string['delete_chat'] = 'Delete';
+$string['dearchive_chat'] = 'Unarchive';
+$string['archive_empty'] = 'No archived chats';
