@@ -30,6 +30,7 @@ async def create_session(
         user_id=session.user_id,
         course_id=session.course_id,
         title=session.title,
+        is_active=session.is_active
     )
     
 
@@ -53,6 +54,7 @@ async def get_session(
         user_id=session.user_id,
         course_id=session.course_id,
         title=session.title,
+        is_active=session.is_active
     )
 
 
@@ -103,6 +105,7 @@ async def update_session(
         user_id=updated.user_id,
         course_id=updated.course_id,
         title=updated.title,
+        is_active=updated.is_active
     )
 
 

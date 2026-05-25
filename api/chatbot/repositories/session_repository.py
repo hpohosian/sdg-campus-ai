@@ -63,8 +63,6 @@ class SessionRepository:
             .order_by(SessionModel.updated_at.desc())
         )
         sessions = result.scalars().all()
-        for s in sessions:
-            print(f"SESSION {s.session_id}: is_active={s.is_active}")
         return sessions
     
     def update(self, session_id: str, title: str | None = None):
