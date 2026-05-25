@@ -131,9 +131,13 @@ define([
                         args: { session_id: sessionId }
                     }])[0];
 
-                    // убираем из сайдбара
+                    // получаем title до удаления
                     const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
+                    const title = item?.querySelector('.ai-session-title')?.textContent.trim() ?? 'Chat';
                     if (item) item.remove();
+
+                    // добавляем в архив
+                    this.addSessionToArchive(sessionId, title);
 
                     // если это активный чат — сбрасываем
                     if (this.state.sessionId === sessionId) {
@@ -223,8 +227,106 @@ define([
             return `${h}:${m}`;
         },
 
+        addSessionToArchive(sessionId, title) {
+            const dropdown = document.getElementById('ai-archive-dropdown');
+            if (!dropdown) return;
+
+            // убираем "архив пуст" если есть
+            const empty = dropdown.querySelector('.ai-archive-empty');
+            if (empty) empty.remove();
+
+            const el = document.createElement('div');
+            el.className = 'ai-session-item ai-session-archived';
+            el.dataset.sessionId = sessionId;
+
+            el.innerHTML = `
+                <span class="ai-session-title">${title}</span>
+                <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
+                    <i class="fa fa-ellipsis-v"></i>
+                </button>
+                <div class="ai-session-dropdown hidden" data-session-id="${sessionId}">
+                    <div class="ai-dropdown-item ai-action-dearchive" data-session-id="${sessionId}">
+                        <i class="fa fa-inbox"></i> Unarchive
+                    </div>
+                    <div class="ai-dropdown-item ai-dropdown-danger ai-action-delete" data-session-id="${sessionId}">
+                        <i class="fa fa-trash"></i> Delete
+                    </div>
+                </div>
+            `;
+
+            dropdown.prepend(el);
+
+            // клик — открыть чат в режиме просмотра
+            el.addEventListener('click', async (e) => {
+                if (e.target.closest('.ai-session-menu-btn') || e.target.closest('.ai-session-dropdown')) return;
+
+                const result = await Ajax.call([{
+                    methodname: 'local_ai_system_get_messages',
+                    args: { session_id: sessionId }
+                }])[0];
+
+                const container = document.getElementById('ai-messages-container');
+                container.innerHTML = '';
+
+                const messages = Array.isArray(result) ? result : (result.messages ?? []);
+                messages.forEach(msg => this.appendMessage(msg.role, msg.content));
+
+                const chatTitle = document.getElementById('ai-chat-title');
+                if (chatTitle) chatTitle.textContent = `${title} (archived)`;
+
+                const input = document.getElementById('ai-message-input');
+                const sendBtn = document.getElementById('ai-send-btn');
+                if (input) { input.disabled = true; input.placeholder = 'Unarchive to send messages'; }
+                if (sendBtn) sendBtn.disabled = true;
+
+                this.state.sessionId = null;
+            });
+
+             el.querySelector('.ai-session-menu-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown')
+                    .forEach(d => d.dataset.sessionId !== sessionId && d.classList.add('hidden'));
+                el.querySelector('.ai-session-dropdown').classList.toggle('hidden');
+            });
+
+            // Dearchive
+            el.querySelector('.ai-action-dearchive').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                await Ajax.call([{
+                    methodname: 'local_ai_system_dearchive_session',
+                    args: { session_id: sessionId }
+                }])[0];
+
+                el.remove();
+                this.addSessionToSidebar(sessionId, title);
+
+                // восстанавливаем инпут
+                const input = document.getElementById('ai-message-input');
+                const sendBtn = document.getElementById('ai-send-btn');
+                if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
+                if (sendBtn) sendBtn.disabled = false;
+            });
+
+            // Delete
+            el.querySelector('.ai-action-delete').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                if (!confirm('Delete this chat?')) return;
+
+                await Ajax.call([{
+                    methodname: 'local_ai_system_delete_session',
+                    args: { session_id: sessionId }
+                }])[0];
+
+                el.remove();
+            });
+        },
+
         addSessionToSidebar(sessionId, title) {
-            const list = document.querySelector('.ai-sb-chats');
+            const list = document.querySelector('.ai-sb-chats'); // ← правильный контейнер
             if (!list) return;
 
             document.querySelectorAll('.ai-session-item')
@@ -233,8 +335,8 @@ define([
             const el = document.createElement('div');
             el.className = 'ai-session-item active';
             el.dataset.sessionId = sessionId;
-            // el.textContent = title;
 
+            // полная структура как в mustache-шаблоне
             el.innerHTML = `
                 <span class="ai-session-title">${title}</span>
                 <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
@@ -255,10 +357,13 @@ define([
 
             list.prepend(el);
 
-            el.addEventListener('click', async () => {
+            // клик по самому элементу (загрузить чат)
+            el.addEventListener('click', async (e) => {
+                if (e.target.closest('.ai-session-menu-btn') || e.target.closest('.ai-session-dropdown')) return;
+
                 const chatTitle = document.getElementById('ai-chat-title');
                 if (chatTitle) chatTitle.textContent = title;
-                
+
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_get_messages',
                     args: { session_id: sessionId }
@@ -270,15 +375,74 @@ define([
                 container.innerHTML = '';
 
                 const messages = Array.isArray(result) ? result : (result.messages ?? []);
-
-                messages.forEach(msg => {
-                    this.appendMessage(msg.role, msg.content);
-                });
+                messages.forEach(msg => this.appendMessage(msg.role, msg.content));
 
                 document.querySelectorAll('.ai-session-item')
                     .forEach(e => e.classList.remove('active'));
-
                 el.classList.add('active');
+            });
+
+            // кнопка меню
+            el.querySelector('.ai-session-menu-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown')
+                    .forEach(d => d.dataset.sessionId !== sessionId && d.classList.add('hidden'));
+                el.querySelector('.ai-session-dropdown').classList.toggle('hidden');
+            });
+
+            // Archive
+            el.querySelector('.ai-action-archive').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                await Ajax.call([{
+                    methodname: 'local_ai_system_archive_session',
+                    args: { session_id: sessionId }
+                }])[0];
+
+                el.remove();
+                this.addSessionToArchive(sessionId, title); // ← добавить эту строку
+
+                if (this.state.sessionId === sessionId) {
+                    this.state.sessionId = null;
+                    document.getElementById('ai-messages-container').innerHTML = '';
+                    const chatTitle = document.getElementById('ai-chat-title');
+                    if (chatTitle) chatTitle.textContent = 'SDG-Campus AI Chatbot';
+                }
+            });
+
+            // Rename
+            el.querySelector('.ai-action-rename').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                const popup = document.getElementById('ai-rename-popup');
+                popup.classList.remove('hidden');
+                popup.dataset.sessionId = sessionId;
+                document.getElementById('ai-rename-input').value = '';
+                document.getElementById('ai-rename-input').focus();
+            });
+
+            // Delete
+            el.querySelector('.ai-action-delete').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
+
+                if (!confirm('Delete this chat?')) return;
+
+                await Ajax.call([{
+                    methodname: 'local_ai_system_delete_session',
+                    args: { session_id: sessionId }
+                }])[0];
+
+                el.remove();
+
+                if (this.state.sessionId === sessionId) {
+                    this.state.sessionId = null;
+                    document.getElementById('ai-messages-container').innerHTML = '';
+                    const chatTitle = document.getElementById('ai-chat-title');
+                    if (chatTitle) chatTitle.textContent = 'SDG-Campus AI Chatbot';
+                }
             });
         },
 
