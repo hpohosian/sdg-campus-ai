@@ -32,30 +32,19 @@ $sessions = array_values($sessions);
 // ==========================
 $current = null;
 
-foreach ($sessions as $s) {
-    if (!empty($s['is_active']) && (int)$s['is_active'] === 1) {
-        $current = $s;
-        break;
-    }
-}
-
 // ==========================
-// 4. SAFE SESSION ID
+// 3. SAFE SESSION ID
 // ==========================
-$session_id = $current['session_id'] ?? null;
+$session_id = null;
 
 
 // ==========================
-// 5. LOAD MESSAGES
+// 4. LOAD MESSAGES
 // ==========================
 $history = ['messages' => []];
 
-if ($session_id) {
-    $history = $service->get_messages($session_id, $USER->id);
-}
-
 // ==========================
-// 6. RENDER
+// 5. RENDER
 // ==========================
 echo $OUTPUT->header();
 
@@ -78,7 +67,7 @@ echo $OUTPUT->render_from_template(
 );
 
 // ==========================
-// 7. JS INIT
+// 6. JS INIT
 // ==========================
 $PAGE->requires->js_call_amd(
     'local_ai_system/chatbot',

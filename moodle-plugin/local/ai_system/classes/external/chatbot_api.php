@@ -73,13 +73,13 @@ class chatbot_api extends external_api {
         ]);
     }
 
-    public static function create_session() {
+    public static function create_session($title = 'New Chat') {
 
         global $USER;
 
         $params = self::validate_parameters(
             self::create_session_parameters(),
-            ['title' => 'New Chat']
+            ['title' => $title]
         );
 
         self::validate_context(\context_system::instance());

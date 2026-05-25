@@ -10,7 +10,8 @@ require_capability('local_ai_system:use_chatbot', $context);
 
 $service = new \local_ai_system\chatbot\service();
 
-$session = $service->create_session($USER->id);
+$title = optional_param('title', 'New Chat', PARAM_TEXT);
+$session = $service->create_session($USER->id, $title);
 
 echo json_encode([
     'session_id' => $session['session_id']

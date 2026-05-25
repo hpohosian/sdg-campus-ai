@@ -224,7 +224,7 @@ define([
         },
 
         addSessionToSidebar(sessionId, title) {
-            const list = document.querySelector('.ai-chatbot-sidebar');
+            const list = document.querySelector('.ai-sb-chats');
             if (!list) return;
 
             document.querySelectorAll('.ai-session-item')
@@ -233,7 +233,25 @@ define([
             const el = document.createElement('div');
             el.className = 'ai-session-item active';
             el.dataset.sessionId = sessionId;
-            el.textContent = title;
+            // el.textContent = title;
+
+            el.innerHTML = `
+                <span class="ai-session-title">${title}</span>
+                <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
+                    <i class="fa fa-ellipsis-v"></i>
+                </button>
+                <div class="ai-session-dropdown hidden" data-session-id="${sessionId}">
+                    <div class="ai-dropdown-item ai-action-archive" data-session-id="${sessionId}">
+                        <i class="fa fa-archive"></i> Archive
+                    </div>
+                    <div class="ai-dropdown-item ai-action-rename" data-session-id="${sessionId}">
+                        <i class="fa fa-pencil"></i> Rename
+                    </div>
+                    <div class="ai-dropdown-item ai-dropdown-danger ai-action-delete" data-session-id="${sessionId}">
+                        <i class="fa fa-trash"></i> Delete
+                    </div>
+                </div>
+            `;
 
             list.prepend(el);
 
@@ -272,23 +290,29 @@ define([
 
             const sessionNumber = document.querySelectorAll('.ai-session-item').length + 1;
 
-            const result = await Ajax.call([{
-                methodname: 'local_ai_system_create_session',
-                args: {
-                    title: `New Chat ${sessionNumber}`
-                }
-            }])[0];
+            try {
+                const result = await Ajax.call([{
+                    methodname: 'local_ai_system_create_session',
+                    args: {
+                        title: `New Chat ${sessionNumber}`
+                    }
+                }])[0];
 
-            this.state.sessionId = result.session_id;
+                this.state.sessionId = result.session_id;
+                this.addSessionToSidebar(result.session_id, `New Chat ${sessionNumber}`);
 
-            this.addSessionToSidebar(result.session_id, `New Chat ${sessionNumber}`);
+                return this.state.sessionId;
 
-            return this.state.sessionId;
+            } catch (e) {
+                console.error('ensureSession failed:', e);
+                return null;
+            }
         },
 
         // for new chat button
         async createNewSession() {
             const sessionNumber = document.querySelectorAll('.ai-session-item').length + 1;
+            const title = `New Chat ${sessionNumber}`;
 
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_create_session',
@@ -301,7 +325,7 @@ define([
 
             this.addSessionToSidebar(result.session_id, `New Chat ${sessionNumber}`);
 
-            return this.state.sessionId;
+            return { sessionId: result.session_id, title };
         },
 
         scrollToBottom() {
@@ -589,11 +613,11 @@ define([
             if (!btn) return;
 
             btn.addEventListener('click', async () => {
-                await this.createNewSession();
+                const { title } = await this.createNewSession();
                 document.getElementById('ai-messages-container').innerHTML = '';
 
                 const chatTitle = document.getElementById('ai-chat-title');
-                if (chatTitle) chatTitle.textContent = 'New Chat';
+                if (chatTitle) chatTitle.textContent = title;
             });
         },
     };
