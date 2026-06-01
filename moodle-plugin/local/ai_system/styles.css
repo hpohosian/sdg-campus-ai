@@ -10,6 +10,12 @@
     overflow: hidden;
 }
 
+body.pagelayout-embedded .ai-chatbot-layout {
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+}
+
 /* ===== SIDEBAR ===== */
 .ai-chatbot-sidebar {
     width: 220px;

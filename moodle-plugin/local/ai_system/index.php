@@ -17,6 +17,12 @@ $PAGE->requires->js(
     true
 );
 
+$embed = optional_param('embed', 0, PARAM_INT);
+
+if ($embed) {
+    $PAGE->set_pagelayout('embedded');
+}
+
 $service = new \local_ai_system\chatbot\service();
 
 // ==========================
