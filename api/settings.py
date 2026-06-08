@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     DATABASE_URL: str
+    
+    EMBEDDING_MODEL: str = "paraphrase-multilingual-mpnet-base-v2"
+    HF_HOME: str = "D:\\hiwi\\huggingface_cache"
+    HF_HUB_DISABLE_XET: str = "1"
 
     model_config = SettingsConfigDict(
         env_file=".env",

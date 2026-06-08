@@ -5,7 +5,7 @@ api/.venv
 
 .env
 
-# **/tests/*
+**/tests/*
 
 docker.md
 repository_structure.md
@@ -13,3 +13,5 @@ work_plan.md
 chatbot_module_plan.md
 plugin_dev.md
 work_plan_global.md
+
+**/data/*
