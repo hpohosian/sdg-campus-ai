@@ -49,12 +49,16 @@ class MoodlePDFLoader:
             SELECT DISTINCT f.filename, f.contenthash, f.filesize
             FROM mdl_files f
             JOIN mdl_context ctx ON ctx.id = f.contextid
-            JOIN mdl_course_modules cm ON cm.id = ctx.instanceid
-            WHERE cm.course = :course_id
-            AND ctx.contextlevel = 70
-            AND f.mimetype = 'application/pdf'
+            WHERE f.mimetype = 'application/pdf'
             AND f.filename != '.'
             AND f.filesize > 0
+            AND (
+                (ctx.contextlevel = 70 AND ctx.instanceid IN (
+                    SELECT id FROM mdl_course_modules WHERE course = :course_id
+                ))
+                OR
+                (ctx.contextlevel = 50 AND ctx.instanceid = :course_id)
+            )
             ORDER BY f.filename
         """), {"course_id": course_id}).fetchall()
 

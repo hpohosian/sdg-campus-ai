@@ -1,5 +1,9 @@
 import os
-from settings import settings
+try:
+    from api.settings import settings
+except ModuleNotFoundError:
+    # Если упало, значит мы внутри папки api (запущен сервер)
+    from settings import settings
 os.environ["HF_HOME"] = settings.HF_HOME
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
