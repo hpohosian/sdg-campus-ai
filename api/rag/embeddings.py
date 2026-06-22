@@ -1,5 +1,5 @@
 import os
-from api.settings import settings
+from settings import settings
 os.environ["HF_HOME"] = settings.HF_HOME
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 

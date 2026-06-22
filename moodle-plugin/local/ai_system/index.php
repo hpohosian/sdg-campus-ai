@@ -6,6 +6,8 @@ require_login();
 $context = context_system::instance();
 require_capability('local_ai_system:use_chatbot', $context);
 
+$course_id = optional_param('course_id', 0, PARAM_INT);
+
 $PAGE->set_url(new moodle_url('/local/ai_system/index.php'));
 $PAGE->set_context($context);
 $PAGE->set_title('AI Chatbot');
@@ -78,7 +80,7 @@ echo $OUTPUT->render_from_template(
 $PAGE->requires->js_call_amd(
     'local_ai_system/chatbot',
     'init',
-    [$session_id]
+    [$session_id, $course_id]
 );
 
 echo $OUTPUT->footer();

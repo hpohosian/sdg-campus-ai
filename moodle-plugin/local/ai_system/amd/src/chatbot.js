@@ -7,6 +7,7 @@ define([
 
         state: {
             sessionId: null,
+            courseId: 0,
             sessions: [],
             // messages: {},
             // activeMessages: [],
@@ -15,8 +16,9 @@ define([
             shouldAutoScroll: true,
         },
 
-        init(sessionId) {
+        init(sessionId, courseId) {
             this.state.sessionId = sessionId;
+            this.state.courseId = courseId || 0;
 
             this.initMarkdown();
             this.bindUI();
@@ -458,7 +460,8 @@ define([
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_create_session',
                     args: {
-                        title: `New Chat ${sessionNumber}`
+                        title: `New Chat ${sessionNumber}`,
+                        course_id: this.state.courseId
                     }
                 }])[0];
 
@@ -481,7 +484,8 @@ define([
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_create_session',
                 args: {
-                    title: `New Chat ${sessionNumber}`
+                    title: `New Chat ${sessionNumber}`,
+                    course_id: this.state.courseId
                 }
             }])[0];
 
@@ -787,6 +791,6 @@ define([
     };
 
     return {
-        init: (sessionId) => ChatBot.init(sessionId)
+        init: (sessionId, courseId) => ChatBot.init(sessionId, courseId)
     };
 });

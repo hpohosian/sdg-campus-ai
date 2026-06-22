@@ -5,7 +5,7 @@ import hashlib
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.settings import Settings
+from settings import Settings
 
 class HMACAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

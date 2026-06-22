@@ -15,7 +15,9 @@ from chatbot.services.message_service import MessageService
 from chatbot.repositories.message_repository import MessageRepository
 
 from chatbot.services.ai_service import AIService
-
+from rag.embeddings import EmbeddingModel
+from rag.vector_store import VectorStore
+from rag.retriever import Retriever
 
 @lru_cache
 def get_settings() -> Settings:
@@ -26,10 +28,29 @@ def get_llm(settings: Settings = Depends(get_settings)) -> BaseLLM:
     return MistralLLM(api_key=settings.MISTRAL_API_KEY)
 
 
+@lru_cache
+def get_embedding_model() -> EmbeddingModel:
+    return EmbeddingModel()
+
+
+@lru_cache
+def get_vector_store(
+    embedding_model: EmbeddingModel = Depends(get_embedding_model),
+) -> VectorStore:
+    return VectorStore(embedding_model=embedding_model)
+
+
+def get_retriever(
+    vector_store: VectorStore = Depends(get_vector_store),
+) -> Retriever:
+    return Retriever(vector_store=vector_store)
+
+
 def get_ai_service(
     llm: BaseLLM = Depends(get_llm),
+    retriever: Retriever = Depends(get_retriever),
 ):
-    return AIService(llm)
+    return AIService(llm=llm, retriever=retriever)
 
 
 def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository:

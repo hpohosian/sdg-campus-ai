@@ -68,14 +68,16 @@ class MessageService:
     # GENERATE FULL RESPONSE
     # =========================
     async def chat(self, session_id: str, content: str):
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+
+        collection_name = f"course_{session.course_id}" if session.course_id else None
+
         user_message = await self.create_user_message(session_id, content)
-        
         history = await self.get_session_messages(session_id)
-        
-        ai_text = await self.ai_service.generate_response(history)
-        
+        ai_text = await self.ai_service.generate_response(history, collection_name=collection_name)
         assistant_message = await self.create_assistant_message(session_id, ai_text)
-        
         return {
             "user": MessageResponse.from_orm(user_message),
             "assistant": MessageResponse.from_orm(assistant_message)
@@ -86,6 +88,12 @@ class MessageService:
     # STREAM RESPONSE
     # =========================
     async def chat_stream(self, session_id: str, content: str):
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+
+        collection_name = f"course_{session.course_id}" if session.course_id else None
+
         await self.create_user_message(session_id, content)
         
         raw_history = await self.get_session_messages(session_id)
@@ -97,7 +105,7 @@ class MessageService:
         
         full_response = ""
 
-        async for token in self.ai_service.stream_response(history):
+        async for token in self.ai_service.stream_response(history, collection_name=collection_name):
             full_response += token
             yield token
 
