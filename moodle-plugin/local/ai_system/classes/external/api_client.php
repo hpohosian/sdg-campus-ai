@@ -10,10 +10,12 @@ class api_client {
 
     private string $base_url;
     private string $secret;
+    private string $internal_key;
 
     public function __construct() {
-        $this->base_url = 'http://127.0.0.1:8001';
-        $this->secret   = get_config('local_ai_system', 'api_secret');
+        $this->base_url    = get_config('local_ai_system', 'api_base_url') ?: 'http://127.0.0.1:8001';
+        $this->secret       = get_config('local_ai_system', 'api_secret');
+        $this->internal_key = get_config('local_ai_system', 'internal_api_key');
     }
 
     private function log(string $message): void {
@@ -30,7 +32,7 @@ class api_client {
         return (int)($body['user_id'] ?? $body['userid'] ?? 0);
     }
 
-    private function request(string $method, string $path, array $body = [], int $user_id = 0): array {
+    private function request(string $method, string $path, array $body = [], int $user_id = 0, bool $internal = false): array {
 
         $url = $this->base_url . $path;
 
@@ -52,12 +54,20 @@ class api_client {
         $curl = new \curl();
         $curl->ignore_security_hosts = true;
 
-        $curl->setHeader([
+        $headers = [
             'Content-Type: application/json',
             'X-Timestamp: ' . $timestamp,
             'X-Signature: ' . $signature,
             'X-User-Id: ' . ($user_id ?: $this->extractUserId($body)),
-        ]);
+        ];
+
+        if ($internal) {
+            $headers[] = 'X-Internal-Api-Key: ' . $this->internal_key;
+        }
+
+        $curl = new \curl();
+        $curl->ignore_security_hosts = true;
+        $curl->setHeader($headers);
 
         switch (strtoupper($method)) {
 
@@ -109,5 +119,9 @@ class api_client {
 
     public function delete(string $path, array $body = [], int $user_id = 0): array {
         return $this->request('DELETE', $path, $body, $user_id);
+    }
+
+    public function post_internal(string $path, array $body = [], int $user_id = 0): array {
+        return $this->request('POST', $path, $body, $user_id, true);
     }
 }

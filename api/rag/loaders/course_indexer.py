@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
-from api.rag.loaders.moodle_db_loader import MoodleDBLoader
-from api.rag.loaders.pdf_loader import MoodlePDFLoader
-from api.rag.ingestion import IngestionPipeline
+from rag.loaders.moodle_db_loader import MoodleDBLoader
+from rag.loaders.pdf_loader import MoodlePDFLoader
+from rag.ingestion import IngestionPipeline
 
 
 class CourseIndexer:

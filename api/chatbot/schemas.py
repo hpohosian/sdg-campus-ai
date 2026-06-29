@@ -31,3 +31,17 @@ class MessageResponse(BaseModel):
     tokens_used: int | None = None
     created_at: int
     
+class IndexCourseRequest(BaseModel):
+    reset: bool = True
+
+class RagStatusResponse(BaseModel):
+    course_id: int
+    collection_name: str
+    documents_indexed: int = 0
+    chunks_indexed: int = 0
+    success: bool
+    message: str | None = None
+    
+class IndexAllResponse(BaseModel):
+    total_courses: int
+    message: str

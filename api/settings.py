@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     
     MOODLEDATA_PATH: str = "D:\\Moodle\\MoodleWindowsInstaller-latest-500\\server\\moodledata"
     
+    INTERNAL_API_KEY: str
+    
     EMBEDDING_MODEL: str = "paraphrase-multilingual-mpnet-base-v2"
     HF_HOME: str = "D:\\hiwi\\huggingface_cache"
     HF_HUB_DISABLE_XET: str = "1"
