@@ -8,30 +8,22 @@ class AIService:
         self.llm = llm
         self.retriever = retriever
 
-    async def generate_response(self, messages, collection_name: str = None):
-        # 1. Get last user message for retrieval
+    async def generate_response(self, messages, collection_name: str = None, course_ids: list[int] = None):
         user_query = self._get_last_user_message(messages)
-
-        # 2. Format messages
         formatted = self._format(messages)
-
-        # 3. Build system prompt (with or without RAG context)
-        system_prompt = await self._build_system_prompt(user_query, collection_name)
+        system_prompt = await self._build_system_prompt(user_query, collection_name, course_ids)
 
         formatted.insert(0, {
             "role": "system",
             "content": system_prompt,
         })
 
-        # 4. Call model
         return await self.llm.chat(formatted)
 
-    async def stream_response(self, messages, collection_name: str = None):
+    async def stream_response(self, messages, collection_name: str = None, course_ids: list[int] = None):
         user_query = self._get_last_user_message(messages)
-
         formatted = self._format(messages)
-
-        system_prompt = await self._build_system_prompt(user_query, collection_name)
+        system_prompt = await self._build_system_prompt(user_query, collection_name, course_ids)
 
         formatted.insert(0, {
             "role": "system",
@@ -41,19 +33,35 @@ class AIService:
         async for token in self.llm.stream(formatted):
             yield token
 
-    async def _build_system_prompt(self, query: str, collection_name: str = None) -> str:
+    async def _build_system_prompt(
+        self,
+        query: str,
+        collection_name: str = None,
+        course_ids: list[int] = None,
+    ) -> str:
         """
-        If retriever is available and collection exists — use RAG prompt with context.
-        Otherwise — fall back to plain prompt.
+        Priority:
+        1. If a specific course is selected (collection_name) — search only that course.
+        2. Otherwise, if the user has enrolled courses (course_ids) — search across all of them.
+        3. Otherwise — plain LLM, no RAG context.
         """
-        if not self.retriever or not collection_name or not query:
+        if not self.retriever or not query:
             return NO_CONTEXT_PROMPT
 
-        context = self.retriever.retrieve_as_context(
-            query=query,
-            collection_name=collection_name,
-            n_results=3,
-        )
+        if collection_name:
+            context = self.retriever.retrieve_as_context(
+                query=query,
+                collection_name=collection_name,
+                n_results=8,
+            )
+        elif course_ids:
+            context = self.retriever.retrieve_as_context_global(
+                query=query,
+                course_ids=course_ids,
+                n_results=8,
+            )
+        else:
+            context = ""
 
         if not context:
             return NO_CONTEXT_PROMPT

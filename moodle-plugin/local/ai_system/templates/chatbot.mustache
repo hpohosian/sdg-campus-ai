@@ -3,6 +3,33 @@
 
   <div class="ai-chatbot-sidebar">
     <div class="ai-sb-top">
+
+      <!-- COURSE PICKER (only affects newly created sessions) -->
+      {{#has_courses}}
+      <div class="ai-course-picker">
+        <div class="ai-course-picker-toggle" id="ai-course-toggle">
+          <i class="fa fa-graduation-cap" aria-hidden="true"></i>
+          <span class="ai-course-picker-label" id="ai-course-current-label">
+            {{#str}} all_my_courses, local_ai_system {{/str}}
+          </span>
+          <i class="fa fa-chevron-down ai-course-chevron"></i>
+        </div>
+
+        <div class="ai-course-dropdown hidden" id="ai-course-dropdown">
+          <div class="ai-course-option" data-course-id="0">
+            <span class="ai-course-option-label">{{#str}} all_my_courses, local_ai_system {{/str}}</span>
+            <i class="fa fa-check ai-course-check"></i>
+          </div>
+          {{#course_options}}
+            <div class="ai-course-option" data-course-id="{{id}}">
+              <span class="ai-course-option-label">{{fullname}}</span>
+              <i class="fa fa-check ai-course-check"></i>
+            </div>
+          {{/course_options}}
+        </div>
+      </div>
+      {{/has_courses}}
+
       <button class="ai-chatbot-new-session ai-sb-new">
         <i class="fa fa-edit" aria-hidden="true"></i>
         {{#str}} new_session, local_ai_system {{/str}}

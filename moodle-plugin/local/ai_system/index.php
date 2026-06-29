@@ -31,24 +31,27 @@ $service = new \local_ai_system\chatbot\service();
 // 1. GET SESSIONS
 // ==========================
 $sessions = $service->get_sessions($USER->id);
-
-// normalize array keys safety
 $sessions = array_values($sessions);
+
+// ==========================
+// 1b. GET USER'S ENROLLED COURSES (for the course-picker dropdown)
+// ==========================
+$enrolled_courses = enrol_get_users_courses($USER->id, true, 'id, fullname');
+
+$course_options = [];
+foreach ($enrolled_courses as $course) {
+    $course_options[] = [
+        'id'       => $course->id,
+        'fullname' => format_string($course->fullname),
+        'selected' => ($course->id == $course_id) ? 1 : 0,
+    ];
+}
 
 // ==========================
 // 2. FIND ACTIVE SESSION
 // ==========================
 $current = null;
-
-// ==========================
-// 3. SAFE SESSION ID
-// ==========================
 $session_id = null;
-
-
-// ==========================
-// 4. LOAD MESSAGES
-// ==========================
 $history = ['messages' => []];
 
 // ==========================
@@ -59,14 +62,13 @@ echo $OUTPUT->header();
 $active_sessions = array_filter($sessions, fn($s) => ($s['is_active'] ?? 1) == 1);
 $archived_sessions = array_filter($sessions, fn($s) => ($s['is_active'] ?? 1) == 0);
 
-// var_dump($sessions);
-// exit();
-
 $templatecontext = [
     'session_id' => $session_id ?? '',
     'messages'   => $history['messages'] ?? [],
     'sessions'   => array_values($active_sessions),
     'archived_sessions' => array_values($archived_sessions),
+    'course_options' => $course_options,
+    'has_courses' => count($course_options) > 0,
 ];
 
 echo $OUTPUT->render_from_template(

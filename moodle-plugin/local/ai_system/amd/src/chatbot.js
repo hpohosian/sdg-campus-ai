@@ -27,6 +27,7 @@ define([
             this.bindDropdowns();
             this.scrollToBottom();
             this.bindArchive();
+            this.bindCoursePicker();
 
             const container = document.getElementById('ai-messages-container');
 
@@ -35,6 +36,54 @@ define([
                     container.scrollHeight - container.scrollTop - container.clientHeight < 50;
 
                 this.shouldAutoScroll = nearBottom;
+            });
+        },
+
+        // =========================
+        // COURSE PICKER
+        // =========================
+        bindCoursePicker() {
+            const toggle = document.getElementById('ai-course-toggle');
+            const dropdown = document.getElementById('ai-course-dropdown');
+            const currentLabel = document.getElementById('ai-course-current-label');
+
+            if (!toggle || !dropdown) return;
+
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggle.classList.toggle('open');
+                dropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', () => {
+                dropdown.classList.add('hidden');
+                toggle.classList.remove('open');
+            });
+
+            const options = dropdown.querySelectorAll('.ai-course-option');
+
+            options.forEach(option => {
+                // pre-select "All my courses" by default
+                if (option.dataset.courseId === '0') {
+                    option.classList.add('selected');
+                }
+
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    const courseId = parseInt(option.dataset.courseId, 10) || 0;
+                    this.state.courseId = courseId;
+
+                    options.forEach(o => o.classList.remove('selected'));
+                    option.classList.add('selected');
+
+                    if (currentLabel) {
+                        currentLabel.textContent = option.querySelector('.ai-course-option-label').textContent.trim();
+                    }
+
+                    dropdown.classList.add('hidden');
+                    toggle.classList.remove('open');
+                });
             });
         },
 

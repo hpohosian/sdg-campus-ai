@@ -14,6 +14,8 @@ from chatbot.repositories.session_repository import SessionRepository
 from chatbot.services.message_service import MessageService
 from chatbot.repositories.message_repository import MessageRepository
 
+from db.repositories.db_course_repository import CourseRepository
+
 from chatbot.services.ai_service import AIService
 from rag.embeddings import EmbeddingModel
 from rag.vector_store import VectorStore
@@ -94,3 +96,16 @@ def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:
         return int(x_user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user id")
+    
+    
+def get_course_repository(db: DBSession = Depends(get_db)) -> CourseRepository:
+    return CourseRepository(db)
+
+
+def get_message_service(
+    message_repo: MessageRepository = Depends(get_message_repository),
+    session_repo: SessionRepository = Depends(get_session_repository),
+    ai_service: AIService = Depends(get_ai_service),
+    course_repo: CourseRepository = Depends(get_course_repository),
+):
+    return MessageService(message_repo, session_repo, ai_service, course_repo)

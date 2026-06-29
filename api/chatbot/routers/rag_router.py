@@ -15,14 +15,14 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 from middleware.internal_auth import verify_internal_api_key
 
+from dependencies import get_settings, get_vector_store, get_embedding_model, get_course_repository
+
+
 # -------------------------
 # Dependency Injections
 # -------------------------
 def get_rag_repository(vector_store = Depends(get_vector_store)) -> RagRepository:
     return RagRepository(vector_store)
-
-def get_course_repository(db: DBSession = Depends(get_db)) -> CourseRepository:
-    return CourseRepository(db)
 
 def get_rag_service(
     repo: RagRepository = Depends(get_rag_repository),

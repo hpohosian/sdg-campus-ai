@@ -1,5 +1,6 @@
 from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.session_repository import SessionRepository
+from db.repositories.db_course_repository import CourseRepository
 
 from chatbot.services.ai_service import AIService
 
@@ -18,10 +19,12 @@ class MessageService:
         message_repo: MessageRepository,
         session_repo: SessionRepository,
         ai_service: AIService,
+        course_repo: CourseRepository,
     ):
         self.message_repo = message_repo
         self.session_repo = session_repo
         self.ai_service = ai_service
+        self.course_repo = course_repo
 
 
     # =========================
@@ -64,6 +67,23 @@ class MessageService:
             content=content,
         )
         
+    
+    def _resolve_search_scope(self, session) -> tuple[str | None, list[int] | None]:
+        """
+        Decides what to search:
+        - a specific course (collection_name) if the session is tied to one course
+        - otherwise, all of the user's enrolled courses (course_ids) as a global fallback
+        """
+        if session.course_id:
+            return f"course_{session.course_id}", None
+
+        course_ids = self.course_repo.get_enrolled_course_ids(session.user_id)
+        
+        print(f"[scope] global mode: user_id={session.user_id}, enrolled course_ids={course_ids}")
+        
+        return None, (course_ids or None)
+    
+        
     # =========================
     # GENERATE FULL RESPONSE
     # =========================
@@ -72,11 +92,15 @@ class MessageService:
         if not session:
             raise ValueError("Session not found")
 
-        collection_name = f"course_{session.course_id}" if session.course_id else None
+        collection_name, course_ids = self._resolve_search_scope(session)
 
         user_message = await self.create_user_message(session_id, content)
         history = await self.get_session_messages(session_id)
-        ai_text = await self.ai_service.generate_response(history, collection_name=collection_name)
+        ai_text = await self.ai_service.generate_response(
+            history,
+            collection_name=collection_name,
+            course_ids=course_ids,
+        )
         assistant_message = await self.create_assistant_message(session_id, ai_text)
         return {
             "user": MessageResponse.from_orm(user_message),
@@ -92,20 +116,19 @@ class MessageService:
         if not session:
             raise ValueError("Session not found")
 
-        collection_name = f"course_{session.course_id}" if session.course_id else None
+        collection_name, course_ids = self._resolve_search_scope(session)
 
         await self.create_user_message(session_id, content)
-        
+
         raw_history = await self.get_session_messages(session_id)
+        history = [{"role": msg.role, "content": msg.content} for msg in raw_history]
 
-        history = [
-            {"role": msg.role, "content": msg.content}
-            for msg in raw_history
-        ]
-        
         full_response = ""
-
-        async for token in self.ai_service.stream_response(history, collection_name=collection_name):
+        async for token in self.ai_service.stream_response(
+            history,
+            collection_name=collection_name,
+            course_ids=course_ids,
+        ):
             full_response += token
             yield token
 

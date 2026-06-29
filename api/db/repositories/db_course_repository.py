@@ -34,3 +34,23 @@ class CourseRepository:
             {"course_id": course_id},
         ).fetchone()
         return row.fullname if row else None
+    
+    def get_enrolled_course_ids(self, user_id: int) -> list[int]:
+        """
+        Returns course IDs the user is actively enrolled in.
+        Used as the safety boundary for global (cross-course) search —
+        a user must never receive context from a course they're not enrolled in.
+        """
+        rows = self.db.execute(
+            text("""
+                SELECT DISTINCT e.courseid
+                FROM mdl_user_enrolments ue
+                JOIN mdl_enrol e ON e.id = ue.enrolid
+                WHERE ue.userid = :user_id
+                AND ue.status = 0
+                AND e.status = 0
+                AND e.courseid != 1
+            """),
+            {"user_id": user_id},
+        ).fetchall()
+        return [row.courseid for row in rows]

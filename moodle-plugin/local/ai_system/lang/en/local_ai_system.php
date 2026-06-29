@@ -20,3 +20,5 @@ $string['internalapikey'] = 'Internal API key';
 $string['internalapikey_desc'] = 'Shared secret used to authenticate server-to-server requests from Moodle to the Python API';
 $string['reindexfailed'] = 'Course reindexing request failed: {$a}';
 $string['pluginname'] = 'AI System';
+$string['select_course'] = 'Course for new chat';
+$string['all_my_courses'] = 'All my courses';
