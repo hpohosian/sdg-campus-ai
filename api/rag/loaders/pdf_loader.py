@@ -33,6 +33,7 @@ class MoodlePDFLoader:
                         "course_id": course_id,
                         "source_type": "pdf",
                         "source_name": pdf["filename"],
+                        "source": pdf["filename"],
                         "section": "",
                     }
                 })
