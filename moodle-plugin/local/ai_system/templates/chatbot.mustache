@@ -43,7 +43,8 @@
       <!-- ARCHIVE DROPDOWN -->
       <div class="ai-archive-dropdown hidden" id="ai-archive-dropdown">
         {{#archived_sessions}}
-          <div class="ai-session-item ai-session-archived" data-session-id="{{session_id}}">
+          <div class="ai-session-item ai-session-archived" data-session-id="{{session_id}}" data-language="{{language}}">
+            <span class="ai-session-lang-dot" data-language="{{language}}" title="{{language}}"></span>
             <span class="ai-session-title">{{title}}</span>
             <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Session menu">
               <i class="fa fa-ellipsis-v"></i>
@@ -70,7 +71,8 @@
 
     <div class="ai-sb-chats">
       {{#sessions}}
-        <div class="ai-session-item" data-session-id="{{session_id}}">
+        <div class="ai-session-item" data-session-id="{{session_id}}" data-language="{{language}}">
+          <span class="ai-session-lang-dot" data-language="{{language}}" title="{{language}}"></span>
           <span class="ai-session-title">{{title}}</span>
           <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Session menu">
             <i class="fa fa-ellipsis-v"></i>
@@ -99,6 +101,40 @@
       <span class="ai-chat-title" id="ai-chat-title">
         {{#str}} chatbot_title, local_ai_system {{/str}}
       </span>
+
+      <!-- LANGUAGE PICKER (переключает отображение текущего чата) -->
+      <div class="ai-language-picker" id="ai-language-picker">
+        <div class="ai-language-picker-toggle" id="ai-language-toggle">
+          <i class="fa fa-language" aria-hidden="true"></i>
+          <span class="ai-language-picker-label" id="ai-language-current-label">
+            {{#str}} language_original, local_ai_system {{/str}}
+          </span>
+          <i class="fa fa-chevron-down ai-language-chevron"></i>
+        </div>
+
+        <div class="ai-language-dropdown hidden" id="ai-language-dropdown">
+          <div class="ai-language-option selected" data-language="">
+            <span class="ai-language-option-label">{{#str}} language_original, local_ai_system {{/str}}</span>
+            <i class="fa fa-check ai-language-check"></i>
+          </div>
+          <div class="ai-language-option" data-language="en">
+            <span class="ai-language-option-label">English</span>
+            <i class="fa fa-check ai-language-check"></i>
+          </div>
+          <div class="ai-language-option" data-language="de">
+            <span class="ai-language-option-label">Deutsch</span>
+            <i class="fa fa-check ai-language-check"></i>
+          </div>
+          <div class="ai-language-option" data-language="ru">
+            <span class="ai-language-option-label">Русский</span>
+            <i class="fa fa-check ai-language-check"></i>
+          </div>
+          <div class="ai-language-option" data-language="ua">
+            <span class="ai-language-option-label">Українська</span>
+            <i class="fa fa-check ai-language-check"></i>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="ai-chatbot-messages" id="ai-messages-container">

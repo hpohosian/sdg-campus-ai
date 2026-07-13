@@ -12,6 +12,10 @@ defined('MOODLE_INTERNAL') || die();
 
 class chatbot_api extends external_api {
 
+
+    private const UNSET = '__unset__';
+
+
     // =========================
     // SEND MESSAGE
     // =========================
@@ -124,34 +128,15 @@ class chatbot_api extends external_api {
     }
 
     public static function get_sessions_returns() {
-
         return new external_multiple_structure(
             new external_single_structure([
-                'session_id' => new external_value(
-                    PARAM_TEXT
-                ),
-
-                'title' => new external_value(
-                    PARAM_TEXT
-                ),
-
-                'created_at' => new external_value(
-                    PARAM_INT,
-                    'Created timestamp',
-                    VALUE_OPTIONAL
-                ),
-
-                'updated_at' => new external_value(
-                    PARAM_INT,
-                    'Updated timestamp',
-                    VALUE_OPTIONAL
-                ),
-
-                'is_active'  => new external_value(
-                    PARAM_INT,
-                    'Active state',
-                    VALUE_OPTIONAL
-                ),
+                'session_id' => new external_value(PARAM_TEXT),
+                'title'      => new external_value(PARAM_TEXT),
+                'course_id'  => new external_value(PARAM_INT, 'Course ID', VALUE_OPTIONAL),
+                'language'   => new external_value(PARAM_TEXT, 'Display language', VALUE_OPTIONAL),
+                'created_at' => new external_value(PARAM_INT, 'Created timestamp', VALUE_OPTIONAL),
+                'updated_at' => new external_value(PARAM_INT, 'Updated timestamp', VALUE_OPTIONAL),
+                'is_active'  => new external_value(PARAM_INT, 'Active state', VALUE_OPTIONAL),
             ])
         );
     }
@@ -160,29 +145,22 @@ class chatbot_api extends external_api {
     // =========================
     // UPDATE SESSION
     // =========================
-
     public static function update_session_parameters() {
-
         return new external_function_parameters([
-            'session_id' => new external_value(
-                PARAM_TEXT,
-                'Session ID'
-            ),
-
-            'title' => new external_value(
-                PARAM_TEXT,
-                'New title'
-            )
+            'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
+            'title'      => new external_value(PARAM_TEXT, 'New title', VALUE_DEFAULT, self::UNSET),          // CHANGED
+            'language'   => new external_value(PARAM_TEXT, 'Display language ("" resets to original)', VALUE_DEFAULT, self::UNSET), // NEW
         ]);
     }
 
-    public static function update_session($session_id, $title) {
+    public static function update_session($session_id, $title = self::UNSET, $language = self::UNSET) {  // CHANGED
 
         $params = self::validate_parameters(
             self::update_session_parameters(),
             [
                 'session_id' => $session_id,
-                'title' => $title
+                'title'      => $title,
+                'language'   => $language,
             ]
         );
 
@@ -192,24 +170,33 @@ class chatbot_api extends external_api {
 
         global $USER;
 
+        // Собираем тело запроса только из полей, которые реально пришли с фронта
+        $data = [];
+
+        if ($params['title'] !== self::UNSET) {
+            $data['title'] = $params['title'];
+        }
+
+        if ($params['language'] !== self::UNSET) {
+            // Пустая строка с фронта = явный сброс на оригинал → передаём null,
+            // а не пустую строку, чтобы совпасть с семантикой Python-стороны
+            $data['language'] = $params['language'] === '' ? null : $params['language'];
+        }
+
         $service = new \local_ai_system\chatbot\service();
 
         $service->update_session(
             $params['session_id'],
-            ['title' => $params['title']],
+            $data,
             $USER->id
         );
 
         return ['success' => true];
     }
 
-
     public static function update_session_returns() {
-
         return new external_single_structure([
-            'success' => new external_value(
-                PARAM_BOOL
-            )
+            'success' => new external_value(PARAM_BOOL)
         ]);
     }
 
@@ -476,27 +463,16 @@ class chatbot_api extends external_api {
         ]);
     }
 
-    public static function stream_message(
-        $session_id,
-        $message
-    ) {
-
+    public static function stream_message($session_id, $message) {
         $params = self::validate_parameters(
             self::stream_message_parameters(),
-            [
-                'session_id' => $session_id,
-                'message' => $message
-            ]
+            ['session_id' => $session_id, 'message' => $message]
         );
 
         $context = \context_system::instance();
-
         self::validate_context($context);
 
-        require_capability(
-            'local/ai_system:use_chatbot',
-            $context
-        );
+        require_capability('local_ai_system:use_chatbot', $context);
 
         $service = new \local_ai_system\chatbot\service();
 

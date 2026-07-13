@@ -1,5 +1,5 @@
 from uuid import uuid4
-from chatbot.repositories.session_repository import SessionRepository, Session
+from chatbot.repositories.session_repository import SessionRepository, Session, _UNSET
 
 
 class SessionService:
@@ -8,7 +8,7 @@ class SessionService:
 
 
     # =========================
-    # CREATE 
+    # CREATE
     # =========================
     async def create_session(
         self,
@@ -16,10 +16,8 @@ class SessionService:
         course_id: int | None = None,
         title: str | None = None,
     ):
-        # 1. generate session id
         session_id = str(uuid4())
 
-        # 2. create domain object
         session = Session(
             session_id=session_id,
             user_id=user_id,
@@ -27,10 +25,7 @@ class SessionService:
             title=title,
         )
 
-        # 3. save to DB (IMPORTANT: get result back)
         db_session = self.session_repo.create(session)
-
-        # 4. return response (NOT domain object)        
         return db_session
 
 
@@ -61,10 +56,12 @@ class SessionService:
         self,
         session_id: str,
         title: str | None = None,
+        language=_UNSET,
     ):
         session = self.session_repo.update(
             session_id=session_id,
             title=title,
+            language=language,
         )
 
         if not session:

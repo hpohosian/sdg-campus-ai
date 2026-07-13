@@ -13,13 +13,16 @@ from chatbot.repositories.session_repository import SessionRepository
 
 from chatbot.services.message_service import MessageService
 from chatbot.repositories.message_repository import MessageRepository
+from chatbot.repositories.message_translation_repository import MessageTranslationRepository
 
 from db.repositories.db_course_repository import CourseRepository
 
 from chatbot.services.ai_service import AIService
+from translation.translator import Translator
 from rag.embeddings import EmbeddingModel
 from rag.vector_store import VectorStore
 from rag.retriever import Retriever
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -55,8 +58,15 @@ def get_ai_service(
     return AIService(llm=llm, retriever=retriever)
 
 
+def get_translator(
+    llm: BaseLLM = Depends(get_llm),
+) -> Translator:
+    return Translator(llm=llm)
+
+
 def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository:
     return SessionRepository(db)
+
 
 def get_session_service(
     repo: SessionRepository = Depends(get_session_repository),
@@ -67,21 +77,20 @@ def get_session_service(
 def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
     return MessageRepository(db)
 
-def get_message_service(
-    message_repo: MessageRepository = Depends(get_message_repository),
-    session_repo: SessionRepository = Depends(get_session_repository),
-    ai_service: AIService = Depends(get_ai_service),
-):
-    return MessageService(message_repo, session_repo, ai_service)
+
+def get_message_translation_repository(
+    db: DBSession = Depends(get_db),
+) -> MessageTranslationRepository:
+    return MessageTranslationRepository(db)
 
 
 def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:
     """
     Temporary auth system for development.
     In production this will be replaced with Moodle token validation.
-    
+
     Now in Postman - add Header (X-User-Id: n)
-    
+
     Option 2 (correct for Moodle later)
     def get_current_user_id(token: str = Header(...)):
         # 1. check Moodle token
@@ -96,8 +105,8 @@ def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:
         return int(x_user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user id")
-    
-    
+
+
 def get_course_repository(db: DBSession = Depends(get_db)) -> CourseRepository:
     return CourseRepository(db)
 
@@ -107,5 +116,15 @@ def get_message_service(
     session_repo: SessionRepository = Depends(get_session_repository),
     ai_service: AIService = Depends(get_ai_service),
     course_repo: CourseRepository = Depends(get_course_repository),
+    translation_repo: MessageTranslationRepository = Depends(get_message_translation_repository),  # NEW
+    translator: Translator = Depends(get_translator),  # NEW
 ):
-    return MessageService(message_repo, session_repo, ai_service, course_repo)
+    return MessageService(
+        message_repo,
+        session_repo,
+        ai_service,
+        course_repo,
+        translation_repo,
+        translator,
+    )
+    

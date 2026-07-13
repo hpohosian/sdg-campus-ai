@@ -473,3 +473,107 @@ body.pagelayout-embedded .ai-chatbot-layout {
     color: #1e3a5f;
     font-weight: 500;
 }
+
+
+/* ===== HEADER LAYOUT ===== */
+.ai-chatbot-header {
+    justify-content: space-between;   /* CHANGED: было просто display:flex без space-between */
+}
+
+/* ===== LANGUAGE PICKER (в шапке чата) ===== */
+.ai-language-picker {
+    position: relative;
+}
+
+.ai-language-picker-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #444;
+    font-size: 13px;
+    border: 1px solid #e5e5e5;
+    background: #fff;
+}
+
+.ai-language-picker-toggle:hover { background: #f1f1f1; }
+
+.ai-language-picker-toggle i.fa-language {
+    color: #888;
+    font-size: 13px;
+}
+
+.ai-language-picker-label {
+    white-space: nowrap;
+}
+
+.ai-language-chevron {
+    transition: transform 0.2s;
+    font-size: 11px;
+    color: #999;
+}
+
+.ai-language-picker-toggle.open .ai-language-chevron {
+    transform: rotate(180deg);
+}
+
+.ai-language-dropdown {
+    position: absolute;
+    right: 0;
+    top: 40px;
+    margin-top: 4px;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    overflow: hidden;
+    min-width: 160px;
+    z-index: 200;
+}
+
+.ai-language-dropdown.hidden { display: none; }
+
+.ai-language-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #222;
+    cursor: pointer;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+.ai-language-option:last-child { border-bottom: none; }
+.ai-language-option:hover { background: #f5f5f5; }
+
+.ai-language-option-label { flex: 1; }
+
+.ai-language-check {
+    font-size: 12px;
+    color: #2563eb;
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.ai-language-option.selected { background: #eef4ff; }
+.ai-language-option.selected .ai-language-check { opacity: 1; }
+.ai-language-option.selected .ai-language-option-label { color: #1e3a5f; font-weight: 500; }
+
+/* ===== LANGUAGE MARKER (в списке чатов) ===== */
+.ai-session-lang-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #999;
+}
+
+.ai-session-lang-dot[data-language=""] { display: none; }  /* оригинал — маркер не показываем */
+
+.ai-session-lang-dot[data-language="en"] { background: #2563eb; }
+.ai-session-lang-dot[data-language="de"] { background: #eab308; }
+.ai-session-lang-dot[data-language="ru"] { background: #dc2626; }
+.ai-session-lang-dot[data-language="ua"] { background: #29dc26; }

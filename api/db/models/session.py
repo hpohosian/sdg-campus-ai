@@ -14,6 +14,7 @@ class SessionModel(Base):
     course_id = Column(Integer, nullable=True)
 
     title = Column(String(255), nullable=True)
+    language = Column(String(5), nullable=True, default=None)
 
     created_at = Column(Integer, nullable=False)
     updated_at = Column(Integer, nullable=False)

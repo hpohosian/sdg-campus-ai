@@ -4,6 +4,9 @@ import time
 from sqlalchemy import select
 
 
+_UNSET = object()
+
+
 # -------------------------
 # Domain model
 # -------------------------
@@ -32,7 +35,6 @@ class SessionRepository:
         """
         Creates an entry in Moodle DB
         """
-
         db_session = SessionModel(
             session_id=session.id,
             user_id=session.user_id,
@@ -43,19 +45,18 @@ class SessionRepository:
             is_active=1
         )
 
-        # Save in DB
         self.db.add(db_session)
         self.db.commit()
         self.db.refresh(db_session)
 
         return db_session
-    
+
     def get(self, session_id: str):
         result = self.db.execute(
             select(SessionModel).where(SessionModel.session_id == session_id)
         )
         return result.scalar_one_or_none()
-    
+
     def get_by_user(self, user_id: int):
         result = self.db.execute(
             select(SessionModel)
@@ -64,8 +65,8 @@ class SessionRepository:
         )
         sessions = result.scalars().all()
         return sessions
-    
-    def update(self, session_id: str, title: str | None = None):
+
+    def update(self, session_id: str, title: str | None = None, language=_UNSET):
         db_session = self.get(session_id)
 
         if not db_session:
@@ -73,6 +74,9 @@ class SessionRepository:
 
         if title is not None:
             db_session.title = title
+
+        if language is not _UNSET:
+            db_session.language = language
 
         db_session.updated_at = int(time.time())
 
@@ -91,7 +95,7 @@ class SessionRepository:
         self.db.commit()
         self.db.refresh(session)
         return session
-    
+
     def delete(self, session_id: str):
         session = self.get(session_id)
 

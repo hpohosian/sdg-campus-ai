@@ -16,6 +16,7 @@
         <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
         <FIELD NAME="updated_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
         <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="false"/>
+        <FIELD NAME="language" TYPE="char" LENGTH="5" NOTNULL="false"/>
         <FIELD NAME="is_active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
       </FIELDS>
       <KEYS>
@@ -23,7 +24,7 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="session_id" UNIQUE="true" FIELDS="session_id"/>
-        <INDEX NAME="userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="user_id" UNIQUE="false" FIELDS="user_id"/>
       </INDEXES>
     </TABLE>
 
@@ -47,6 +48,25 @@
     </TABLE>
 
 
+    <!-- ===================== MESSAGE TRANSLATIONS ===================== -->
+    <TABLE NAME="local_ai_system_message_translations" COMMENT="Cached translations of chat messages, per language">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="message_id" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="language" TYPE="char" LENGTH="5" NOTNULL="true"/>
+        <FIELD NAME="content" TYPE="text" NOTNULL="true"/>
+        <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="message_id" UNIQUE="false" FIELDS="message_id"/>
+        <INDEX NAME="message_language" UNIQUE="true" FIELDS="message_id, language"/>
+      </INDEXES>
+    </TABLE>
+
+
     <!-- ===================== LOGS ===================== -->
     <TABLE NAME="local_ai_system_logs" COMMENT="System logs">
       <FIELDS>
@@ -64,7 +84,7 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="session_id" UNIQUE="false" FIELDS="session_id"/>
-        <INDEX NAME="userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="user_id" UNIQUE="false" FIELDS="user_id"/>
       </INDEXES>
     </TABLE>
 

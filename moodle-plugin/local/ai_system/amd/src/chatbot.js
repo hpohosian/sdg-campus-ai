@@ -28,6 +28,13 @@ define([
             this.scrollToBottom();
             this.bindArchive();
             this.bindCoursePicker();
+            this.bindLanguagePicker();
+
+            if (sessionId) {
+                const activeItem = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
+                this.setActiveLanguage(activeItem?.dataset.language || '');
+            }
+
 
             const container = document.getElementById('ai-messages-container');
 
@@ -103,6 +110,87 @@ define([
             });
         },
 
+        // =========================
+        // LANGUAGE PICKER
+        // =========================
+        bindLanguagePicker() {
+            const toggle = document.getElementById('ai-language-toggle');
+            const dropdown = document.getElementById('ai-language-dropdown');
+            const currentLabel = document.getElementById('ai-language-current-label');
+
+            if (!toggle || !dropdown) return;
+
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggle.classList.toggle('open');
+                dropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', () => {
+                dropdown.classList.add('hidden');
+                toggle.classList.remove('open');
+            });
+
+            const options = dropdown.querySelectorAll('.ai-language-option');
+
+            options.forEach(option => {
+                option.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+
+                    if (!this.state.sessionId) {
+                        dropdown.classList.add('hidden');
+                        toggle.classList.remove('open');
+                        return;
+                    }
+
+                    const language = option.dataset.language || '';
+
+                    await Ajax.call([{
+                        methodname: 'local_ai_system_update_session',
+                        args: { session_id: this.state.sessionId, language }
+                    }])[0];
+
+                    this.setActiveLanguage(language);
+
+                    const result = await Ajax.call([{
+                        methodname: 'local_ai_system_get_messages',
+                        args: { session_id: this.state.sessionId }
+                    }])[0];
+
+                    const container = document.getElementById('ai-messages-container');
+                    container.innerHTML = '';
+
+                    const messages = Array.isArray(result) ? result : (result.messages ?? []);
+                    messages.forEach(msg => this.appendMessage(msg.role, msg.content));
+
+                    const item = document.querySelector(`.ai-session-item[data-session-id="${this.state.sessionId}"]`);
+                    if (item) {
+                        item.dataset.language = language;
+                        const dot = item.querySelector('.ai-session-lang-dot');
+                        if (dot) dot.dataset.language = language;
+                    }
+
+                    dropdown.classList.add('hidden');
+                    toggle.classList.remove('open');
+                });
+            });
+        },
+
+        setActiveLanguage(language) {
+            const dropdown = document.getElementById('ai-language-dropdown');
+            const currentLabel = document.getElementById('ai-language-current-label');
+            if (!dropdown || !currentLabel) return;
+
+            const options = dropdown.querySelectorAll('.ai-language-option');
+            options.forEach(o => o.classList.remove('selected'));
+
+            const target = dropdown.querySelector(`.ai-language-option[data-language="${language || ''}"]`);
+            if (target) {
+                target.classList.add('selected');
+                currentLabel.textContent = target.querySelector('.ai-language-option-label').textContent.trim();
+            }
+        },
+
         bindArchive() {
             const toggle = document.getElementById('ai-archive-toggle');
             const dropdown = document.getElementById('ai-archive-dropdown');
@@ -120,6 +208,7 @@ define([
 
                     const sessionId = el.dataset.sessionId;
                     const title = el.querySelector('.ai-session-title').textContent.trim();
+                    this.setActiveLanguage(el.dataset.language || '');
 
                     const result = await Ajax.call([{
                         methodname: 'local_ai_system_get_messages',
@@ -198,15 +287,13 @@ define([
                         args: { session_id: sessionId }
                     }])[0];
 
-                    // получаем title до удаления
                     const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
                     const title = item?.querySelector('.ai-session-title')?.textContent.trim() ?? 'Chat';
+                    const language = item?.dataset.language || '';        // NEW
                     if (item) item.remove();
 
-                    // добавляем в архив
-                    this.addSessionToArchive(sessionId, title);
+                    this.addSessionToArchive(sessionId, title, language);  // CHANGED
 
-                    // если это активный чат — сбрасываем
                     if (this.state.sessionId === sessionId) {
                         this.state.sessionId = null;
                         document.getElementById('ai-messages-container').innerHTML = '';
@@ -294,19 +381,20 @@ define([
             return `${h}:${m}`;
         },
 
-        addSessionToArchive(sessionId, title) {
+        addSessionToArchive(sessionId, title, language = '') {   // CHANGED: добавлен language
             const dropdown = document.getElementById('ai-archive-dropdown');
             if (!dropdown) return;
 
-            // убираем "архив пуст" если есть
             const empty = dropdown.querySelector('.ai-archive-empty');
             if (empty) empty.remove();
 
             const el = document.createElement('div');
             el.className = 'ai-session-item ai-session-archived';
             el.dataset.sessionId = sessionId;
+            el.dataset.language = language;                        // NEW
 
             el.innerHTML = `
+                <span class="ai-session-lang-dot" data-language="${language}"></span>
                 <span class="ai-session-title">${title}</span>
                 <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
                     <i class="fa fa-ellipsis-v"></i>
@@ -325,7 +413,9 @@ define([
 
             // клик — открыть чат в режиме просмотра
             el.addEventListener('click', async (e) => {
-                if (e.target.closest('.ai-session-menu-btn') || e.target.closest('.ai-session-dropdown')) return;
+                if (e.target.closest('.ai-session-menu-btn') || e.target.closest('.ai-session-dropdown')) return;  // MOVED вверх
+
+                this.setActiveLanguage(el.dataset.language || '');   // MOVED после guard'а
 
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_get_messages',
@@ -349,7 +439,7 @@ define([
                 this.state.sessionId = null;
             });
 
-             el.querySelector('.ai-session-menu-btn').addEventListener('click', (e) => {
+            el.querySelector('.ai-session-menu-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 document.querySelectorAll('.ai-session-dropdown')
                     .forEach(d => d.dataset.sessionId !== sessionId && d.classList.add('hidden'));
@@ -367,16 +457,15 @@ define([
                 }])[0];
 
                 el.remove();
-                this.addSessionToSidebar(sessionId, title);
+                this.addSessionToSidebar(sessionId, title, el.dataset.language || '');   // CHANGED: прокидываем язык
 
-                // восстанавливаем инпут
                 const input = document.getElementById('ai-message-input');
                 const sendBtn = document.getElementById('ai-send-btn');
                 if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
                 if (sendBtn) sendBtn.disabled = false;
             });
 
-            // Delete
+            // Delete — без изменений
             el.querySelector('.ai-action-delete').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
@@ -392,8 +481,8 @@ define([
             });
         },
 
-        addSessionToSidebar(sessionId, title) {
-            const list = document.querySelector('.ai-sb-chats'); // ← правильный контейнер
+        addSessionToSidebar(sessionId, title, language = '') {
+            const list = document.querySelector('.ai-sb-chats');
             if (!list) return;
 
             document.querySelectorAll('.ai-session-item')
@@ -402,9 +491,10 @@ define([
             const el = document.createElement('div');
             el.className = 'ai-session-item active';
             el.dataset.sessionId = sessionId;
+            el.dataset.language = language;
 
-            // полная структура как в mustache-шаблоне
             el.innerHTML = `
+                <span class="ai-session-lang-dot" data-language="${language}"></span>
                 <span class="ai-session-title">${title}</span>
                 <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
                     <i class="fa fa-ellipsis-v"></i>
@@ -424,7 +514,6 @@ define([
 
             list.prepend(el);
 
-            // клик по самому элементу (загрузить чат)
             el.addEventListener('click', async (e) => {
                 if (e.target.closest('.ai-session-menu-btn') || e.target.closest('.ai-session-dropdown')) return;
 
@@ -437,6 +526,7 @@ define([
                 }])[0];
 
                 this.state.sessionId = sessionId;
+                this.setActiveLanguage(el.dataset.language || '');   // CHANGED: было жёстко '', теперь читает реальный язык
 
                 const container = document.getElementById('ai-messages-container');
                 container.innerHTML = '';
@@ -468,7 +558,7 @@ define([
                 }])[0];
 
                 el.remove();
-                this.addSessionToArchive(sessionId, title); // ← добавить эту строку
+                this.addSessionToArchive(sessionId, title, el.dataset.language || '');  // CHANGED: прокидываем язык
 
                 if (this.state.sessionId === sessionId) {
                     this.state.sessionId = null;
@@ -850,6 +940,7 @@ define([
                     if (sendBtn) sendBtn.disabled = false;
 
                     const sessionId = el.dataset.sessionId;
+                    this.setActiveLanguage(el.dataset.language || '');
                     const title = el.querySelector('.ai-session-title').textContent.trim();
 
                     const chatTitle = document.getElementById('ai-chat-title');

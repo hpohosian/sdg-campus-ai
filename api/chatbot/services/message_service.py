@@ -1,18 +1,14 @@
 from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.session_repository import SessionRepository
+from chatbot.repositories.message_translation_repository import MessageTranslationRepository  # NEW
 from db.repositories.db_course_repository import CourseRepository
 from chatbot.course_links import format_course_link, build_course_links
 
 from chatbot.services.ai_service import AIService
+from translation.translator import Translator  # NEW
 
 from chatbot.schemas import MessageResponse
 
-# Позже здесь будут:
-# validation
-# permissions
-# pagination
-# token limits
-# LLM orchestration
 
 class MessageService:
     def __init__(
@@ -21,28 +17,65 @@ class MessageService:
         session_repo: SessionRepository,
         ai_service: AIService,
         course_repo: CourseRepository,
+        translation_repo: MessageTranslationRepository,
+        translator: Translator,
     ):
         self.message_repo = message_repo
         self.session_repo = session_repo
         self.ai_service = ai_service
         self.course_repo = course_repo
-
+        self.translation_repo = translation_repo
+        self.translator = translator
 
     # =========================
-    # GET SESSION MESSAGES
+    # GET SESSION MESSAGES 
     # =========================
     async def get_session_messages(self, session_id: str):
         messages = self.message_repo.get_by_session(session_id)
-
         return messages
-    
-    
+
+    # =========================
+    # GET SESSION MESSAGES FOR DISPLAY 
+    # =========================
+    async def get_session_messages_for_display(self, session_id: str):
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+
+        messages = self.message_repo.get_by_session(session_id)
+
+        return [
+            MessageResponse(
+                id=m.id,
+                session_id=m.session_id,
+                role=m.role,
+                content=await self._translate_message(m, session.language),
+                tokens_used=m.tokens_used,
+                created_at=m.created_at,
+            )
+            for m in messages
+        ]
+
+    # =========================
+    # TRANSLATE ONE MESSAGE
+    # =========================
+    async def _translate_message(self, message, target_language: str | None) -> str:
+        if not target_language:
+            return message.content
+
+        cached = self.translation_repo.get(message.id, target_language)
+        if cached:
+            return cached.content
+
+        translated = await self.translator.translate(message.content, target_language)
+        self.translation_repo.create(message.id, target_language, translated)
+        return translated
+
     # =========================
     # SAVE USER MESSAGE ONLY
     # =========================
     async def create_user_message(self, session_id: str, content: str):
         session = self.session_repo.get(session_id)
-
         if not session:
             raise ValueError("Session not found")
 
@@ -51,44 +84,30 @@ class MessageService:
             role="user",
             content=content,
         )
-        
-    
+
     # =========================
     # SAVE ASSISTANT MESSAGE ONLY
     # =========================
     async def create_assistant_message(self, session_id: str, content: str, tokens_used: int | None = None):
         session = self.session_repo.get(session_id)
-        
         if not session:
             raise ValueError("Session not found")
-        
+
         return self.message_repo.create(
             session_id=session_id,
             role="assistant",
             content=content,
+            tokens_used=tokens_used,
         )
-        
-    
-    def _resolve_search_scope(self, session) -> tuple[str | None, list[int] | None, list[int]]:
-        """
-        Decides what to search:
-        - a specific course (collection_name) if the session is tied to one course
-        - otherwise, all of the user's enrolled courses (course_ids) as a global fallback
 
-        Also returns `relevant_course_ids` — the course id(s) actually in
-        scope either way — so callers can look up course names/links
-        without caring which branch was taken.
-        """
+    def _resolve_search_scope(self, session) -> tuple[str | None, list[int] | None, list[int]]:
         if session.course_id:
             return f"course_{session.course_id}", None, [session.course_id]
 
         course_ids = self.course_repo.get_enrolled_course_ids(session.user_id)
-
         print(f"[scope] global mode: user_id={session.user_id}, enrolled course_ids={course_ids}")
-
         return None, (course_ids or None), (course_ids or [])
-    
-        
+
     # =========================
     # GENERATE FULL RESPONSE
     # =========================
@@ -112,12 +131,21 @@ class MessageService:
             course_links=course_links,
         )
         assistant_message = await self.create_assistant_message(session_id, ai_text)
+
+        user_display = await self._translate_message(user_message, session.language)
+        assistant_display = await self._translate_message(assistant_message, session.language)
+
         return {
-            "user": MessageResponse.from_orm(user_message),
-            "assistant": MessageResponse.from_orm(assistant_message)
+            "user": MessageResponse(
+                id=user_message.id, session_id=user_message.session_id, role=user_message.role,
+                content=user_display, tokens_used=user_message.tokens_used, created_at=user_message.created_at,
+            ),
+            "assistant": MessageResponse(
+                id=assistant_message.id, session_id=assistant_message.session_id, role=assistant_message.role,
+                content=assistant_display, tokens_used=assistant_message.tokens_used, created_at=assistant_message.created_at,
+            ),
         }
-        
-    
+
     # =========================
     # STREAM RESPONSE
     # =========================
@@ -149,25 +177,7 @@ class MessageService:
 
         await self.create_assistant_message(session_id, full_response)
 
-    def _build_course_link_context(
-        self,
-        session,
-        collection_name: str | None,
-        relevant_course_ids: list[int],
-    ) -> tuple[str | None, dict[int, str] | None]:
-        """
-        Looks up course name(s) for whatever is in scope and builds
-        ready-to-use markdown link(s), so the LLM only ever copies a
-        citation instead of constructing a URL itself.
-
-        Returns (course_link, course_links):
-          - course_link: a single markdown link string, used when a
-            specific course is selected (collection_name mode)
-          - course_links: {course_id: markdown_link}, used in global
-            (multi-course) search mode
-        Exactly one of the two will be non-None, matching whichever
-        mode _resolve_search_scope picked.
-        """
+    def _build_course_link_context(self, session, collection_name, relevant_course_ids):
         if not relevant_course_ids:
             return None, None
 

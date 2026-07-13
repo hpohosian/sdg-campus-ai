@@ -6,15 +6,11 @@ from chatbot.schemas import MessageResponse, SendMessageRequest
 
 from chatbot.services.message_service import MessageService
 from chatbot.services.session_service import SessionService
-# from chatbot.services.ai_service import AIService
-
-from chatbot.schemas import SendMessageRequest
 
 from dependencies import (
     get_message_service,
     get_session_service,
     get_current_user_id,
-    # get_ai_service,
 )
 
 
@@ -28,9 +24,7 @@ router = APIRouter(prefix="/sessions", tags=["messages"])
 async def get_session_messages(
     session_id: str,
     user_id: int = Depends(get_current_user_id),
-
     session_service: SessionService = Depends(get_session_service),
-
     message_service: MessageService = Depends(get_message_service),
 ):
     session = await session_service.get_session(session_id)
@@ -38,7 +32,7 @@ async def get_session_messages(
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    messages = await message_service.get_session_messages(session_id)
+    messages = await message_service.get_session_messages_for_display(session_id)  # CHANGED
 
     return messages
 
@@ -88,12 +82,6 @@ async def stream_message(
 
         async for token in message_service.chat_stream(session_id, request.content):
             full += token
-            # Encode as JSON so a token containing a literal newline (very
-            # common — e.g. between list items or paragraphs) can't break
-            # the client's line-based SSE parsing. Without this, a token
-            # like "\n\n1. Respect" turns into multiple physical lines on
-            # the wire, and the client silently drops everything after the
-            # first line since it no longer starts with "data:".
             payload = json.dumps({"token": token})
             yield f"data: {payload}\n\n"
 

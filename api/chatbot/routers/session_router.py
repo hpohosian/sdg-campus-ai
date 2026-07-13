@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from chatbot.schemas import CreateSessionRequest, SessionResponse
+from chatbot.schemas import CreateSessionRequest, UpdateSessionRequest, SessionResponse
 from chatbot.services.session_service import SessionService
+from chatbot.repositories.session_repository import _UNSET
 from dependencies import get_session_service, get_current_user_id
 
 
@@ -17,10 +18,8 @@ async def create_session(
     user_id: int = Depends(get_current_user_id),
     service: SessionService = Depends(get_session_service),
 ):
-    resolved_user_id = user_id if user_id else request.user_id
-
     session = await service.create_session(
-        user_id=resolved_user_id,
+        user_id=user_id,
         course_id=request.course_id,
         title=request.title,
     )
@@ -30,9 +29,10 @@ async def create_session(
         user_id=session.user_id,
         course_id=session.course_id,
         title=session.title,
+        language=session.language,     # NEW — будет None у только что созданной сессии
         is_active=session.is_active
     )
-    
+
 
 # =========================
 # GET ONE SESSION
@@ -45,7 +45,6 @@ async def get_session(
 ):
     session = await service.get_session(session_id)
 
-    # protection: you can’t watch other people’s sessions
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -54,6 +53,7 @@ async def get_session(
         user_id=session.user_id,
         course_id=session.course_id,
         title=session.title,
+        language=session.language,     # NEW
         is_active=session.is_active
     )
 
@@ -74,6 +74,7 @@ async def get_user_sessions(
             user_id=s.user_id,
             course_id=s.course_id,
             title=s.title,
+            language=s.language,       # NEW — фронт красит иконку по этому полю в списке чатов
             is_active=s.is_active
         )
         for s in sessions
@@ -86,7 +87,7 @@ async def get_user_sessions(
 @router.put("/{session_id}", response_model=SessionResponse)
 async def update_session(
     session_id: str,
-    request: CreateSessionRequest,
+    request: UpdateSessionRequest,          # CHANGED: было CreateSessionRequest
     user_id: int = Depends(get_current_user_id),
     service: SessionService = Depends(get_session_service),
 ):
@@ -95,9 +96,15 @@ async def update_session(
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    if "language" in request.model_fields_set:
+        language = request.language or None
+    else:
+        language = _UNSET
+
     updated = await service.update_session(
         session_id=session_id,
         title=request.title,
+        language=language,
     )
 
     return SessionResponse(
@@ -105,6 +112,7 @@ async def update_session(
         user_id=updated.user_id,
         course_id=updated.course_id,
         title=updated.title,
+        language=updated.language,
         is_active=updated.is_active
     )
 
@@ -135,7 +143,7 @@ async def archive_session(
 # DEARCHIVE SESSION
 # =========================
 @router.put("/dearchive/{session_id}")
-async def archive_session(
+async def dearchive_session(
     session_id: str,
     user_id: int = Depends(get_current_user_id),
     service: SessionService = Depends(get_session_service),
