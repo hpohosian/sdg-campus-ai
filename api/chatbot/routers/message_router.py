@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+import json
 
 from chatbot.schemas import MessageResponse, SendMessageRequest
 
@@ -87,6 +88,15 @@ async def stream_message(
 
         async for token in message_service.chat_stream(session_id, request.content):
             full += token
-            yield f"data: {token}\n\n"
+            # Encode as JSON so a token containing a literal newline (very
+            # common — e.g. between list items or paragraphs) can't break
+            # the client's line-based SSE parsing. Without this, a token
+            # like "\n\n1. Respect" turns into multiple physical lines on
+            # the wire, and the client silently drops everything after the
+            # first line since it no longer starts with "data:".
+            payload = json.dumps({"token": token})
+            yield f"data: {payload}\n\n"
+
+        yield "data: [DONE]\n\n"
 
     return StreamingResponse(generator(), media_type="text/event-stream")

@@ -697,11 +697,27 @@ define([
 
                         if (!line.startsWith('data:')) continue;
 
-                        const text = line.replace(/^data:\s?/, ''); 
+                        const raw = line.replace(/^data:\s?/, '');
 
-                        if (text === '[DONE]') continue;
+                        if (raw === '[DONE]') continue;
 
-                        fullText += text;
+                        // Tokens are JSON-encoded server-side so a token
+                        // containing a literal newline (extremely common —
+                        // e.g. between list items or paragraphs) survives
+                        // intact as an escaped "\n" instead of becoming a
+                        // real line break that would split this SSE event
+                        // across multiple physical lines and get partially
+                        // dropped by the `if (!line.startsWith('data:'))`
+                        // check above.
+                        let token;
+                        try {
+                            token = JSON.parse(raw).token;
+                        } catch (err) {
+                            console.error('[ChatBot] Failed to parse SSE payload, skipping:', raw, err);
+                            continue;
+                        }
+
+                        fullText += token;
 
                         // Render markdown live, on every chunk, instead of
                         // only once at the very end — so bold/lists/links
