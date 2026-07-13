@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     
     MOODLEDATA_PATH: str = "D:\\Moodle\\MoodleWindowsInstaller-latest-500\\server\\moodledata"
+
+    # Used to build clickable course links in chatbot answers, e.g.
+    # f"{MOODLE_BASE_URL}/course/view.php?id={course_id}"
+    # Change this in .env for staging/production (no trailing slash).
+    MOODLE_BASE_URL: str = "http://127.0.0.1"
     
     INTERNAL_API_KEY: str
     

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 
 
 class CourseRepository:
@@ -34,6 +34,27 @@ class CourseRepository:
             {"course_id": course_id},
         ).fetchone()
         return row.fullname if row else None
+
+    def get_course_names(self, course_ids: list[int]) -> dict[int, str]:
+        """
+        Bulk version of get_course_name — one query instead of N.
+        Used when formatting source citations for a global (multi-course)
+        search, so we don't hit the DB once per course per message.
+
+        Returns {course_id: fullname}. Course ids that don't exist are
+        simply absent from the returned dict — callers should handle
+        a missing id gracefully (e.g. fall back to "Course {id}").
+        """
+        if not course_ids:
+            return {}
+
+        stmt = text(
+            "SELECT id, fullname FROM mdl_course WHERE id IN :course_ids"
+        ).bindparams(bindparam("course_ids", expanding=True))
+
+        rows = self.db.execute(stmt, {"course_ids": list(course_ids)}).fetchall()
+        return {row.id: row.fullname for row in rows}
+
     
     def get_enrolled_course_ids(self, user_id: int) -> list[int]:
         """

@@ -37,6 +37,22 @@ define([
 
                 this.shouldAutoScroll = nearBottom;
             });
+
+            // Any link inside a chat message (e.g. a course citation link
+            // rendered from markdown) should open in a new tab instead of
+            // navigating away from / inside the chat widget itself.
+            // Delegated on the container (not on individual links) because
+            // messages are inserted into the DOM dynamically — both from
+            // streaming responses and from history loaded via AJAX — so a
+            // one-time querySelectorAll pass at init time would miss every
+            // link added afterwards.
+            container.addEventListener('click', (e) => {
+                const link = e.target.closest('a');
+                if (!link || !container.contains(link)) return;
+
+                e.preventDefault();
+                window.open(link.href, '_blank', 'noopener,noreferrer');
+            });
         },
 
         // =========================
@@ -687,7 +703,19 @@ define([
 
                         fullText += text;
 
-                        bubble.innerText = fullText;
+                        // Render markdown live, on every chunk, instead of
+                        // only once at the very end — so bold/lists/links
+                        // appear as the message is being typed, not after
+                        // the fact. Partial markup (e.g. an unclosed "**")
+                        // may render oddly for a split second until the
+                        // closing token arrives — that's expected and
+                        // self-corrects on the next chunk.
+                        try {
+                            bubble.innerHTML = window.marked ? window.marked.parse(fullText) : fullText;
+                        } catch (err) {
+                            bubble.innerText = fullText;
+                        }
+
                         this.scrollToBottom();
                     }
                 }
@@ -700,8 +728,23 @@ define([
                 this.state.isStreaming = false;
                 this.state.controller = null;
                 this.updateUIState();
-                bubble.innerHTML = window.marked.parse(fullText || '');
-                
+
+                // If marked.parse throws (or window.marked isn't loaded
+                // yet for some reason), fall back to plain text instead
+                // of silently leaving the bubble unrendered — and log it,
+                // so it's visible in devtools instead of failing quietly.
+                try {
+                    if (!window.marked) {
+                        console.warn('[ChatBot] window.marked is not available yet — showing plain text.');
+                        bubble.innerText = fullText;
+                    } else {
+                        bubble.innerHTML = window.marked.parse(fullText || '');
+                    }
+                } catch (err) {
+                    console.error('[ChatBot] Failed to render markdown, showing plain text instead:', err);
+                    bubble.innerText = fullText;
+                }
+
                 const timeEl = document.getElementById('ai-streaming-time');
                 if (timeEl) {
                     timeEl.textContent = this.formatTime(new Date());

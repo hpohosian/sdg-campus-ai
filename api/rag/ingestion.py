@@ -34,7 +34,7 @@ class IngestionPipeline:
         embedding_model: EmbeddingModel = None,
         vector_store: VectorStore = None,
         chunk_size: int = 1000,
-        chunk_overlap: int = 200,
+        chunk_overlap: int = 150,
     ):
         self.chunker = chunker or TextChunker(
             chunk_size=chunk_size,

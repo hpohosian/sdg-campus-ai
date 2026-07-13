@@ -1,7 +1,13 @@
 import os
+import urllib.parse
 import fitz  # pymupdf
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+try:
+    from api.settings import settings
+except ModuleNotFoundError:
+    from settings import settings
 
 
 class MoodlePDFLoader:
@@ -34,6 +40,7 @@ class MoodlePDFLoader:
                         "source_type": "pdf",
                         "source_name": pdf["filename"],
                         "source": pdf["filename"],
+                        "file_url": pdf["file_url"],
                         "section": "",
                     }
                 })
@@ -47,7 +54,8 @@ class MoodlePDFLoader:
     def _get_course_pdf_files(self, course_id: int) -> list[dict]:
         """Get all PDF file records for a course from Moodle DB."""
         rows = self.db.execute(text("""
-            SELECT DISTINCT f.filename, f.contenthash, f.filesize
+            SELECT DISTINCT f.filename, f.contenthash, f.filesize,
+                            f.contextid, f.component, f.filearea, f.itemid
             FROM mdl_files f
             JOIN mdl_context ctx ON ctx.id = f.contextid
             WHERE f.mimetype = 'application/pdf'
@@ -64,9 +72,34 @@ class MoodlePDFLoader:
         """), {"course_id": course_id}).fetchall()
 
         return [
-            {"filename": row.filename, "contenthash": row.contenthash}
+            {
+                "filename": row.filename,
+                "contenthash": row.contenthash,
+                "file_url": self._build_file_url(
+                    contextid=row.contextid,
+                    component=row.component,
+                    filearea=row.filearea,
+                    itemid=row.itemid,
+                    filename=row.filename,
+                ),
+            }
             for row in rows
         ]
+
+    def _build_file_url(self, contextid: int, component: str, filearea: str, itemid: int, filename: str) -> str:
+        """
+        Builds a direct Moodle pluginfile.php URL for a stored file, e.g.:
+            http://127.0.0.1/pluginfile.php/45/mod_resource/content/1/Butin2010.pdf
+
+        This is the standard way Moodle serves files that live in mdl_files
+        — clicking it downloads/opens the file directly, same as clicking
+        it from within the course page.
+        """
+        encoded_filename = urllib.parse.quote(filename)
+        return (
+            f"{settings.MOODLE_BASE_URL}/pluginfile.php/"
+            f"{contextid}/{component}/{filearea}/{itemid}/{encoded_filename}"
+        )
 
     def _get_file_path(self, contenthash: str) -> str:
         """
@@ -98,3 +131,4 @@ class MoodlePDFLoader:
         except Exception as e:
             print(f"[pdf_loader] Error reading {contenthash}: {e}")
             return ""
+        
