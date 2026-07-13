@@ -8,6 +8,6 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026071302;          // The current plugin version (YYYYMMDDXX)
+$plugin->version   = 2026071305;          // The current plugin version (YYYYMMDDXX)
 $plugin->requires  = 2021051700;          // Moodle version required
 $plugin->component = 'local_ai_system';   // Full name of the plugin (used for diagnostics)

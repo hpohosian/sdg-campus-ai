@@ -3,10 +3,25 @@ from llm.base import BaseLLM
 from rag.retriever import Retriever
 
 
+_TITLE_SYSTEM_PROMPT = (
+    "Generate a short, descriptive title (3-6 words) summarizing this chat exchange. "
+    "Write the title in the same language as the conversation. "
+    "Return ONLY the title text — no quotes, no trailing punctuation, no explanations."
+)
+
+
 class AIService:
     def __init__(self, llm: BaseLLM, retriever: Retriever = None):
         self.llm = llm
         self.retriever = retriever
+        
+    async def generate_title(self, user_message: str, assistant_message: str) -> str:
+        messages = [
+            {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Student: {user_message}\nAssistant: {assistant_message}"},
+        ]
+        title = await self.llm.chat(messages)
+        return title.strip().strip('"').strip("'")[:255]
 
     async def generate_response(
         self,

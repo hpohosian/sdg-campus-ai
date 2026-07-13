@@ -116,6 +116,9 @@ class MessageService:
         if not session:
             raise ValueError("Session not found")
 
+        existing_messages = await self.get_session_messages(session_id)
+        is_first_message = len(existing_messages) == 0
+
         collection_name, course_ids, relevant_course_ids = self._resolve_search_scope(session)
         course_link, course_links = self._build_course_link_context(
             session, collection_name, relevant_course_ids
@@ -132,6 +135,11 @@ class MessageService:
         )
         assistant_message = await self.create_assistant_message(session_id, ai_text)
 
+        generated_title = None
+        if is_first_message and session.title == "New Chat":
+            generated_title = await self.ai_service.generate_title(content, ai_text)
+            self.session_repo.update(session_id, title=generated_title)
+
         user_display = await self._translate_message(user_message, session.language)
         assistant_display = await self._translate_message(assistant_message, session.language)
 
@@ -144,6 +152,7 @@ class MessageService:
                 id=assistant_message.id, session_id=assistant_message.session_id, role=assistant_message.role,
                 content=assistant_display, tokens_used=assistant_message.tokens_used, created_at=assistant_message.created_at,
             ),
+            "title": generated_title,
         }
 
     # =========================
@@ -153,6 +162,9 @@ class MessageService:
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
+
+        existing_messages = await self.get_session_messages(session_id)
+        is_first_message = len(existing_messages) == 0                # NEW
 
         collection_name, course_ids, relevant_course_ids = self._resolve_search_scope(session)
         course_link, course_links = self._build_course_link_context(
@@ -177,6 +189,11 @@ class MessageService:
 
         await self.create_assistant_message(session_id, full_response)
 
+        if is_first_message and session.title == "New Chat":           # NEW
+            generated_title = await self.ai_service.generate_title(content, full_response)
+            self.session_repo.update(session_id, title=generated_title)
+            
+
     def _build_course_link_context(self, session, collection_name, relevant_course_ids):
         if not relevant_course_ids:
             return None, None
@@ -187,4 +204,5 @@ class MessageService:
         if collection_name:
             return links.get(session.course_id), None
         return None, links
+    
     

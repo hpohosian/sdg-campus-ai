@@ -151,4 +151,15 @@ class service {
             ]
         );
     }
+
+
+    /**
+     * Persist a partially generated assistant response (after Stop)
+     */
+    public function save_partial_message(string $session_id, string $content): array {
+        return $this->client->post(
+            "/sessions/{$session_id}/messages/partial",
+            ['content' => $content]
+        );
+    }
 }

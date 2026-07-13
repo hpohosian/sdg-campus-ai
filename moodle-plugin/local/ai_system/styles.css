@@ -358,7 +358,7 @@ body.pagelayout-embedded .ai-chatbot-layout {
 
 .ai-session-archived:hover {
     opacity: 1;
-    cursor: default;
+    cursor: pointer;
 }
 
 .ai-archive-empty {
@@ -562,18 +562,71 @@ body.pagelayout-embedded .ai-chatbot-layout {
 .ai-language-option.selected .ai-language-check { opacity: 1; }
 .ai-language-option.selected .ai-language-option-label { color: #1e3a5f; font-weight: 500; }
 
-/* ===== LANGUAGE MARKER (в списке чатов) ===== */
-.ai-session-lang-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+/* ===== LANGUAGE BADGE ===== */
+.ai-session-lang-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
     flex-shrink: 0;
-    background: #999;
 }
 
-.ai-session-lang-dot[data-language=""] { display: none; }  /* оригинал — маркер не показываем */
+.ai-session-lang-badge[data-language=""] { display: none; }
 
-.ai-session-lang-dot[data-language="en"] { background: #2563eb; }
-.ai-session-lang-dot[data-language="de"] { background: #eab308; }
-.ai-session-lang-dot[data-language="ru"] { background: #dc2626; }
-.ai-session-lang-dot[data-language="ua"] { background: #29dc26; }
+.ai-session-lang-badge[data-language="en"] { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
+.ai-session-lang-badge[data-language="de"] { background: rgba(217, 119, 6, 0.14);  color: #b45309; }
+.ai-session-lang-badge[data-language="ru"] { background: rgba(220, 38, 38, 0.12); color: #dc2626; }
+.ai-session-lang-badge[data-language="uk"] { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
+
+
+/* ===== MESSAGES WRAP + TRANSLATING OVERLAY ===== */
+.ai-chatbot-messages-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.ai-translating-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    z-index: 50;
+    font-size: 13px;
+    color: #555;
+}
+
+.ai-translating-overlay.hidden { display: none; }
+
+.ai-translating-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #e0e0e0;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: ai-spin 0.8s linear infinite;
+}
+
+@keyframes ai-spin {
+    to { transform: rotate(360deg); }
+}
+
+
+.ai-course-picker-toggle.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}

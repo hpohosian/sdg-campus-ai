@@ -63,6 +63,10 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 ]);
 
 curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) {
+    if (connection_aborted()) {
+        return 0;
+    }
+
     echo $data;
     ob_flush();
     flush();

@@ -72,4 +72,13 @@ $functions = [
         'ajax'        => true,
         'loginrequired' => true,
     ],
+
+    'local_ai_system_save_partial_message' => [
+        'classname'   => 'local_ai_system\external\chatbot_api',
+        'methodname'  => 'save_partial_message',
+        'description' => 'Persist partially generated assistant response after Stop',
+        'type'        => 'write',
+        'ajax'        => true,
+        'loginrequired' => true,
+    ],
 ];

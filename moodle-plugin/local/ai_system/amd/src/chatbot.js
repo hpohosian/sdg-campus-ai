@@ -29,6 +29,7 @@ define([
             this.bindArchive();
             this.bindCoursePicker();
             this.bindLanguagePicker();
+            this.updateCoursePickerLock();
 
             if (sessionId) {
                 const activeItem = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
@@ -137,41 +138,53 @@ define([
                 option.addEventListener('click', async (e) => {
                     e.stopPropagation();
 
-                    if (!this.state.sessionId) {
+                    if (!this.state.sessionId || this.state.isTranslating) {   // CHANGED: +guard от повторного клика
                         dropdown.classList.add('hidden');
                         toggle.classList.remove('open');
                         return;
                     }
 
                     const language = option.dataset.language || '';
-
-                    await Ajax.call([{
-                        methodname: 'local_ai_system_update_session',
-                        args: { session_id: this.state.sessionId, language }
-                    }])[0];
-
-                    this.setActiveLanguage(language);
-
-                    const result = await Ajax.call([{
-                        methodname: 'local_ai_system_get_messages',
-                        args: { session_id: this.state.sessionId }
-                    }])[0];
-
-                    const container = document.getElementById('ai-messages-container');
-                    container.innerHTML = '';
-
-                    const messages = Array.isArray(result) ? result : (result.messages ?? []);
-                    messages.forEach(msg => this.appendMessage(msg.role, msg.content));
-
-                    const item = document.querySelector(`.ai-session-item[data-session-id="${this.state.sessionId}"]`);
-                    if (item) {
-                        item.dataset.language = language;
-                        const dot = item.querySelector('.ai-session-lang-dot');
-                        if (dot) dot.dataset.language = language;
-                    }
+                    const isReset = language === '';
 
                     dropdown.classList.add('hidden');
                     toggle.classList.remove('open');
+
+                    this.state.isTranslating = true;
+                    this.showTranslatingOverlay(isReset);
+
+                    try {
+                        await Ajax.call([{
+                            methodname: 'local_ai_system_update_session',
+                            args: { session_id: this.state.sessionId, language }
+                        }])[0];
+
+                        this.setActiveLanguage(language);
+
+                        const result = await Ajax.call([{
+                            methodname: 'local_ai_system_get_messages',
+                            args: { session_id: this.state.sessionId }
+                        }])[0];
+
+                        const container = document.getElementById('ai-messages-container');
+                        container.innerHTML = '';
+
+                        const messages = Array.isArray(result) ? result : (result.messages ?? []);
+                        messages.forEach(msg => this.appendMessage(msg.role, msg.content));
+
+                        const item = document.querySelector(`.ai-session-item[data-session-id="${this.state.sessionId}"]`);
+                        if (item) {
+                            item.dataset.language = language;
+                            const badge = item.querySelector('.ai-session-lang-badge');
+                            if (badge) {
+                                badge.dataset.language = language;
+                                badge.textContent = language;
+                            }
+                        }
+                    } finally {
+                        this.state.isTranslating = false;
+                        this.hideTranslatingOverlay();
+                    }
                 });
             });
         },
@@ -189,6 +202,40 @@ define([
                 target.classList.add('selected');
                 currentLabel.textContent = target.querySelector('.ai-language-option-label').textContent.trim();
             }
+        },
+
+        applyGeneratedTitle(title) {
+            if (!title || !this.state.sessionId) return;
+
+            const chatTitle = document.getElementById('ai-chat-title');
+            if (chatTitle) chatTitle.textContent = title;
+
+            const sidebarTitleEl = document.querySelector(
+                `.ai-session-item[data-session-id="${this.state.sessionId}"] .ai-session-title`
+            );
+            if (sidebarTitleEl) sidebarTitleEl.textContent = title;
+        },
+
+        updateCoursePickerLock() {
+            const toggle = document.getElementById('ai-course-toggle');
+            if (!toggle) return;
+
+            const locked = !!this.state.sessionId;
+            toggle.classList.toggle('disabled', locked);
+        },
+
+        showTranslatingOverlay(isReset) {
+            const overlay = document.getElementById('ai-translating-overlay');
+            const label = document.getElementById('ai-translating-label');
+            if (!overlay || !label) return;
+
+            label.textContent = isReset ? overlay.dataset.labelLoading : overlay.dataset.labelTranslating;
+            overlay.classList.remove('hidden');
+        },
+
+        hideTranslatingOverlay() {
+            const overlay = document.getElementById('ai-translating-overlay');
+            if (overlay) overlay.classList.add('hidden');
         },
 
         bindArchive() {
@@ -310,11 +357,18 @@ define([
                     const sessionId = el.dataset.sessionId;
                     document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
 
+                    const currentTitle = document.querySelector(                    // NEW
+                        `.ai-session-item[data-session-id="${sessionId}"] .ai-session-title`
+                    )?.textContent.trim() ?? '';
+
                     const popup = document.getElementById('ai-rename-popup');
                     popup.classList.remove('hidden');
                     popup.dataset.sessionId = sessionId;
-                    document.getElementById('ai-rename-input').value = '';
-                    document.getElementById('ai-rename-input').focus();
+
+                    const input = document.getElementById('ai-rename-input');
+                    input.value = currentTitle;        // CHANGED: было ''
+                    input.focus();
+                    input.select();                    // NEW: выделяем весь текст
                 });
             });
 
@@ -394,7 +448,7 @@ define([
             el.dataset.language = language;                        // NEW
 
             el.innerHTML = `
-                <span class="ai-session-lang-dot" data-language="${language}"></span>
+                <span class="ai-session-lang-badge" data-language="${language}"></span>
                 <span class="ai-session-title">${title}</span>
                 <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
                     <i class="fa fa-ellipsis-v"></i>
@@ -494,7 +548,7 @@ define([
             el.dataset.language = language;
 
             el.innerHTML = `
-                <span class="ai-session-lang-dot" data-language="${language}"></span>
+                <span class="ai-session-lang-badge" data-language="${language}"></span>
                 <span class="ai-session-title">${title}</span>
                 <button class="ai-session-menu-btn" data-session-id="${sessionId}" aria-label="Session menu">
                     <i class="fa fa-ellipsis-v"></i>
@@ -573,11 +627,16 @@ define([
                 e.stopPropagation();
                 document.querySelectorAll('.ai-session-dropdown').forEach(d => d.classList.add('hidden'));
 
+                const currentTitle = el.querySelector('.ai-session-title').textContent.trim();
+
                 const popup = document.getElementById('ai-rename-popup');
                 popup.classList.remove('hidden');
                 popup.dataset.sessionId = sessionId;
-                document.getElementById('ai-rename-input').value = '';
-                document.getElementById('ai-rename-input').focus();
+
+                const input = document.getElementById('ai-rename-input');
+                input.value = currentTitle;
+                input.focus();
+                input.select();
             });
 
             // Delete
@@ -609,19 +668,17 @@ define([
                 return this.state.sessionId;
             }
 
-            const sessionNumber = document.querySelectorAll('.ai-session-item').length + 1;
-
             try {
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_create_session',
                     args: {
-                        title: `New Chat ${sessionNumber}`,
                         course_id: this.state.courseId
                     }
                 }])[0];
 
                 this.state.sessionId = result.session_id;
-                this.addSessionToSidebar(result.session_id, `New Chat ${sessionNumber}`);
+                this.addSessionToSidebar(result.session_id, result.title || 'New Chat', '');
+                this.updateCoursePickerLock();
 
                 return this.state.sessionId;
 
@@ -716,13 +773,27 @@ define([
             });
 
             if (stopBtn) {
-                stopBtn.addEventListener('click', () => {
-                    if (this.state.controller) {
-                        this.state.controller.abort();
-                        this.state.isStreaming = false;
-                        this.updateUIState();
-                        document.getElementById('ai-send-btn').style.display = 'flex';
-                        document.getElementById('ai-stop-btn').style.display = 'none';
+                stopBtn.addEventListener('click', async () => {
+                    if (!this.state.controller) return;
+
+                    this.state.controller.abort();
+                    this.state.isStreaming = false;
+                    this.updateUIState();
+                    document.getElementById('ai-send-btn').style.display = 'flex';
+                    document.getElementById('ai-stop-btn').style.display = 'none';
+
+                    const partial = this.state.partialText;
+                    const sessionId = this.state.sessionId;
+
+                    if (partial && partial.trim() && sessionId) {
+                        try {
+                            await Ajax.call([{
+                                methodname: 'local_ai_system_save_partial_message',
+                                args: { session_id: sessionId, content: partial }
+                            }])[0];
+                        } catch (e) {
+                            console.error('[ChatBot] Failed to persist partial response:', e);
+                        }
                     }
                 });
             }
@@ -736,6 +807,7 @@ define([
             if (this.state.isStreaming) return;
 
             this.state.isStreaming = true;
+            this.state.partialText = '';
             this.state.controller = new AbortController();
             this.updateUIState();
 
@@ -799,15 +871,22 @@ define([
                         // across multiple physical lines and get partially
                         // dropped by the `if (!line.startsWith('data:'))`
                         // check above.
-                        let token;
+                        let parsed;
                         try {
-                            token = JSON.parse(raw).token;
+                            parsed = JSON.parse(raw);
                         } catch (err) {
                             console.error('[ChatBot] Failed to parse SSE payload, skipping:', raw, err);
                             continue;
                         }
 
+                        if (parsed.title !== undefined) {
+                            this.applyGeneratedTitle(parsed.title);
+                            continue;
+                        }
+
+                        const token = parsed.token;
                         fullText += token;
+                        this.state.partialText = fullText;
 
                         // Render markdown live, on every chunk, instead of
                         // only once at the very end — so bold/lists/links

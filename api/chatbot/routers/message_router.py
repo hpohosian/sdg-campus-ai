@@ -85,6 +85,31 @@ async def stream_message(
             payload = json.dumps({"token": token})
             yield f"data: {payload}\n\n"
 
+        updated_session = await session_service.get_session(session_id)
+        title_payload = json.dumps({"title": updated_session.title})
+        yield f"data: {title_payload}\n\n"
+
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(generator(), media_type="text/event-stream")
+
+
+@router.post("/{session_id}/messages/partial", response_model=MessageResponse)
+async def save_partial_message(
+    session_id: str,
+    request: SendMessageRequest,
+    user_id: int = Depends(get_current_user_id),
+    session_service: SessionService = Depends(get_session_service),
+    message_service: MessageService = Depends(get_message_service),
+):
+    session = await session_service.get_session(session_id)
+
+    if session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    try:
+        message = await message_service.create_partial_assistant_message(session_id, request.content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return MessageResponse.from_orm(message)

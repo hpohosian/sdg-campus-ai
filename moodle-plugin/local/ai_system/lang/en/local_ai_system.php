@@ -24,3 +24,5 @@ $string['select_course'] = 'Course for new chat';
 $string['all_my_courses'] = 'All my courses';
 $string['language_original'] = 'Original';
 $string['language_picker_label'] = 'Chat language';
+$string['translating'] = 'Translating...';
+$string['loading_original'] = 'Loading original...';

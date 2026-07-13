@@ -490,4 +490,34 @@ class chatbot_api extends external_api {
         );
     }
 
+
+    public static function save_partial_message_parameters() {
+        return new external_function_parameters([
+            'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
+            'content'    => new external_value(PARAM_RAW, 'Partially generated assistant text'),
+        ]);
+    }
+
+    public static function save_partial_message($session_id, $content) {
+        $params = self::validate_parameters(
+            self::save_partial_message_parameters(),
+            ['session_id' => $session_id, 'content' => $content]
+        );
+
+        $context = \context_system::instance();
+        self::validate_context($context);
+        require_capability('local_ai_system:use_chatbot', $context);
+
+        $service = new \local_ai_system\chatbot\service();
+
+        return $service->save_partial_message($params['session_id'], $params['content']);
+    }
+
+    public static function save_partial_message_returns() {
+        return new external_single_structure([
+            'id'      => new external_value(PARAM_INT, 'Message ID', VALUE_OPTIONAL),
+            'role'    => new external_value(PARAM_TEXT, 'Role', VALUE_OPTIONAL),
+            'content' => new external_value(PARAM_RAW, 'Content', VALUE_OPTIONAL),
+        ]);
+    }
 }
