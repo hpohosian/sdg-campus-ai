@@ -1,459 +1,152 @@
-# 💬 Chatbot Module — SDG Campus AI Backend
-
-## 📌 Overview
-
-The Chatbot module is the **core intelligence layer** of the SDG Campus AI backend.
-
-It is responsible for:
-
-- handling user messages
-- managing chat sessions
-- building prompts for LLM
-- interacting with the AI model (Mistral)
-- storing conversation history
-
-This module implements a **stateful chat system on top of a stateless LLM API**.
-
----
-
-## 🧩 Module Structure
-
-```text
-
-api/chatbot/
-├── router.py              # HTTP API layer
-├── service.py             # business logic (ChatService)
-├── schemas.py             # data models (Pydantic)
-├── session_repository.py  # in-memory session storage
-└── prompts.py             # system prompt templates
-```
-
----
-
-## 🌐 API Layer (router.py)
-
-📌 File: `router.py`
-
-### Purpose
-
-Defines the HTTP endpoint for chatbot communication.
-
----
-
-### Endpoint
-
-```url
-POST /chat
-```
-
----
-
-### Flow
-
-- Receives `ChatRequest`
-- Injects `ChatService` via FastAPI dependency system
-- Calls `handle_message()`
-- Returns `ChatResponse`
-
----
-
-### Responsibility
-
-- No business logic
-- Only request routing
-- Delegation to service layer
-
----
-
-## 🧠 Data Models (schemas.py)
-
-📌 File: `schemas.py`
-
-Defines structured communication between frontend and backend.
-
----
-
-### ChatRequest
-
-```python id="chat_request_model"
-class ChatRequest(BaseModel):
-    session_id: str
-    user_id: int
-    message: str
-    course_id: Optional[int] = None
-```
-
-### Purpose
-
-- identifies user session
-- carries user message
-- optionally includes course context
-
----
-
-### ChatMessage
-
-```python id="chat_message_model"
-class ChatMessage(BaseModel):
-    role: Literal["user", "assistant", "system"]
-    content: str
-```
-
-### Purpose
-
-- unified message format for LLM and storage
-
----
-
-### ChatResponse
-
-```python
-class ChatResponse(BaseModel):
-    session_id: str
-    message: str
-```
-
-### Purpose
-
-- returns AI-generated response to frontend
-
----
-
-## 🧠 Core Logic (service.py)
-
-📌 File: `service.py`
-
-This is the **central orchestrator of the chatbot system**.
-
----
-
-## 🔄 Main Flow: handle_message()
-
-```python
-async def handle_message(self, request: ChatRequest)
-```
-
----
-
-### Step 1 — Session management
-
-```python
-session = await self.session_repo.get_or_create(
-    request.session_id,
-    request.user_id
-)
-```
-
-### Purpose
-
-- ensures session exists
-- creates new session if needed
-
----
-
-### Step 2 — Load message history
-
-```python
-history = await self.session_repo.get_messages(session.id)
-```
-
-### Purpose
-
-- retrieves previous conversation
-- provides context for LLM
-
----
-
-### Step 3 — Build LLM messages
-
-```python
-messages = self._build_messages(history, request.message)
-```
-
----
-
-### Internal logic
-
-```python
-messages = [
-    {"role": "system", "content": SYSTEM_PROMPT},
-    ...history,
-    {"role": "user", "content": new_message}
-]
-```
-
-### Purpose
-
-- system prompt defines behavior
-- history provides context
-- user message triggers response
-
----
-
-## 🤖 Step 4 — LLM call
-
-```python
-response_text = await self.llm.chat(messages)
-```
-
-### Purpose
-
-- sends structured prompt to Mistral model
-- receives generated response text
-
----
-
-## 💾 Step 5 — Save conversation
-
-```python
-await self.session_repo.save_message(session.id, "user", request.message)
-await self.session_repo.save_message(session.id, "assistant", response_text)
-```
-
-### Purpose
-
-- persists full conversation history
-- enables future context reconstruction
-
----
-
-## 📤 Step 6 — Response
-
-```python
-return ChatResponse(
-    session_id=session.id,
-    message=response_text
-)
-```
-
----
-
-## 🧾 Prompts System (prompts.py)
-
-📌 File: `prompts.py`
-
-### SYSTEM_PROMPT
-
-Defines global AI behavior:
-
-```text
-You are an AI tutor.
-
-Your task is to help students understand topics step by step.
-
-Rules:
-- Explain simply
-- Use examples
-- Be clear and structured
-- If something is unclear, ask a question
-```
-
----
-
-### Additional prompt variants
-
-#### Explain mode
-
-```text
-Explain the topic step by step in simple terms.
-```
-
-#### Short mode
-
-```text
-Answer briefly in 2-3 sentences.
-```
-
-#### Tutor mode
-
-```text
-You are a strict but helpful tutor.
-
-- Ask questions
-- Guide the student
-- Do not give direct answers immediately
-```
-
----
-
-### Purpose of prompt system
-
-- defines AI behavior styles
-- enables future multi-mode chatbot
-- supports adaptive tutoring logic
-
----
-
-## Session Storage (session_repository.py)
-
-📌 File: `session_repository.py`
-
-### Type: In-memory storage (MVP)
-
----
-
-## 🧩 Data Model
-
-### Session
-
-```python
-class Session:
-    def __init__(self, session_id: str, user_id: int):
-        self.id = session_id
-        self.user_id = user_id
-        self.messages = []
-```
-
----
-
-## 📦 Responsibilities
-
-### SessionRepository handles
-
-- session creation
-- message storage
-- message retrieval
-
----
-
-## 🔄 Methods
-
-### 1. get_or_create()
-
-```python
-async def get_or_create(session_id, user_id)
-```
-
-- returns existing session OR creates new one
-
----
-
-### 2. get_messages()
-
-```python
-async def get_messages(session_id)
-```
-
-- returns full chat history
-- used for LLM context building
-
----
-
-### 3. save_message()
-
-```python
-async def save_message(session_id, role, content)
-```
-
-- stores user/assistant messages
-- appends to session history
-
----
-
-## 🔄 End-to-End Chat Flow
-
-```text
-User (Moodle UI)
-    ↓
-router.py (/chat)
-    ↓
-ChatService.handle_message()
-    ↓
-SessionRepository (load/create session)
-    ↓
-Load message history
-    ↓
-Build prompt (system + history + user)
-    ↓
-LLM.chat()
-    ↓
-Save messages
-    ↓
-Return ChatResponse
-```
-
----
-
-## 🧠 Design Principles
-
-### 1. Layered architecture
-
-- router → service → repository → LLM
-
----
-
-### 2. Stateless API design
-
-- backend does not store runtime memory
-- session_id restores context
-
----
-
-### 3. Prompt-driven behavior
-
-- system prompt defines AI personality
-- modular prompt system allows behavior switching
-
----
-
-### 4. Separation of concerns
-
-- API layer (router)
-- logic layer (service)
-- storage layer (repository)
-- AI layer (LLM)
-
----
-
-## 🚧 Current Limitations
-
-- Session storage is in-memory (not persistent)
-- No database integration yet
-- No message pagination
-- No streaming responses
-- No advanced memory optimization
-
----
-
-## 🚀 Future Improvements
-
-### Persistent storage
-
-- move sessions to database
-- enable scaling across servers
-
----
-
-### 🌊 Streaming responses
-
-- real-time token output
-- improved UX in frontend
-
----
-
-### 🧠 Advanced memory
-
-- long-term user context
-- personalized tutoring behavior
-
----
-
-### 📊 Analytics integration
-
-- track learning behavior
-- measure engagement
-
----
-
-## 🎯 Summary
-
-The Chatbot module is the **core conversational engine** of SDG Campus AI.
-
-It implements:
-
-- session-based memory
-- prompt-driven AI behavior
-- structured LLM interaction
-- modular and extensible architecture
-
-It acts as the foundation for all future AI features in the system.
+# Chatbot Module (`api/chatbot/`)
+
+This module owns sessions, messages, and the orchestration between them and the AI/RAG
+layers. It does **not** contain the RAG or LLM implementations themselves (those live in
+`api/rag` and `api/llm`) — it consumes them.
+
+## Schemas (`schemas.py`)
+
+Pydantic models used as FastAPI request/response bodies:
+
+| Model | Used by | Notes |
+|---|---|---|
+| `CreateSessionRequest` | `POST /sessions` | `course_id`, `title` both optional |
+| `SessionResponse` | most session endpoints | `from_attributes=True` — built directly from the ORM object |
+| `UpdateSessionRequest` | `PUT /sessions/{id}` | `title`, `language` both optional |
+| `SendMessageRequest` | message send endpoints | just `content: str` |
+| `MessageResponse` | message endpoints | `from_attributes=True` |
+| `IndexCourseRequest` | `POST /rag/index/{id}` | `reset: bool = True` (see caveat in [api.md](api.md)) |
+| `RagStatusResponse` | RAG endpoints | indexing status/progress |
+| `IndexAllResponse` | `POST /rag/index-all` | just a count + message |
+
+## Prompts (`prompts.py`)
+
+All LLM system prompts live in one file, as plain string constants:
+
+- `SYSTEM_PROMPT`, `EXPLAIN_PROMPT`, `SHORT_PROMPT`, `TUTOR_PROMPT` — earlier/simple
+  prompt variants. Not currently referenced by `AIService` (which uses the RAG-specific
+  prompts below) — kept in the file, presumably for earlier experimentation or possible
+  future use as alternate modes.
+- `RAG_SYSTEM_PROMPT` — the main system prompt used whenever retrieved context exists.
+  Key rules it enforces on the model:
+  - Only state a specific fact/date/citation if it's **literally present** in the
+    retrieved materials — never supply a citation from the model's own training data.
+  - Must end every answer with a `Source: ...` line, copying course/file markdown links
+    **exactly** as given in the context tags — never inventing or reconstructing a URL.
+  - If the materials don't (fully) answer the question, must say so explicitly and first,
+    before optionally adding clearly-labeled general knowledge.
+  - Must not present invented examples as if they came from the course materials.
+- `RAG_CONTEXT_TEMPLATE` — wraps the retrieved context blocks with instructions to answer
+  using *only* what's provided.
+- `NO_CONTEXT_PROMPT` — fallback prompt used when there's no retriever, no query, or no
+  matching context — a plain "answer from general SDG knowledge" tutor persona.
+- `_TITLE_SYSTEM_PROMPT` (in `ai_service.py`, not `prompts.py`) — instructs the model to
+  produce a 3-6 word title in the same language as the conversation, no quotes/punctuation.
+
+## `course_links.py`
+
+Small, deliberately trivial module whose entire purpose is a security/reliability
+property: **the LLM never constructs a Moodle URL itself.**
+
+- `format_course_link(course_id, course_name)` → `"[CourseName](http://.../course/view.php?id=12)"`.
+  Falls back to `f"Course {course_id}"` as the display name if the lookup failed (e.g.
+  deleted course), so citations still degrade gracefully instead of breaking.
+- `build_course_links(course_names: dict[int, str])` → bulk version, `{id: name}` →
+  `{id: markdown_link}`, used for global (multi-course) sessions.
+
+These ready-made strings are inserted into the retrieval context tags
+(`[Course: <link> — Source: <link>]`) that `RAG_SYSTEM_PROMPT` instructs the model to copy
+verbatim into its citation line.
+
+## Services
+
+### `SessionService`
+
+Thin orchestration over `SessionRepository`. Notable behaviors:
+- `create_session` generates the `session_id` as a `str(uuid4())` in the service layer
+  (not the DB) — Moodle's plugin never sees or assigns this ID itself.
+- `update_session` accepts a `language` parameter defaulting to a private `_UNSET`
+  sentinel object (imported from the repository module) — this is how "field not
+  provided" is distinguished from "field explicitly set to `None`" all the way down to
+  the SQL UPDATE.
+- `archive_session` / `dearchive_session` both go through a single `set_active(id, 0|1)`
+  repository method.
+
+### `MessageService`
+
+The most complex service in the module — owns the full chat orchestration.
+
+- **`_resolve_search_scope(session)`** — the single place that decides retrieval scope
+  for a session: course-scoped (`session.course_id` set) vs. global (falls back to the
+  user's enrolled course ids via `CourseRepository`). Returns
+  `(collection_name, course_ids, relevant_course_ids)` — the first two are what get
+  passed to `AIService`, the third is used only for building course-link citations.
+- **`_build_course_link_context(...)`** — resolves course id(s) to human-readable names
+  (`CourseRepository.get_course_names`, one bulk query) and builds markdown links via
+  `course_links.py`. Returns either a single `course_link` (course-scoped) or a
+  `course_links` dict (global).
+- **`chat(session_id, content)`** — the non-streaming send path. See
+  [data-flow.md](../data-flow.md#3-sending-a-message-non-streaming-path) for the full
+  sequence.
+- **`chat_stream(session_id, content)`** — an async generator yielding tokens as they
+  arrive from `AIService.stream_response`; persists the user message before streaming and
+  the complete assistant message after. Also handles first-message title generation,
+  mirroring the non-streaming path.
+- **`create_partial_assistant_message(session_id, content)`** — used by the
+  `/messages/partial` endpoint when a stream is aborted by the user.
+- **`_translate_message(message, target_language)`** — checks
+  `MessageTranslationRepository.get()` for a cached translation first; only calls
+  `Translator.translate()` (an LLM call) on a cache miss, then persists the result.
+  Returns the original content unchanged if `target_language` is falsy.
+- **`get_session_messages_for_display(session_id)`** — the method backing
+  `GET /sessions/{id}/messages`; translates every message per the session's `language`.
+
+### `AIService`
+
+Sits between `MessageService` and the raw `BaseLLM` — this is where retrieval and prompt
+construction happen. See [data-flow.md](../data-flow.md#retrieval-inside-aiservicestream_response--generate_response)
+for the retrieval-query construction heuristic
+(`_build_retrieval_query`, last-2-user-messages) and the priority order for choosing a
+system prompt (course-scoped → global → no-context fallback).
+
+`_format(messages)` normalizes both dict-shaped and ORM-object-shaped message inputs into
+plain `{"role", "content"}` dicts for the LLM call, and trims any trailing assistant
+message(s) off the end of the history before sending (defensive cleanup — a trailing
+assistant turn would otherwise be sent as if it were the model's own prior turn with no
+new user input to respond to).
+
+`generate_title(user_message, assistant_message)` — a separate, cheap LLM call using
+`_TITLE_SYSTEM_PROMPT`; strips quotes and truncates to 255 characters (matching the
+`title` column's `VARCHAR(255)` limit in both the Python model and Moodle's `install.xml`).
+
+### `RagService`
+
+Orchestrates background indexing (see [data-flow.md](../data-flow.md#8-course-content-indexing-rag-ingestion)
+for the full sequence) and exposes `get_all_course_ids()` (delegates to
+`CourseRepository`) for the `/rag/index-all` endpoint. Deliberately indexes courses
+**sequentially**, not with `asyncio.gather` or similar, to avoid resource contention on
+the embedding model.
+
+## Repositories
+
+- **`SessionRepository`** — CRUD over `mdl_local_ai_system_sessions`. Also defines the
+  small in-module `Session` domain class (a plain constructor object, not a Pydantic
+  model, not the SQLAlchemy model) that `SessionService.create_session` builds before
+  handing off to the repository — an extra indirection layer between "what the service
+  wants to create" and "what actually gets written," though in practice the repository
+  immediately re-wraps it into a `SessionModel` anyway.
+- **`MessageRepository`** — `get_by_session` (ordered by `created_at` ascending) and
+  `create`.
+- **`MessageTranslationRepository`** — `get(message_id, language)` /
+  `create(message_id, language, content)`, backed by the unique constraint on
+  `(message_id, language)`.
+- **`RagRepository`** — a thin pass-through wrapper around `VectorStore` exposing just
+  `collection_exists` / `delete_collection`, used by `RagService` so it doesn't depend on
+  the RAG module's `VectorStore` class directly.
+
+## Routers
+
+See [api.md](api.md) for the full endpoint-by-endpoint reference. Structurally, every
+router follows the same shape: resolve dependencies via `Depends(get_*)`, verify
+ownership (`session.user_id != user_id → 403`) where relevant, delegate to the service,
+map the result onto a response schema.

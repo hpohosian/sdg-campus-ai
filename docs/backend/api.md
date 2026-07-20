@@ -1,217 +1,205 @@
-# 🌐 API Reference — SDG Campus AI Backend
+# REST API Reference
 
-## 📌 Overview
+Base URL (dev): `http://127.0.0.1:8001`
 
-This document describes the HTTP API of the SDG Campus AI backend.
-
-The API is built using **FastAPI** and serves as the communication layer between:
-
-- Moodle plugin (PHP + JavaScript frontend)
-- AI backend (ChatService + LLM)
-- session storage system
-
-All endpoints are designed to be **stateless and session-based** using `session_id`.
+All endpoints below (except `/rag/index*`) expect an `X-User-Id` header identifying the
+calling Moodle user (temporary auth mechanism — see
+[backend/overview.md](overview.md#dependency-injection-dependenciespy)). Requests coming
+from the Moodle plugin also carry `X-Timestamp` / `X-Signature` (HMAC) headers, though
+note the middleware that verifies them (`HMACAuthMiddleware`) is not currently mounted in
+`main.py` — see [architecture.md](../architecture.md#security-model).
 
 ---
 
-## 🧩 Base URL
+## Sessions — `chatbot/routers/session_router.py`
 
-```url
-[http://127.0.0.1:8001](http://127.0.0.1:8001)
+### `POST /sessions`
+Create a new chat session.
 
+Request body (`CreateSessionRequest`):
+```json
+{ "course_id": 12, "title": "New Chat" }
 ```
+Both fields optional; `course_id: null` creates a "global" session that searches across
+all enrolled courses.
 
----
-
-## 🔐 Authentication & Security
-
-Currently, the API uses a **lightweight signature-based mechanism** for internal communication.
-
-### Headers used
-
-- `X-Timestamp` — request timestamp
-- `X-Signature` — HMAC SHA256 signature
-
-This ensures that only trusted clients (Moodle plugin) can communicate with the backend.
-
----
-
-## 💬 Chat API
-
----
-
-## 📍 POST `/chat`
-
-### 📌 Description
-
-Main endpoint for interacting with the AI chatbot.
-
-Handles:
-
-- session management
-- message processing
-- LLM response generation
-- conversation persistence
-
----
-
-### 📥 Request Body
-
+Response (`SessionResponse`, `200`):
 ```json
 {
-  "session_id": "chat_123456",
-  "user_id": 42,
-  "message": "Explain what Python is"
+  "session_id": "b3f1...-uuid",
+  "user_id": 5,
+  "course_id": 12,
+  "title": "New Chat",
+  "language": null,
+  "is_active": 1
 }
 ```
 
-### 🔹 Fields
+### `GET /sessions/{session_id}`
+Fetch one session. `403` if the session doesn't belong to the requesting user.
 
-| Field      | Type    | Description                    |
-| ---------- | ------- | ------------------------------ |
-| session_id | string  | Unique chat session identifier |
-| user_id    | integer | ID of the user                 |
-| message    | string  | User input message             |
+### `GET /sessions`
+List all sessions for the current user (both active and archived), most recently updated
+first.
+
+### `PUT /sessions/{session_id}`
+Update a session's title and/or display language.
+
+Request body (`UpdateSessionRequest`):
+```json
+{ "title": "Renamed chat", "language": "de" }
+```
+Both fields optional. **Field-presence matters**: the router distinguishes "field not
+sent at all" from "field sent as empty string / null" using pydantic's
+`model_fields_set`. Omitting `language` leaves it unchanged; sending `"language": ""`
+explicitly resets it to `None` (shows original, untranslated content).
+
+### `PUT /sessions/archive/{session_id}`
+Soft-delete: sets `is_active = 0`. Response: `{"session_id": "...", "status": "archived"}`.
+
+### `PUT /sessions/dearchive/{session_id}`
+Reverses archive: sets `is_active = 1`. Response: `{"session_id": "...", "status": "dearchived"}`.
+
+### `DELETE /sessions/{session_id}`
+Hard delete — removes the row and (implicitly, since messages aren't cascade-checked
+elsewhere) leaves any associated messages orphaned in the `messages` table (no explicit
+cascade delete is implemented for messages when a session is deleted — see
+[backend/database.md](database.md) for the caveat). Response:
+`{"status": "deleted permanently"}`. `404` if the session doesn't exist.
 
 ---
 
-### 📤 Response
+## Messages — `chatbot/routers/message_router.py`
+
+All routes are nested under `/sessions/{session_id}/messages`.
+
+### `GET /sessions/{session_id}/messages`
+Returns the full message history for display (`list[MessageResponse]`), translated into
+the session's `language` if one is set.
 
 ```json
+[
+  { "id": 1, "session_id": "...", "role": "user", "content": "...", "tokens_used": null, "created_at": 1752963600 },
+  { "id": 2, "session_id": "...", "role": "assistant", "content": "...", "tokens_used": null, "created_at": 1752963605 }
+]
+```
+
+### `POST /sessions/{session_id}/messages`
+Non-streaming send: saves the user's message, generates a full assistant response
+(RAG-grounded if applicable), saves it, and — if this is the first exchange and the
+session still has the default title — generates a title.
+
+Request body (`SendMessageRequest`): `{"content": "..."}`
+
+Response:
+```json
 {
-  "session_id": "chat_123456",
-  "message": "Python is a high-level programming language..."
+  "user": { "id": 3, "session_id": "...", "role": "user", "content": "...", "tokens_used": null, "created_at": 1752963700 },
+  "assistant": { "id": 4, "session_id": "...", "role": "assistant", "content": "...", "tokens_used": null, "created_at": 1752963705 },
+  "title": "Photosynthesis basics"   // null unless a title was just generated
 }
 ```
 
-### 🔹 Fields
-
-| Field      | Type   | Description           |
-| ---------- | ------ | --------------------- |
-| session_id | string | Active session ID     |
-| message    | string | AI-generated response |
-
----
-
-## 🔄 Request Flow
-
-When a request is sent to `/chat`, the following happens:
+### `POST /sessions/{session_id}/messages/stream`
+Streaming send — this is the path the actual UI uses. Returns
+`text/event-stream` (SSE). Each event is one of:
 
 ```
-Client (Moodle)
-    ↓
-FastAPI Router (router.py)
-    ↓
-ChatService (service.py)
-    ↓
-Session Repository (history load/save)
-    ↓
-LLM Layer (Mistral)
-    ↓
-Response returned
+data: {"token": "..."}\n\n           # repeated, one per generated token
+data: {"title": "..."}\n\n           # sent once, after generation completes
+                                      # (title may be unchanged/null-equivalent
+                                      #  if this wasn't the first exchange)
+data: [DONE]\n\n                     # terminal event
+```
+
+The user message is persisted before streaming starts; the full assistant message is
+persisted only after the stream completes (so an aborted/errored stream, unless
+explicitly saved via the `/partial` endpoint below, does not leave a partial message in
+the database).
+
+### `POST /sessions/{session_id}/messages/partial`
+Persists a partial assistant message — called by the frontend after the user presses
+"Stop" mid-stream, so the partially generated answer isn't lost.
+
+Request body: `{"content": "..."}` (the partial text accumulated so far)
+
+Response (`MessageResponse`): the newly created assistant message row. `400` if the
+content is invalid per `create_partial_assistant_message`'s validation (empty content
+raises `ValueError`, mapped to `400`).
+
+---
+
+## RAG — `chatbot/routers/rag_router.py`
+
+These endpoints require an `X-Internal-Api-Key` header matching `INTERNAL_API_KEY`
+(except `GET /rag/status/{course_id}`, which is unauthenticated). They are intended to be
+called by the Moodle-side scheduled task, not by the chat UI directly.
+
+### `POST /rag/index/{course_id}`
+Triggers indexing of a single course in the background.
+
+Request body (`IndexCourseRequest`): `{"reset": true}` (note: the `reset` flag from the
+request body is currently accepted but not actually threaded through to
+`indexer.index_course(course_id, reset=False)` — the background task always deletes and
+rebuilds the collection unconditionally inside `RagService.index_course_background`
+before calling the indexer, so in practice the collection is always reset regardless of
+this flag's value).
+
+Response (`RagStatusResponse`, `202 Accepted`):
+```json
+{
+  "course_id": 12,
+  "collection_name": "course_12",
+  "documents_indexed": 0,
+  "chunks_indexed": 0,
+  "success": true,
+  "message": "Course indexing pipeline successfully pushed to background worker."
+}
+```
+This response reflects only that the background job was *queued*, not its outcome — poll
+`GET /rag/status/{course_id}` to see the real result once indexing finishes. `404` if the
+course doesn't exist in Moodle.
+
+### `GET /rag/status/{course_id}`
+Reports the current indexed state of a course's ChromaDB collection.
+
+Response (`RagStatusResponse`):
+```json
+{
+  "course_id": 12,
+  "collection_name": "course_12",
+  "documents_indexed": 4,
+  "chunks_indexed": 87,
+  "success": true,
+  "message": "OK"
+}
+```
+If the collection doesn't exist yet: `success: false`, `message: "Collection does not exist"`.
+
+### `POST /rag/index-all`
+Triggers sequential background indexing of every real course in Moodle.
+
+Response (`IndexAllResponse`, `202 Accepted`):
+```json
+{ "total_courses": 14, "message": "Indexing pipeline started for 14 courses." }
 ```
 
 ---
 
-## 🧠 API Design Principles
+## Error responses
 
-### 1. Stateless Communication
+Standard FastAPI/Pydantic validation errors (`422`) apply to malformed request bodies.
+Domain errors surfaced by the code:
 
-- Backend does not store runtime state
-- All context is passed via `session_id`
+| Status | When |
+|---|---|
+| `401` | missing `X-User-Id` header (or `"0"`); missing/invalid internal API key on `/rag/index*` |
+| `400` | non-integer `X-User-Id`; invalid content for `/messages/partial` |
+| `403` | session exists but doesn't belong to the requesting user |
+| `404` | session not found (on delete); course not found (on `/rag/index/{course_id}`) |
 
----
-
-### 2. Session-based Memory
-
-- Conversation history is stored in database
-- Each request reconstructs context from stored messages
-
----
-
-### 3. Thin API Layer
-
-- API only handles validation and routing
-- Business logic is delegated to `ChatService`
-
----
-
-### 4. Model Agnostic Design
-
-- API does not depend on specific LLM (Mistral is internal detail)
-- LLM is abstracted via `BaseLLM`
-
----
-
-## 🧩 Internal Integration
-
-The `/chat` endpoint internally interacts with:
-
-### ChatService
-
-- orchestrates message processing
-- builds prompts
-- calls LLM
-
-### SessionRepository
-
-- stores and retrieves chat history
-- manages session lifecycle
-
-### LLM Layer
-
-- generates AI responses
-- currently implemented via Mistral
-
----
-
-## 🚧 Current Limitations
-
-- No rate limiting
-- No request throttling
-- No streaming responses
-- No pagination for chat history
-- No public API versioning
-
----
-
-## 🚀 Future Extensions
-
-### 📡 Streaming API
-
-- `/chat/stream`
-- real-time token output
-
----
-
-### 📊 Analytics API
-
-- `/analytics`
-- user interaction tracking
-
----
-
-### 💬 Feedback API
-
-- `/feedback`
-- response rating system
-
----
-
-### 🌍 Translation API
-
-- `/translate`
-- multilingual support for course content
-
----
-
-## 🎯 Summary
-
-The SDG Campus AI API is a **minimal but extensible communication layer** designed to:
-
-- connect Moodle frontend with AI backend
-- manage chat sessions
-- provide structured AI responses
-- serve as a foundation for future AI-driven endpoints
-
-It is intentionally lightweight to ensure **scalability and modularity** for future system expansion.
+Note that `ValueError("Session not found")` raised inside services for **most** other
+routes (e.g. `get_session`, `chat`) is *not* currently caught and converted to a `404` by
+those routers — it will surface as an unhandled `500 Internal Server Error` unless
+FastAPI's default exception handling intercepts it. Only `delete_session` explicitly
+catches `ValueError` and converts it to `404`.

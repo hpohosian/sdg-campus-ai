@@ -1,269 +1,205 @@
-# ⚙️ Backend Overview — SDG Campus AI
+# Backend Overview
 
-## 🔗 Backend Documentation Navigation
+## Project layout
 
-- 📌 [General Architecture](../architecture.md)
-- 🔄 [Data Flow](../data-flow.md)
-- 💬 [Chatbot Module](chatbot.md)
-- 🧠 [LLM Layer](llm.md)
-- 📡 [API Reference](api.md)
-
----
-
-## 📌 Overview
-
-The backend of the SDG Campus AI system is built using **FastAPI (Python)** and serves as the core processing layer for all AI-related functionality.
-
-It acts as a bridge between:
-
-- Moodle plugin (PHP/JS frontend)
-- LLM layer (Mistral)
-- session storage and business logic
-
-The backend is designed to be **modular, stateless, and scalable**.
-
----
-
-## 🏗 High-Level Backend Structure
-
-```text
+```
 api/
-├── main.py              # Application entry point
-├── dependencies.py      # Dependency injection system
-├── chatbot/             # Chat system module
-├── llm/                 # LLM abstraction layer
-├── middleware/          # (future) auth, logging, etc.
-└── settings.py          # configuration
-
+├── main.py                 FastAPI app entrypoint, CORS, router mounting
+├── settings.py             pydantic-settings config, loaded from .env
+├── dependencies.py         FastAPI dependency-injection wiring (get_* functions)
+│
+├── chatbot/
+│   ├── routers/
+│   │   ├── session_router.py    /sessions ...
+│   │   ├── message_router.py    /sessions/{id}/messages ...
+│   │   └── rag_router.py        /rag ...
+│   ├── services/
+│   │   ├── session_service.py
+│   │   ├── message_service.py
+│   │   ├── ai_service.py        prompt building, calls the LLM
+│   │   └── rag_service.py       background indexing orchestration
+│   ├── repositories/
+│   │   ├── session_repository.py
+│   │   ├── message_repository.py
+│   │   ├── message_translation_repository.py
+│   │   └── rag_repository.py    thin wrapper over VectorStore
+│   ├── prompts.py           all LLM system prompts
+│   ├── course_links.py      builds safe markdown links to courses
+│   └── schemas.py           Pydantic request/response models
+│
+├── rag/
+│   ├── loaders/
+│   │   ├── moodle_db_loader.py  pulls text content from Moodle's DB
+│   │   ├── pdf_loader.py        pulls + extracts text from Moodle PDF uploads
+│   │   └── course_indexer.py    orchestrates both loaders + ingestion
+│   ├── chunker.py           paragraph/sentence-aware text splitter
+│   ├── embeddings.py        sentence-transformers wrapper
+│   ├── vector_store.py      ChromaDB wrapper
+│   ├── retriever.py         similarity search + context formatting
+│   └── ingestion.py         chunk → embed → store pipeline
+│
+├── llm/
+│   ├── base.py              BaseLLM abstract interface
+│   └── mistral.py           Mistral implementation
+│
+├── translation/
+│   └── translator.py        LLM-backed message translation
+│
+├── db/
+│   ├── connection.py        SQLAlchemy engine/session (points at Moodle's MySQL)
+│   ├── models/               ORM models for the plugin's own 3 tables in use
+│   │   ├── session.py
+│   │   ├── message.py
+│   │   └── message_translation.py
+│   └── repositories/
+│       ├── db_course_repository.py     read-only access to native mdl_course* tables
+│       └── db_session_repository.py    LEGACY / unused — see note below
+│
+└── middleware/
+    ├── auth.py               HMACAuthMiddleware (see note below — not currently mounted)
+    └── internal_auth.py      verify_internal_api_key dependency
 ```
 
----
+> **Legacy/dead code note:** `db/repositories/db_session_repository.py` (`DbSessionRepository`)
+> is not imported or used anywhere — the actual session persistence goes through
+> `chatbot/repositories/session_repository.py` (`SessionRepository`) instead. It also has
+> a broken import (`from datetime import int`, which is not valid Python) and would fail
+> if it were ever imported. Safe to delete, or worth cleaning up before it confuses a
+> future contributor.
 
-## 🚀 Application Entry Point
+## Configuration (`settings.py` / `.env`)
 
-📌 `main.py`
+Settings are loaded via `pydantic-settings` from a `.env` file in `api/`. All fields:
 
-The backend is initialized here.
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `MISTRAL_API_KEY` | yes | — | Mistral API key |
+| `MISTRAL_MODEL` | no | `mistral-medium` | Mistral model name (e.g. `mistral-large-latest`) |
+| `MOODLE_SECRET` | yes | — | HMAC shared secret for `HMACAuthMiddleware` |
+| `LOG_LEVEL` | no | `INFO` | not currently wired to a logging config, reserved |
+| `ENVIRONMENT` | no | `development` | reserved, not currently branched on |
+| `DEBUG` | no | `False` | reserved, not currently branched on |
+| `DATABASE_URL` | yes | — | SQLAlchemy URL, points at Moodle's MySQL DB (e.g. `mysql+pymysql://user:pass@host:port/moodle`) |
+| `MOODLEDATA_PATH` | no | Windows dev path | filesystem path to Moodle's `moodledata` directory, used to locate PDF files on disk for text extraction |
+| `MOODLE_BASE_URL` | no | `http://127.0.0.1` | used to build clickable links back into Moodle (course links, PDF `pluginfile.php` links) — **no trailing slash** |
+| `INTERNAL_API_KEY` | yes | — | shared secret required on `/rag/index*` endpoints |
+| `EMBEDDING_MODEL` | no | `paraphrase-multilingual-mpnet-base-v2` | HuggingFace sentence-transformers model name |
+| `HF_HOME` | no | Windows dev path | HuggingFace cache directory |
+| `HF_HUB_DISABLE_XET` | no | `"1"` | disables the newer Xet download backend for HF Hub |
 
-### Responsibilities
+Note that `MOODLEDATA_PATH` and `HF_HOME` currently default to Windows-style paths
+(`D:\...`) hard-coded in `settings.py` — these **must** be overridden in `.env` on any
+non-Windows deployment, which the provided `.env` already does correctly.
 
-- Creates FastAPI application instance
-- Configures CORS middleware
-- Registers routers
-- Connects all modules into a single API service
+## Dependency injection (`dependencies.py`)
 
-### Key logic
+FastAPI's `Depends()` system is used throughout; the chain for a typical request looks
+like:
 
-- Enables communication with Moodle frontend via CORS
-- Registers chatbot API endpoints
+```
+get_settings()  (lru_cache — one Settings instance for the app's lifetime)
+   ├─ get_llm()                 → MistralLLM(api_key=...)
+   ├─ get_embedding_model()     (lru_cache — loads the sentence-transformers model ONCE)
+   │    └─ get_vector_store()   (lru_cache — one ChromaDB PersistentClient)
+   │         └─ get_retriever()
+   │              └─ get_ai_service(llm, retriever)
+   ├─ get_translator(llm)
+   ├─ get_db()                  (per-request SQLAlchemy session, closed after the request)
+   │    ├─ get_session_repository(db)   → get_session_service(repo)
+   │    ├─ get_message_repository(db)
+   │    ├─ get_message_translation_repository(db)
+   │    └─ get_course_repository(db)
+   └─ get_message_service(message_repo, session_repo, ai_service, course_repo,
+                           translation_repo, translator)
+```
 
-### Included modules
+The `@lru_cache` on `get_embedding_model`/`get_vector_store`/`get_settings` matters
+operationally: the sentence-transformers model (hundreds of MB) and the ChromaDB client
+are loaded exactly once per process, not once per request — the first request after
+server startup will be noticeably slower while the embedding model loads
+(`EmbeddingModel.__init__` prints `Loading embedding model: ...` / `Embedding model
+loaded.` to stdout).
 
-- `chatbot_router`
+`get_current_user_id` (used by every session/message route) reads an `X-User-Id` header
+and raises `401` if missing/`"0"`, or `400` if not a valid integer. The docstring in the
+code is explicit that this is a **temporary development mechanism** — production is
+intended to validate a real Moodle token instead, but that has not been implemented yet.
 
----
+## Running the API
 
-## 🌐 API Layer
+There is no committed `requirements.txt`/`pyproject.toml` in the repository. The
+following were inferred from the checked-in virtual environment
+(`api/.venv/Lib/site-packages`) and represent the actual dependency set the project runs
+against — a `requirements.txt` should be generated and committed so the environment is
+reproducible without shipping a `.venv`:
 
-The backend exposes a REST API using FastAPI routers.
+**Core**
+```
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+sqlalchemy
+pymysql
+```
 
-### Main endpoint group
+**LLM**
+```
+mistralai
+```
 
-- `/chat` → handled by chatbot module
+**RAG**
+```
+chromadb
+sentence-transformers
+torch
+transformers
+tokenizers
+huggingface-hub
+scikit-learn
+numpy
+pymupdf          # imported as `fitz`
+beautifulsoup4
+```
 
-All endpoints are grouped and injected into the main application via:
+Local dev run (from the `api/` directory, with `.venv` activated):
+
+```bash
+uvicorn main:app --reload --port 8001
+```
+
+Port `8001` is what the Moodle plugin's default `api_base_url` setting
+(`http://127.0.0.1:8001`) and `ajax/stream.php`'s hard-coded `$base_url` both expect —
+keep them in sync if this changes.
+
+> **Note on `ajax/stream.php`:** its FastAPI base URL (`http://127.0.0.1:8001`) is
+> currently hard-coded in the PHP file itself rather than read from the plugin's
+> `api_base_url` admin setting the way `api_client.php` does. If the backend's address
+> changes, this file needs to be updated separately from the plugin settings page.
+
+## Import path duality (`try/except ModuleNotFoundError`)
+
+Several modules (`course_links.py`, `embeddings.py`, `pdf_loader.py`,
+`db/repositories/db_session_repository.py`) contain a pattern like:
 
 ```python
-app.include_router(chatbot_router)
+try:
+    from api.settings import settings
+except ModuleNotFoundError:
+    from settings import settings
 ```
 
----
-
-## 🔌 Dependency Injection System
-
-📌 `dependencies.py`
-
-The system uses **FastAPI dependency injection** to manage core services.
-
-### Purpose
-
-- Decouple business logic from instantiation
-- Provide reusable singleton-like services
-- Improve testability and modularity
-
----
-
-## 🧠 Core Dependencies
-
-### 1. Settings
-
-```python
-get_settings()
-```
-
-- Cached configuration provider
-- Stores API keys and environment settings
-- Uses `@lru_cache` for performance
-
----
-
-### 2. Session Repository
-
-```python
-get_session_repository()
-```
-
-- Handles chat session storage
-- Provides access to message history
-- Abstracts database layer
-
----
-
-### 3. LLM Provider
-
-```python
-get_llm()
-```
-
-- Returns implementation of `BaseLLM`
-- Currently uses `MistralLLM`
-- Configured with API key from settings
-
----
-
-### 4. Chat Service
-
-```python
-get_chat_service()
-```
-
-- Core business logic layer
-- Combines:
-
-  - LLM
-  - session repository
-- Handles full message lifecycle
-
----
-
-## 🧩 Backend Modules
-
-### 💬 Chatbot Module
-
-Responsible for all chat-related logic:
-
-- request handling
-- session management
-- message processing
-- LLM interaction
-
-### 🤖 LLM Module
-
-Abstract layer for AI models:
-
-- `BaseLLM` → interface
-- `MistralLLM` → implementation
-
-This design allows future replacement of the model without changing business logic.
-
----
-
-## 🔄 Request Flow (Backend Level)
-
-1. Request arrives from Moodle plugin
-2. FastAPI receives request via `/chat` endpoint
-3. Dependency injection provides `ChatService`
-4. ChatService:
-
-   - loads session
-   - loads message history
-   - builds prompt
-5. LLM is called (Mistral)
-6. Response is generated
-7. Message is stored in session repository
-8. Response is returned to API layer
-
----
-
-## 🧠 Design Principles
-
-### 1. Modularity
-
-Each system component is isolated:
-
-- chatbot logic
-- LLM layer
-- session storage
-
----
-
-### 2. Dependency Injection
-
-All services are injected, not hardcoded:
-
-- improves testability
-- improves flexibility
-- reduces coupling
-
----
-
-### 3. Stateless API Design
-
-- backend does not store runtime state
-- all context comes from `session_id`
-
----
-
-### 4. LLM Abstraction
-
-- system is not tied to Mistral
-- any model can replace it via `BaseLLM`
-
----
-
-## 🚧 Current Limitations
-
-- No middleware layer implemented yet (auth/logging)
-- No caching system for LLM responses
-- Session repository is basic
-- No async queue / background processing
-- No observability (metrics/logging system)
-
----
-
-## 🚀 Future Improvements
-
-### 🔐 Middleware
-
-- authentication layer
-- request validation
-- logging system
-
----
-
-### 🧠 AI Enhancements
-
-- RAG integration (course-aware responses)
-- long-term memory system
-- personalization layer
-
----
-
-### 📊 Observability
-
-- logging pipeline
-- request tracking
-- analytics module integration
-
----
-
-## 🎯 Summary
-
-The SDG Campus AI backend is a **clean FastAPI-based modular system** designed around:
-
-- separation of concerns
-- dependency injection
-- scalable AI integration
-- future extensibility for advanced AI features
-
-It serves as the **core intelligence layer** of the entire platform.
+This exists because the codebase is run with `api/` itself as the working directory /
+import root (`from settings import settings` — matches how `uvicorn main:app` is run from
+inside `api/`), but some tooling or test setup apparently imports it as the `api` package
+from the repository root (`from api.settings import settings`). Worth standardizing on
+one import root going forward (e.g. always running from repo root with
+`uvicorn api.main:app`) to remove the need for this fallback pattern everywhere it
+appears.
+
+## CORS
+
+`main.py` only allows the origin `http://127.0.0.1` (Moodle's dev address). Any other
+origin will be rejected by the browser for cross-origin requests. Update the `origins`
+list in `main.py` for staging/production Moodle URLs.

@@ -1,401 +1,148 @@
-# 🎨 Frontend Architecture — SDG Campus AI (Moodle Plugin)
+# Moodle Plugin — Frontend (UI)
 
-## 📌 Overview
+The chat widget's UI is built from three files working together: a server-rendered
+Mustache template (initial HTML/state), a CSS file (all visual styling), and an AMD
+JavaScript module (all interactivity after page load).
 
-The frontend layer of the SDG Campus AI system is responsible for:
+## Template (`templates/chatbot.mustache`)
 
-- rendering the chatbot UI inside Moodle
-- handling user interactions
-- sending requests to backend via Moodle AJAX
-- displaying AI responses in real-time
+Server-rendered by `index.php`. Responsible for:
 
-The frontend is implemented using:
+- **Sidebar**: course picker (only rendered if the user has enrolled courses —
+  `{{#has_courses}}`), "New Chat" button, three session groups (`Pinned` — always starts
+  empty since pins aren't persisted server-side; `Today`; `Previous` — hidden until the
+  JS moves stale items into it), and the archive dropdown (populated server-side from
+  `archived_sessions`, or an "empty" message if none exist).
+- **Header**: chat title, pin button, export/share buttons (both disabled,
+  `coming_soon`), theme toggle, and the language picker dropdown (hard-coded to English,
+  German, Russian, Ukrainian — `en`/`de`/`ru`/`uk`).
+- **Message list**: pre-renders any existing messages passed in via `{{#messages}}` —
+  though in practice `index.php` currently always passes an empty `history.messages`
+  array (see note in [moodle/overview.md](overview.md) / `index.php`'s `$history =
+  ['messages' => []]`), so this block is effectively unused at initial page load; message
+  loading actually happens client-side via `loadSession()`/AJAX after `init()` runs, not
+  from server-rendered content. The template block is still valid/functional if that
+  variable were ever populated in the future.
+- **Input area**: message textarea, send/stop buttons, and a disabled attach-file button
+  (`coming_soon`).
+- **Two floating, single-instance elements mounted once**: the session context menu
+  (`#ai-context-menu` — pin/rename/archive/delete) and the rename popup
+  (`#ai-rename-popup`). Both get reparented to `<body>` at JS init time (see below) to
+  avoid clipping issues from ancestor `overflow`/`transform` CSS.
 
-- **Moodle Mustache templates*- (UI structure)
-- **AMD JavaScript modules*- (logic & behavior)
+All user-facing strings go through `{{#str}} key, local_ai_system {{/str}}` — pulling from
+`lang/en/local_ai_system.php`, so adding another language is a matter of adding a new
+`lang/xx/local_ai_system.php` file with the same keys.
 
----
+## Styling (`styles.css`, 667 lines)
 
-## 🧩 Architecture Overview
+Class naming convention is consistently prefixed `ai-*`
+(`ai-chatbot-layout`, `ai-session-item`, `ai-message-bubble`, etc.) to avoid clashing with
+Moodle theme classes. Key structural pieces styled:
 
-```text
-Mustache Template (HTML UI)
-↓
-AMD JavaScript Module (chatbot.js)
-↓
-Moodle AJAX (core/ajax)
-↓
-Moodle PHP API (external function)
-↓
-Backend (FastAPI + LLM)
-```
+- `.ai-chatbot-layout` — the two-column (sidebar + main) flex layout.
+- `.ai-session-item` / `.ai-session-archived` / `.active` — sidebar chat list rows.
+- `.ai-message`, `.ai-message--user` / `.ai-message--assistant`, `.ai-bubble-wrap`,
+  `.ai-message-bubble` — chat bubble styling, differentiated by role.
+- `.ai-course-picker`, `.ai-language-picker` — the two dropdown pickers, sharing a
+  similar toggle/dropdown/option visual pattern.
+- `.ai-context-menu`, `.ai-popup` — the floating menu/rename dialogs.
+- `.ai-translating-overlay` — the spinner shown over the message list during a language
+  switch.
+- **Dark theme**: applied via `[data-theme="dark"]` attribute selectors scoped from
+  `document.body.dataset.theme` (set/cleared by `chatbot.js`'s theme toggle) — not a
+  separate stylesheet, the same file carries both light and dark rules.
 
----
+## JavaScript module (`amd/src/chatbot.js`, 998 lines)
 
-## 🧱 UI Layer — Mustache Template
+A single object literal, `ChatBot`, exposing only an `init(sessionId, courseId)` entry
+point via the AMD module's returned interface — everything else is a "private" method on
+the same object (JS doesn't enforce privacy here; it's a convention). Compiled to
+`amd/build/chatbot.min.js`, which is what Moodle actually loads in production (AMD
+modules are built via Moodle's grunt/webpack tooling from `amd/src/`, not from source
+directly) — **remember to rebuild `amd/build/chatbot.min.js` after editing
+`amd/src/chatbot.js`**, or changes won't take effect in the browser.
 
-📌 File: `templates/chatbot.mustache`
+### `init()` responsibilities
 
----
+- Reparents the context menu and rename popup to `<body>`.
+- Wires up: markdown rendering config, theme, all click/keyboard handlers, session
+  grouping by date, new-session button, language picker, header pin button, archive
+  toggle, course picker, message timestamp formatting.
+- Restores the active session's language indicator.
+- Sets the initial course-lock state based on whether the currently active session
+  already has messages.
+- Binds scroll tracking (`shouldAutoScroll`) and link-click interception (opens links in
+  a new tab, `target="_blank" rel="noopener noreferrer"` equivalent via `window.open`) on
+  the message container.
 
-## 🎯 Purpose
-
-Defines the **static structure of the chatbot UI*- rendered inside Moodle.
-
----
-
-## 🧩 Main Components
-
-### 1. Container
-
-```html
-<div id="ai-chatbot" class="ai-chatbot-container">
-```
-
-- root element of chatbot UI
-- holds entire component
-
----
-
-### 2. Header
-
-- chatbot title (localized)
-- "new session" button (UI placeholder)
-
----
-
-### 3. Messages Area
-
-```html
-<div id="ai-messages-container">
-```
-
-- displays chat history
-- populated from backend (`messages`)
-
----
-
-### 4. Message Rendering
-
-```html
-<div class="ai-message ai-message--{{role}}">
-```
-
-- role-based styling (`user`, `assistant`)
-- supports HTML rendering (`{{{content_html}}}`)
-
----
-
-### 5. Input Area
-
-- textarea input
-- send button
-- typing indicator
-
----
-
-## 🔄 Template Data Flow
-
-```text
-PHP (index.php)
-    ↓
-session_id + messages
-    ↓
-Mustache template
-    ↓
-Rendered HTML
-```
-
----
-
-## ⚙️ Logic Layer — chatbot.js
-
-📌 File: `amd/src/chatbot.js`
-
----
-
-## 🧠 Module Type
-
-Moodle AMD module:
+### State (`ChatBot.state`)
 
 ```js
-define(['core/ajax', 'core/str', 'core/notification'], function(...)
+{
+  sessionId, courseId, isStreaming, isTranslating,
+  controller,       // AbortController for the in-flight stream, if any
+  shouldAutoScroll, // whether new tokens should auto-scroll the view
+  partialText,      // accumulated text of an in-progress stream (for Stop → save-partial)
+  pinned: {}        // { [sessionId]: true } — CLIENT-SIDE ONLY, not persisted (see below)
+}
 ```
 
----
-
-## 📦 Dependencies
-
-- `core/ajax` → backend communication
-- `core/notification` → error handling
-- `core/str` → localization (reserved for future use)
-
----
-
-## 🧠 Internal State
-
-```js
-sessionId
-isLoading
-```
-
----
-
-## 🔄 Lifecycle
-
-### 1. Initialization
-
-```js
-init(sessionId)
-```
-
-- receives session ID from PHP
-- binds events
-- scrolls chat to bottom
-
----
-
-### 2. Event Binding
-
-```js id="bind_events"
-click → sendMessage()
-Enter → sendMessage()
-```
-
-- Enter (without Shift) sends message
-- Shift+Enter allows multiline input
-
----
-
-## 📤 Sending Message
-
-### Step 1 — Validate input
-
-```js id="input_validation"
-if (!message) return;
-```
-
----
-
-### Step 2 — Update UI immediately
-
-```js id="optimistic_ui"
-appendMessage('user', message)
-```
-
-- user message appears instantly
-- improves UX responsiveness
-
----
-
-### Step 3 — Send AJAX request
-
-```js id="ajax_request"
-Ajax.call([{
-    methodname: 'local_ai_system_send_message',
-    args: { session_id, message }
-}])
-```
-
----
-
-### Step 4 — Handle response
-
-```js id="handle_response"
-const response = result.message;
-const newSessionId = result.session_id;
-```
-
-- updates session if changed
-- appends assistant response
-
----
-
-### Step 5 — Error handling
-
-```js id="error_handling"
-Notification.exception(err)
-```
-
----
-
-### Step 6 — Reset loading state
-
-```js id="loading_state"
-setLoading(false)
-```
-
----
-
-## 💬 Message Rendering
-
-### appendMessage()
-
-```js id="append_message"
-appendMessage(role, content, isMarkdown)
-```
-
----
-
-### Behavior
-
-- creates DOM element
-- assigns role-based class
-- appends to container
-- auto-scrolls
-
----
-
-### Markdown Support (planned)
-
-```js id="markdown"
-renderMarkdown(text)
-```
-
-- currently returns raw text
-- placeholder for future markdown parsing
-
----
-
-## ⏳ Loading State
-
-```js id="loading"
-setLoading(state)
-```
-
----
-
-### Effects
-
-- disables send button
-- shows typing indicator
-- prevents duplicate requests
-
----
-
-## 🔽 Auto Scroll
-
-```js id="scroll"
-scrollToBottom()
-```
-
-- keeps latest messages visible
-- called after each update
-
----
-
-## 🔄 Full Frontend Flow
-
-```id="frontend_flow"
-User types message
-    ↓
-chatbot.js captures event
-    ↓
-UI updates (user message)
-    ↓
-AJAX request (Moodle)
-    ↓
-Response received
-    ↓
-UI updates (AI message)
-```
-
----
-
-## 🧠 Design Principles
-
-### 1. Moodle-native frontend
-
-- uses AMD modules (not ES modules)
-- uses Mustache templates
-- integrates with Moodle core APIs
-
----
-
-### 2. Optimistic UI updates
-
-- user message appears instantly
-- improves perceived performance
-
----
-
-### 3. Stateless frontend
-
-- relies on `sessionId`
-- no complex client-side memory
-
----
-
-### 4. Minimal state management
-
-- only `sessionId` and `isLoading`
-- avoids unnecessary complexity
-
----
-
-### 5. Progressive enhancement
-
-- markdown support planned
-- streaming support planned
-
----
-
-## 🚧 Current Limitations
-
-- no markdown rendering (placeholder only)
-- no streaming responses
-- no message editing/regeneration
-- no error UI (only exception popup)
-- no client-side caching
-
----
-
-## 🚀 Future Improvements
-
-### 🌊 Streaming responses
-
-- display tokens as they arrive
-- typing effect
-
----
-
-### 🎨 Rich content support
-
-- markdown parsing
-- syntax highlighting
-- code blocks
-
----
-
-### 🧠 UX improvements
-
-- message actions (copy, retry)
-- better loading states
-- animations
-
----
-
-### 📱 Responsive UI
-
-- mobile optimization
-- adaptive layout
-
----
-
-### 🔄 Session control
-
-- "new session" button functionality
-- session switching
-
----
-
-## 🎯 Summary
-
-The frontend layer is a **lightweight, Moodle-integrated UI system*- that:
-
-- renders chatbot interface via Mustache
-- handles interactions via AMD JavaScript
-- communicates with backend through Moodle AJAX
-- provides responsive and simple chat experience
-
-It is intentionally minimal and modular, serving as a foundation for more advanced UI features in future iterations.
+### Notable behaviors
+
+- **Pinning is not persisted.** `togglePin`/`state.pinned` only exists in memory for the
+  current page load — reloading the page (or reopening the chat panel, since the iframe
+  is destroyed/recreated) resets all pins. There is no backend endpoint or DB column for
+  pin state at all. If persistent pinning is wanted, it needs a new session column/API
+  endpoint on the Python side plus wiring here.
+- **Streaming** (`sendMessageStream`): appends the user bubble optimistically, creates an
+  empty assistant bubble, ensures a session exists (creating one on first send if
+  needed), locks the course picker, then `fetch()`s `ajax/stream.php` with the
+  `AbortController` signal. Reads the response body as a stream, splits on newlines,
+  parses `data: ...` SSE lines as JSON — a `{"title": ...}` payload updates the header
+  and sidebar title, a `{"token": ...}` payload appends to the running text and
+  re-renders the bubble via `marked.parse()` on every single token (not batched/
+  throttled — for very fast/long streams this means a full markdown re-parse per token,
+  which is simple but not the most efficient approach if performance ever becomes an
+  issue on long responses).
+- **Stop button**: aborts the fetch, then POSTs whatever partial text had accumulated to
+  `local_ai_system_save_partial_message` so it isn't lost (see
+  [data-flow.md](../../data-flow.md#stopping-generation-mid-stream)).
+- **Course lock**: the course picker is disabled once the *active chat* has at least one
+  message — not merely because a session row exists (a freshly created empty chat can
+  still have its course changed). Locking happens explicitly at send-time
+  (`setCourseLock(true)` inside `sendMessageStream`), not at session-creation time.
+- **Session loading** (`loadSession`) is the single source of truth for populating the
+  message list, used both when clicking a sidebar item and (indirectly) after a language
+  switch. Archived sessions load in a read-only state (input disabled, "Unarchive to send
+  messages" placeholder).
+- **Global click delegation** (`bindGlobalDelegation`): a single document-level click
+  listener handles clicks on session items, session menu buttons, and clicks-outside-to-
+  close-menu, rather than binding a listener per sidebar item — this is what lets
+  dynamically-created session items (from `addSessionToSidebar`/`addSessionToArchive`,
+  used when creating/archiving sessions without a full page reload) work without any
+  extra re-binding step.
+- **Message action buttons** (copy/regenerate/edit/thumbs-up/down) are rendered for every
+  message (`messageActionsHtml`), and **copy** is the only one actually wired up
+  (`navigator.clipboard.writeText`, with a brief checkmark-icon confirmation). Regenerate
+  and edit currently just `console.log` a "not implemented yet" message; thumbs up/down
+  only toggle a local `.active` CSS class with no backend call at all — no feedback data
+  is sent or stored anywhere yet. There is no feedback or analytics module anywhere in
+  the codebase yet (no PHP classes, no DB tables, no JS) — this is planned, per the
+  top-level README, but nothing has been scaffolded for it.
+- **Markdown rendering**: relies on the global `marked` library, loaded via CDN
+  (`https://cdn.jsdelivr.net/npm/marked/marked.min.js`) in `index.php`, configured with
+  `{ breaks: true, gfm: true }`. There is no fallback/self-hosted copy — if the CDN is
+  unreachable (e.g. restricted network), markdown rendering silently degrades to raw text
+  via the `try/catch` around `marked.parse()` calls scattered through the file, but the
+  initial `M.cfg` script include itself would simply fail to load with no explicit error
+  handling for that case.
+
+## Planned modules not yet present
+
+The top-level README lists feedback collection and analytics as planned features. As of
+this codebase, there is no `classes/feedback/`, `classes/analytics/`,
+`amd/src/feedback.js`, or `amd/src/analytics.js` anywhere in the plugin — only the
+`amd/src/chatbot.js` module (and its compiled `amd/build/chatbot.min.js`) exists today.
+The thumbs up/down buttons in the chat UI are purely cosmetic placeholders for this
+future work (see above).

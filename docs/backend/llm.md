@@ -1,288 +1,85 @@
-# 🤖 LLM Layer — SDG Campus AI Backend
+# LLM Layer & Translation
 
-## 📌 Overview
+## Abstraction (`api/llm/base.py`)
 
-The LLM layer is responsible for all interactions with Large Language Models (LLMs) in the SDG Campus AI system.
-
-It provides an **abstraction layer over different AI providers**, allowing the system to:
-
-- switch models without changing business logic
-- support multiple LLM providers
-- enable future features like streaming and RAG
-
----
-
-## 🧩 Module Structure
-
-```text
-api/llm/
-├── base.py        # Abstract LLM interface
-└── mistral.py     # Mistral implementation
-```
-
----
-
-## 🧠 Architecture Concept
-
-The system uses a **provider-agnostic LLM abstraction layer**.
-
-Instead of calling Mistral directly from business logic, the system uses:
-
-```text
-ChatService → BaseLLM → MistralLLM → Mistral API
-```
-
-This ensures:
-
-- loose coupling
-- testability
-- future extensibility
-
----
-
-## 🔌 Base LLM Interface (base.py)
-
-📌 File: `base.py`
-
-### Purpose
-
-Defines a **unified contract** for all LLM providers.
-
----
-
-### Core Methods
-
-#### 1. chat()
-
-```python id="llm_base_chat"
-async def chat(self, messages, **kwargs) -> str
-```
-
-### Responsibility
-
-- Takes structured message history
-- Returns full model response as string
-
-### Input format
-
-```json
-[
-  {"role": "system", "content": "..."},
-  {"role": "user", "content": "..."}
-]
-```
-
----
-
-#### 2. stream()
+`BaseLLM` is a minimal abstract interface with exactly two methods, both async:
 
 ```python
-async def stream(self, messages, **kwargs) -> AsyncIterator[str]
+class BaseLLM(ABC):
+    async def chat(self, messages: list[dict[str, str]], **kwargs) -> str: ...
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]: ...
 ```
 
-### Responsibility
+Every consumer in the codebase (`AIService`, `Translator`) depends only on this
+interface, injected via `dependencies.get_llm()` — swapping the underlying provider means
+writing one new `BaseLLM` subclass and changing `get_llm()`, with no changes needed
+anywhere else.
 
-- Streams response chunks from model
-- Designed for future real-time UI updates
+## Mistral implementation (`api/llm/mistral.py`)
 
-### Current state
+`MistralLLM(BaseLLM)` wraps the official `mistralai` Python SDK.
 
-- Not fully implemented (placeholder behavior)
+- Constructed with `api_key` (falls back to `settings.MISTRAL_API_KEY`) and `model`
+  (falls back to `settings.MISTRAL_MODEL`); raises `ValueError` immediately if no API key
+  is available at all.
+- `chat(messages, **kwargs)` — calls `client.chat.complete(...)` (note: this is the
+  **synchronous** SDK method, called from inside an `async def` — it blocks the event
+  loop for the duration of the API call rather than truly yielding control; this matters
+  under concurrent load, since a slow Mistral response would stall other requests being
+  served by the same worker process). Raises `ValueError` if the API returns no choices
+  or empty content.
+- `stream(messages, **kwargs)` — calls `client.chat.stream_async(...)` (the actual async
+  streaming method) and yields each non-empty `delta.content` as it arrives.
 
----
+`**kwargs` is passed straight through to the Mistral SDK call in both methods, so any
+Mistral-specific parameter (temperature, max_tokens, etc.) could be set by a caller today
+without further backend changes — though no current caller in the codebase passes any.
 
-## 🤖 Mistral Implementation (mistral.py)
+## Where the LLM is called from
 
-📌 File: `mistral.py`
+| Call site | Method | Purpose |
+|---|---|---|
+| `AIService.generate_response` | `chat()` | full (non-streaming) chat answer |
+| `AIService.stream_response` | `stream()` | streaming chat answer |
+| `AIService.generate_title` | `chat()` | short session title from the first exchange |
+| `Translator.translate` | `chat()` | translating a stored message into a target language |
 
-### Purpose
+There is no caching or rate-limiting layer around any of these calls — every uncached
+translation and every chat turn is a live Mistral API call.
 
-Concrete implementation of `BaseLLM` using **Mistral AI API**.
+## Translation (`api/translation/translator.py`)
 
----
-
-## ⚙️ Initialization
+`Translator` is a thin, single-purpose wrapper: it reuses `BaseLLM.chat()` as a
+general-purpose translation engine rather than calling a dedicated translation API.
 
 ```python
-def __init__(self, api_key=None, model=None)
+_LANGUAGE_NAMES = {"en": "English", "de": "German", "ru": "Russian", "ua": "Ukrainian"}
 ```
 
-### Behavior
-
-- Loads API key from parameters or settings
-- Validates API key presence
-- Sets model name from config
-- Initializes Mistral client
-
-### Key dependency
-
-- `mistralai.client.Mistral`
-
----
-
-## 💬 chat() Implementation
-
-```python
-async def chat(self, messages, **kwargs) -> str
-```
-
-### Flow
-
-1. Sends request to Mistral API:
-
-```python
-self.client.chat.complete(
-    model=self.model,
-    messages=messages
-)
-```
-
-2. Validates response:
-
-- ensures choices exist
-- ensures content is not empty
-
-3. Returns:
-
-- raw text response from model
-
----
-
-### Output
-
-```json
-{
-  "message": "AI generated response text"
-}
-```
-
----
-
-## 🌊 stream() Implementation
-
-```python
-async def stream(self, messages, **kwargs)
-```
-
-### Current behavior
-
-- Calls `chat()` internally
-- Returns full response as a single chunk
-
-### Purpose
-
-- Placeholder for future streaming API support
-
----
-
-## 🧠 Design Principles
-
-### 1. Abstraction Layer
-
-- Business logic does not depend on Mistral directly
-- Uses `BaseLLM` interface
-
----
-
-### 2. Provider Independence
-
-The system can support:
-
-- Mistral (current)
-- OpenAI
-- local models
-- future fine-tuned models
-
-without changing ChatService.
-
----
-
-### 3. Async Ready Design
-
-- All methods are async
-- prepared for high-concurrency usage
-- compatible with FastAPI architecture
-
----
-
-### 4. Extensibility
-
-The architecture is designed to support:
-
-- streaming responses
-- function calling
-- tool usage
-- RAG-enhanced prompts
-
----
-
-## 🔄 LLM Request Flow
-
-```text
-ChatService
-    ↓
-BaseLLM.chat()
-    ↓
-MistralLLM.chat()
-    ↓
-Mistral API request
-    ↓
-Response validation
-    ↓
-Return text to service layer
-```
-
----
-
-## 🚧 Current Limitations
-
-- Streaming is not fully implemented
-- No retry logic for failed API calls
-- No token usage tracking
-- No caching layer for repeated queries
-- No fallback model support
-
----
-
-## 🚀 Future Improvements
-
-### 🌊 Streaming Mode
-
-- real-time token output
-- integration with frontend typing effect
-
----
-
-### 🔁 Multi-Provider Support
-
-- OpenAI integration
-- local LLM support (Ollama, etc.)
-
----
-
-### 🧠 RAG Integration Hook
-
-- inject external knowledge into prompts
-- course-aware responses
-
----
-
-### 📊 Monitoring Layer
-
-- token usage tracking
-- latency monitoring
-- cost estimation
-
----
-
-## 🎯 Summary
-
-The LLM layer is a **provider-agnostic abstraction system** that isolates AI logic from business logic.
-
-It ensures:
-
-- flexibility in model selection
-- clean architecture separation
-- future scalability for advanced AI features
-
-Currently powered by Mistral, but designed to support **any LLM provider in the future without changes to core system logic**.
+> **Naming inconsistency to be aware of:** the translator's map uses the key `"ua"` for
+> Ukrainian, while the Moodle frontend's language picker (and the session's stored
+> `language` column) uses `"uk"` (the actual ISO 639-1 code for Ukrainian — see
+> `templates/chatbot.mustache`, `data-language="uk"`). Because `_LANGUAGE_NAMES.get(code,
+> code)` falls back to the raw code string when there's no match, selecting Ukrainian in
+> the UI currently sends `target_language="uk"` to `Translator.translate`, which won't
+> match the `"ua"` key — the system prompt ends up saying *"Translate the user's message
+> into uk"* instead of *"...into Ukrainian"*. This still generally works because Mistral
+> can usually infer the intent from the surrounding text and the "uk" ISO code, but it's
+> a latent bug worth fixing by aligning the two key sets (recommend standardizing on
+> `"uk"` everywhere, since it's the correct ISO code).
+
+`translate(text, target_language)`:
+- Returns the input unchanged if it's empty/whitespace-only (no wasted API call).
+- Looks up a human-readable language name (or falls back to the raw code, per the note
+  above).
+- Sends a single system+user message pair instructing the model to translate, preserve
+  markdown/links/code blocks exactly, and return only the translated text with no
+  preamble or quotation marks.
+- Returns the raw model output — **no post-processing or stripping** of the result
+  (contrast with `AIService.generate_title`, which does strip quotes/whitespace on its
+  output).
+
+Translations are cached by the caller (`MessageService._translate_message`) in
+`mdl_local_ai_system_message_translations`, keyed on `(message_id, language)` — the
+`Translator` class itself has no awareness of caching; that's entirely the chatbot
+module's responsibility.
