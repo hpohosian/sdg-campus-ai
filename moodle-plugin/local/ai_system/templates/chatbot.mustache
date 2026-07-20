@@ -1,10 +1,8 @@
 {{! templates/chatbot.mustache }}
-<div class="ai-chatbot-layout">
+<div class="ai-chatbot-layout" id="ai-chatbot-layout">
 
   <div class="ai-chatbot-sidebar">
     <div class="ai-sb-top">
-
-      <!-- COURSE PICKER (only affects newly created sessions) -->
       {{#has_courses}}
       <div class="ai-course-picker">
         <div class="ai-course-picker-toggle" id="ai-course-toggle">
@@ -14,17 +12,16 @@
           </span>
           <i class="fa fa-chevron-down ai-course-chevron"></i>
         </div>
-
         <div class="ai-course-dropdown hidden" id="ai-course-dropdown">
           <div class="ai-course-option" data-course-id="0">
             <span class="ai-course-option-label">{{#str}} all_my_courses, local_ai_system {{/str}}</span>
             <i class="fa fa-check ai-course-check"></i>
           </div>
           {{#course_options}}
-            <div class="ai-course-option" data-course-id="{{id}}">
-              <span class="ai-course-option-label">{{fullname}}</span>
-              <i class="fa fa-check ai-course-check"></i>
-            </div>
+          <div class="ai-course-option" data-course-id="{{id}}">
+            <span class="ai-course-option-label">{{fullname}}</span>
+            <i class="fa fa-check ai-course-check"></i>
+          </div>
           {{/course_options}}
         </div>
       </div>
@@ -34,104 +31,112 @@
         <i class="fa fa-edit" aria-hidden="true"></i>
         {{#str}} new_session, local_ai_system {{/str}}
       </button>
-      <div class="ai-sb-archive" id="ai-archive-toggle">
-        <i class="fa fa-archive" aria-hidden="true"></i>
-        {{#str}} archive, local_ai_system {{/str}}
-        <i class="fa fa-chevron-down ai-archive-chevron" style="margin-left:auto;font-size:11px;"></i>
+    </div>
+
+    <div class="ai-sb-scroll">
+      <div class="ai-sb-group" id="ai-sb-pinned-group">
+        <p class="ai-sb-group-label">{{#str}} pinned, local_ai_system {{/str}}</p>
+        <div id="ai-sb-pinned">
+          <p class="ai-sb-empty" id="ai-pinned-empty">{{#str}} no_pinned_chats, local_ai_system {{/str}}</p>
+        </div>
       </div>
 
-      <!-- ARCHIVE DROPDOWN -->
-      <div class="ai-archive-dropdown hidden" id="ai-archive-dropdown">
-        {{#archived_sessions}}
-          <div class="ai-session-item ai-session-archived" data-session-id="{{session_id}}" data-language="{{language}}">
+      <div class="ai-sb-group">
+        <p class="ai-sb-group-label">{{#str}} today, local_ai_system {{/str}}</p>
+        <div id="ai-sb-today">
+          {{#sessions}}
+          <div class="ai-session-item" data-session-id="{{session_id}}" data-language="{{language}}" data-created-at="{{created_at}}">
             <span class="ai-session-lang-badge" data-language="{{language}}">{{language}}</span>
             <span class="ai-session-title">{{title}}</span>
-            <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Session menu">
+            <i class="fa fa-star ai-session-pin-icon hidden" aria-hidden="true"></i>
+            <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Chat options">
               <i class="fa fa-ellipsis-v"></i>
             </button>
-            <div class="ai-session-dropdown hidden" data-session-id="{{session_id}}">
-              <div class="ai-dropdown-item ai-action-dearchive" data-session-id="{{session_id}}">
-                <i class="fa fa-inbox"></i>
-                {{#str}} dearchive_chat, local_ai_system {{/str}}
-              </div>
-              <div class="ai-dropdown-item ai-dropdown-danger ai-action-delete" data-session-id="{{session_id}}">
-                <i class="fa fa-trash"></i>
-                {{#str}} delete_chat, local_ai_system {{/str}}
-              </div>
-            </div>
           </div>
-        {{/archived_sessions}}
-        {{^archived_sessions}}
-          <div class="ai-archive-empty">{{#str}} archive_empty, local_ai_system {{/str}}</div>
-        {{/archived_sessions}}
+          {{/sessions}}
+        </div>
+      </div>
+
+      <div class="ai-sb-group" id="ai-sb-previous-group" style="display:none;">
+        <p class="ai-sb-group-label">{{#str}} previous, local_ai_system {{/str}}</p>
+        <div id="ai-sb-previous"></div>
       </div>
     </div>
 
-    <div class="ai-sb-divider"></div>
-
-    <div class="ai-sb-chats">
-      {{#sessions}}
-        <div class="ai-session-item" data-session-id="{{session_id}}" data-language="{{language}}">
+    <div class="ai-sb-bottom">
+      <div class="ai-sb-archive" id="ai-archive-toggle">
+        <i class="fa fa-archive" aria-hidden="true"></i>
+        {{#str}} archive, local_ai_system {{/str}}
+        <i class="fa fa-chevron-down ai-archive-chevron"></i>
+      </div>
+      <div class="ai-archive-dropdown hidden" id="ai-archive-dropdown">
+        {{#archived_sessions}}
+        <div class="ai-session-item ai-session-archived" data-session-id="{{session_id}}" data-language="{{language}}">
           <span class="ai-session-lang-badge" data-language="{{language}}">{{language}}</span>
           <span class="ai-session-title">{{title}}</span>
-          <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Session menu">
+          <i class="fa fa-star ai-session-pin-icon hidden" aria-hidden="true"></i>
+          <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Chat options">
             <i class="fa fa-ellipsis-v"></i>
           </button>
-          <div class="ai-session-dropdown hidden" data-session-id="{{session_id}}">
-            <div class="ai-dropdown-item ai-action-archive" data-session-id="{{session_id}}">
-              <i class="fa fa-archive"></i>
-              {{#str}} archive_chat, local_ai_system {{/str}}
-            </div>
-            <div class="ai-dropdown-item ai-action-rename" data-session-id="{{session_id}}">
-              <i class="fa fa-pencil"></i>
-              {{#str}} rename_chat, local_ai_system {{/str}}
-            </div>
-            <div class="ai-dropdown-item ai-dropdown-danger ai-action-delete" data-session-id="{{session_id}}">
-              <i class="fa fa-trash"></i>
-              {{#str}} delete_chat, local_ai_system {{/str}}
-            </div>
-          </div>
         </div>
-      {{/sessions}}
+        {{/archived_sessions}}
+        {{^archived_sessions}}
+        <div class="ai-archive-empty">{{#str}} archive_empty, local_ai_system {{/str}}</div>
+        {{/archived_sessions}}
+      </div>
     </div>
   </div>
 
   <div id="ai-chatbot" class="ai-chatbot-container" data-session-id="{{session_id}}">
     <div class="ai-chatbot-header">
-      <span class="ai-chat-title" id="ai-chat-title">
-        {{#str}} chatbot_title, local_ai_system {{/str}}
-      </span>
+      <div class="ai-header-left">
+        <span class="ai-chat-title" id="ai-chat-title">
+          {{#str}} chatbot_title, local_ai_system {{/str}}
+        </span>
+        <button class="ai-header-icon-btn" id="ai-pin-header-btn" aria-label="Pin chat" title="{{#str}} pin_chat, local_ai_system {{/str}}">
+          <i class="fa fa-star" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="ai-header-right">
+        <button class="ai-header-icon-btn" aria-label="Export chat" title="{{#str}} coming_soon, local_ai_system {{/str}}">
+          <i class="fa fa-download" aria-hidden="true"></i>
+        </button>
+        <button class="ai-header-icon-btn" aria-label="Share chat" title="{{#str}} coming_soon, local_ai_system {{/str}}">
+          <i class="fa fa-share-alt" aria-hidden="true"></i>
+        </button>
+        <button class="ai-header-icon-btn ai-theme-toggle" id="ai-theme-toggle" aria-label="Toggle theme" title="{{#str}} switch_theme, local_ai_system {{/str}}">
+          <i class="fa fa-sun-o" id="ai-theme-icon" aria-hidden="true"></i>
+        </button>
 
-      <!-- LANGUAGE PICKER (переключает отображение текущего чата) -->
-      <div class="ai-language-picker" id="ai-language-picker">
-        <div class="ai-language-picker-toggle" id="ai-language-toggle">
-          <i class="fa fa-language" aria-hidden="true"></i>
-          <span class="ai-language-picker-label" id="ai-language-current-label">
-            {{#str}} language_original, local_ai_system {{/str}}
-          </span>
-          <i class="fa fa-chevron-down ai-language-chevron"></i>
-        </div>
-
-        <div class="ai-language-dropdown hidden" id="ai-language-dropdown">
-          <div class="ai-language-option selected" data-language="">
-            <span class="ai-language-option-label">{{#str}} language_original, local_ai_system {{/str}}</span>
-            <i class="fa fa-check ai-language-check"></i>
+        <div class="ai-language-picker" id="ai-language-picker">
+          <div class="ai-language-picker-toggle" id="ai-language-toggle">
+            <i class="fa fa-language" aria-hidden="true"></i>
+            <span class="ai-language-picker-label" id="ai-language-current-label">
+              {{#str}} language_original, local_ai_system {{/str}}
+            </span>
+            <i class="fa fa-chevron-down ai-language-chevron"></i>
           </div>
-          <div class="ai-language-option" data-language="en">
-            <span class="ai-language-option-label">English</span>
-            <i class="fa fa-check ai-language-check"></i>
-          </div>
-          <div class="ai-language-option" data-language="de">
-            <span class="ai-language-option-label">Deutsch</span>
-            <i class="fa fa-check ai-language-check"></i>
-          </div>
-          <div class="ai-language-option" data-language="ru">
-            <span class="ai-language-option-label">Русский</span>
-            <i class="fa fa-check ai-language-check"></i>
-          </div>
-          <div class="ai-language-option" data-language="ua">
-            <span class="ai-language-option-label">Українська</span>
-            <i class="fa fa-check ai-language-check"></i>
+          <div class="ai-language-dropdown hidden" id="ai-language-dropdown">
+            <div class="ai-language-option selected" data-language="">
+              <span class="ai-language-option-label">{{#str}} language_original, local_ai_system {{/str}}</span>
+              <i class="fa fa-check ai-language-check"></i>
+            </div>
+            <div class="ai-language-option" data-language="en">
+              <span class="ai-language-option-label">English</span>
+              <i class="fa fa-check ai-language-check"></i>
+            </div>
+            <div class="ai-language-option" data-language="de">
+              <span class="ai-language-option-label">Deutsch</span>
+              <i class="fa fa-check ai-language-check"></i>
+            </div>
+            <div class="ai-language-option" data-language="ru">
+              <span class="ai-language-option-label">Русский</span>
+              <i class="fa fa-check ai-language-check"></i>
+            </div>
+            <div class="ai-language-option" data-language="uk">
+              <span class="ai-language-option-label">Українська</span>
+              <i class="fa fa-check ai-language-check"></i>
+            </div>
           </div>
         </div>
       </div>
@@ -140,18 +145,28 @@
     <div class="ai-chatbot-messages-wrap">
       <div class="ai-chatbot-messages" id="ai-messages-container">
         {{#messages}}
-          <div class="ai-message ai-message--{{role}}">
+        <div class="ai-message ai-message--{{role}}">
+          <div class="ai-bubble-wrap">
             <div class="ai-message-bubble">
               <div class="ai-message-content">{{{content_html}}}</div>
-              <div class="ai-message-time">{{created_at}}</div>
+            </div>
+            <div class="ai-message-meta">
+              <span class="ai-message-time" data-created-at="{{created_at}}"></span>
+              <div class="ai-message-actions">
+                <button class="ai-msg-action-btn ai-msg-action-edit" aria-label="Edit"><i class="fa fa-pencil"></i></button>
+                <button class="ai-msg-action-btn ai-msg-action-copy" aria-label="Copy"><i class="fa fa-clone"></i></button>
+                <button class="ai-msg-action-btn ai-msg-action-regen" aria-label="Regenerate"><i class="fa fa-refresh"></i></button>
+                <button class="ai-msg-action-btn ai-msg-action-up" aria-label="Good response"><i class="fa fa-thumbs-o-up"></i></button>
+                <button class="ai-msg-action-btn ai-msg-action-down" aria-label="Bad response"><i class="fa fa-thumbs-o-down"></i></button>
+              </div>
             </div>
           </div>
+        </div>
         {{/messages}}
       </div>
-
       <div class="ai-translating-overlay hidden" id="ai-translating-overlay"
-          data-label-translating="{{#str}} translating, local_ai_system {{/str}}"
-          data-label-loading="{{#str}} loading_original, local_ai_system {{/str}}">
+           data-label-translating="{{#str}} translating, local_ai_system {{/str}}"
+           data-label-loading="{{#str}} loading_original, local_ai_system {{/str}}">
         <div class="ai-translating-spinner"></div>
         <span id="ai-translating-label"></span>
       </div>
@@ -159,6 +174,9 @@
 
     <div class="ai-chatbot-input-area">
       <div class="ai-input-row">
+        <button class="ai-attach-btn" aria-label="Attach file" title="{{#str}} coming_soon, local_ai_system {{/str}}" disabled>
+          <i class="fa fa-paperclip" aria-hidden="true"></i>
+        </button>
         <textarea id="ai-message-input"
                   class="ai-textarea"
                   rows="1"
@@ -171,6 +189,22 @@
           <i class="fa fa-stop"></i>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Single reusable context menu — reparented to <body> at runtime -->
+  <div id="ai-context-menu" class="ai-context-menu hidden">
+    <div class="ai-dropdown-item ai-ctx-pin">
+      <i class="fa fa-star"></i> <span class="ai-ctx-pin-label">Pin chat</span>
+    </div>
+    <div class="ai-dropdown-item ai-ctx-rename">
+      <i class="fa fa-pencil"></i> {{#str}} rename_chat, local_ai_system {{/str}}
+    </div>
+    <div class="ai-dropdown-item ai-ctx-archive">
+      <i class="fa fa-archive ai-ctx-archive-icon"></i> <span class="ai-ctx-archive-label">Archive</span>
+    </div>
+    <div class="ai-dropdown-item ai-dropdown-danger ai-ctx-delete">
+      <i class="fa fa-trash"></i> {{#str}} delete_chat, local_ai_system {{/str}}
     </div>
   </div>
 

@@ -3,6 +3,9 @@
 require_once(__DIR__ . '/../../config.php');
 require_login();
 
+$plugin = new stdClass();
+require($CFG->dirroot . '/local/ai_system/version.php');
+
 $context = context_system::instance();
 require_capability('local_ai_system:use_chatbot', $context);
 
@@ -13,7 +16,7 @@ $PAGE->set_context($context);
 $PAGE->set_title('AI Chatbot');
 $PAGE->set_heading('AI Chatbot');
 
-$PAGE->requires->css(new moodle_url('/local/ai_system/styles.css'));
+$PAGE->requires->css(new moodle_url('/local/ai_system/styles.css', ['v' => $plugin->version]));
 $PAGE->requires->js(
     new moodle_url('https://cdn.jsdelivr.net/npm/marked/marked.min.js'),
     true
