@@ -15,6 +15,12 @@ class MessageModel(Base):
 
     content = Column(Text, nullable=False)
 
+    # Relative path (e.g. "session123/9f2c1a.jpg") under CHAT_IMAGES_DIR.
+    # NEVER an absolute filesystem path — that breaks the moment the
+    # storage root moves (different machine, container, etc). Nullable:
+    # most messages have no attached image.
+    image_path = Column(String(500), nullable=True)
+
     tokens_used = Column(Integer, nullable=True)
 
     created_at = Column(Integer, nullable=False)

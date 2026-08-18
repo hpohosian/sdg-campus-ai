@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/ai_system/db" VERSION="2026041300" COMMENT="AI System plugin database"
+<XMLDB PATH="local/ai_system/db" VERSION="2026080302" COMMENT="AI System plugin database"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -36,6 +36,7 @@
         <FIELD NAME="session_id" TYPE="char" LENGTH="64" NOTNULL="true"/>
         <FIELD NAME="role" TYPE="char" LENGTH="16" NOTNULL="true"/>
         <FIELD NAME="content" TYPE="text" NOTNULL="true"/>
+        <FIELD NAME="image_path" TYPE="char" LENGTH="500" NOTNULL="false" COMMENT="Relative path to an attached chat image, if any"/>
         <FIELD NAME="tokens_used" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
       </FIELDS>

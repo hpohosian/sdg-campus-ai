@@ -11,7 +11,52 @@ require_capability('local_ai_system:use_chatbot', $context);
 // INPUT
 // ==========================
 $session_id = required_param('session_id', PARAM_TEXT);
-$message    = required_param('message', PARAM_RAW);
+// Text is now optional — the user may send an image with no question.
+$message    = optional_param('message', '', PARAM_RAW);
+
+// ==========================
+// OPTIONAL IMAGE ATTACHMENT
+// ==========================
+define('MAX_IMAGE_BYTES', 8 * 1024 * 1024); // 8 MB
+define('ALLOWED_IMAGE_MIMES', ['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+$image_base64    = null;
+$image_mime_type = null;
+
+if (!empty($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+
+    if ($_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo 'Image upload failed.';
+        exit;
+    }
+
+    if ($_FILES['image']['size'] > MAX_IMAGE_BYTES) {
+        http_response_code(413);
+        echo 'Image too large (max 8 MB).';
+        exit;
+    }
+
+    // Trust the actual file bytes over the client-supplied MIME type.
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $detected_mime = finfo_file($finfo, $_FILES['image']['tmp_name']);
+    finfo_close($finfo);
+
+    if (!in_array($detected_mime, ALLOWED_IMAGE_MIMES, true)) {
+        http_response_code(415);
+        echo 'Unsupported image type. Allowed: JPEG, PNG, WEBP, GIF.';
+        exit;
+    }
+
+    $image_mime_type = $detected_mime;
+    $image_base64 = base64_encode(file_get_contents($_FILES['image']['tmp_name']));
+}
+
+if ($message === '' && !$image_base64) {
+    http_response_code(400);
+    echo 'Empty message.';
+    exit;
+}
 
 // ==========================
 // SECURITY CHECK
@@ -32,9 +77,16 @@ $timestamp = time();
 
 $secret = get_config('local_ai_system', 'api_secret');
 
-$payload = json_encode([
+$payload_data = [
     'content' => $message,
-]);
+];
+
+if ($image_base64) {
+    $payload_data['image_base64']    = $image_base64;
+    $payload_data['image_mime_type'] = $image_mime_type;
+}
+
+$payload = json_encode($payload_data);
 
 $signature = hash_hmac(
     'sha256',

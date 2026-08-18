@@ -130,10 +130,25 @@ class service {
         int $userid
     ): array {
 
-        return $this->client->get(
+        $messages = $this->client->get(
             "/sessions/{$session_id}/messages",
             $userid
         );
+
+        // Moodle's external API rejects `null` for VALUE_OPTIONAL fields —
+        // the key must be entirely absent, not present-with-null.
+        // FastAPI/pydantic always serializes "image_url": null for
+        // messages with no attachment (rather than omitting the key), so
+        // strip it here before it reaches chatbot_api.php's return-value
+        // validation.
+        foreach ($messages as &$message) {
+            if (array_key_exists('image_url', $message) && $message['image_url'] === null) {
+                unset($message['image_url']);
+            }
+        }
+        unset($message);
+
+        return $messages;
     }
 
     /**

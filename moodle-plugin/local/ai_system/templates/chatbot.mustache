@@ -98,7 +98,7 @@
         </button>
       </div>
       <div class="ai-header-right">
-        <button class="ai-header-icon-btn" aria-label="Export chat" title="{{#str}} coming_soon, local_ai_system {{/str}}">
+        <button class="ai-header-icon-btn" id="ai-export-pdf-btn" aria-label="Export chat" title="{{#str}} export_chat_pdf, local_ai_system {{/str}}">
           <i class="fa fa-download" aria-hidden="true"></i>
         </button>
         <button class="ai-header-icon-btn" aria-label="Share chat" title="{{#str}} coming_soon, local_ai_system {{/str}}">
@@ -173,8 +173,16 @@
     </div>
 
     <div class="ai-chatbot-input-area">
+      <div class="ai-image-preview hidden" id="ai-image-preview">
+        <img id="ai-image-preview-thumb" src="" alt="" />
+        <span class="ai-image-preview-name" id="ai-image-preview-name"></span>
+        <button type="button" class="ai-image-preview-remove" id="ai-image-preview-remove" aria-label="Remove image">
+          <i class="fa fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
       <div class="ai-input-row">
-        <button class="ai-attach-btn" aria-label="Attach file" title="{{#str}} coming_soon, local_ai_system {{/str}}" disabled>
+        <input type="file" id="ai-image-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+        <button class="ai-attach-btn" id="ai-attach-btn" aria-label="Attach image" title="{{#str}} attach_image, local_ai_system {{/str}}">
           <i class="fa fa-paperclip" aria-hidden="true"></i>
         </button>
         <textarea id="ai-message-input"

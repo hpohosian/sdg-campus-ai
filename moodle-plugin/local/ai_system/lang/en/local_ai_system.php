@@ -34,3 +34,4 @@ $string['unpin_chat'] = 'Unpin chat';
 $string['coming_soon'] = 'Coming soon';
 $string['switch_theme'] = 'Switch theme';
 $string['no_pinned_chats'] = 'No pinned chats yet';
+$string['attach_image'] = 'Attach image';

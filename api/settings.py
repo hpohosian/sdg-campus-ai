@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     
     MOODLEDATA_PATH: str = "D:\\Moodle\\MoodleWindowsInstaller-latest-500\\server\\moodledata"
 
+    # Where chat-attached images are written to disk. Empty string (default)
+    # means "<MOODLEDATA_PATH>/local_ai_system/chat_images" — override in
+    # .env if you want them stored somewhere else (e.g. a separate volume).
+    CHAT_IMAGES_DIR: str = ""
+
     # Used to build clickable course links in chatbot answers, e.g.
     # f"{MOODLE_BASE_URL}/course/view.php?id={course_id}"
     # Change this in .env for staging/production (no trailing slash).
@@ -25,6 +30,8 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "paraphrase-multilingual-mpnet-base-v2"
     HF_HOME: str = "D:\\hiwi\\huggingface_cache"
     HF_HUB_DISABLE_XET: str = "1"
+    
+    MISTRAL_VISION_MODEL: str = "mistral-small-latest"
 
     model_config = SettingsConfigDict(
         env_file=".env",

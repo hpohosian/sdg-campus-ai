@@ -434,6 +434,12 @@ class chatbot_api extends external_api {
                     PARAM_RAW
                 ),
 
+                'image_url' => new external_value(
+                    PARAM_URL,
+                    'URL to fetch the attached image, if any',
+                    VALUE_OPTIONAL
+                ),
+
                 'created_at' => new external_value(
                     PARAM_TEXT,
                     'Timestamp',

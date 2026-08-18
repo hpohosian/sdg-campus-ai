@@ -13,7 +13,8 @@ define([
             controller: null,
             shouldAutoScroll: true,
             partialText: '',
-            pinned: {}
+            pinned: {},
+            pendingImage: null // { file, dataUrl } — set while an image is attached but not yet sent
         },
 
         init(sessionId, courseId) {
@@ -33,6 +34,8 @@ define([
             this.initTheme();
             this.bindThemeToggle();
             this.bindUI();
+            this.bindAttachImage();
+            this.bindImageLightbox();
             this.bindGlobalDelegation();
             this.bindContextMenuActions();
             this.bindRenamePopup();
@@ -40,6 +43,7 @@ define([
             this.bindNewSession();
             this.bindLanguagePicker();
             this.bindHeaderPin();
+            this.bindExportPdf();
             this.bindArchiveToggle();
             this.bindCoursePicker();
             this.formatServerMessageTimes();
@@ -224,6 +228,298 @@ define([
         },
 
         // =========================
+        // IMAGE ATTACHMENT
+        // =========================
+        MAX_IMAGE_BYTES: 8 * 1024 * 1024, // 8 MB — keep in sync with stream.php
+        ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+
+        bindAttachImage() {
+            const attachBtn = document.getElementById('ai-attach-btn');
+            const fileInput = document.getElementById('ai-image-input');
+            const removeBtn = document.getElementById('ai-image-preview-remove');
+            if (!attachBtn || !fileInput) return;
+
+            attachBtn.addEventListener('click', () => {
+                if (this.state.isStreaming) return;
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files?.[0];
+                fileInput.value = ''; // allow re-selecting the same file later
+                if (!file) return;
+                this.setPendingImage(file);
+            });
+
+            removeBtn?.addEventListener('click', () => this.clearPendingImage());
+        },
+
+        setPendingImage(file) {
+            if (!this.ALLOWED_IMAGE_TYPES.includes(file.type)) {
+                window.alert('Please choose a JPEG, PNG, WEBP or GIF image.');
+                return;
+            }
+            if (file.size > this.MAX_IMAGE_BYTES) {
+                window.alert('Image is too large (max 8 MB).');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                this.state.pendingImage = { file, dataUrl: reader.result };
+                this.renderImagePreview();
+            };
+            reader.readAsDataURL(file);
+        },
+
+        clearPendingImage() {
+            this.state.pendingImage = null;
+            this.renderImagePreview();
+        },
+
+        renderImagePreview() {
+            const wrap = document.getElementById('ai-image-preview');
+            const thumb = document.getElementById('ai-image-preview-thumb');
+            const name = document.getElementById('ai-image-preview-name');
+            if (!wrap || !thumb || !name) return;
+
+            const pending = this.state.pendingImage;
+            if (!pending) {
+                wrap.classList.add('hidden');
+                thumb.src = '';
+                return;
+            }
+
+            thumb.src = pending.dataUrl;
+            name.textContent = pending.file.name;
+            wrap.classList.remove('hidden');
+        },
+
+        // =========================
+        // IMAGE LIGHTBOX (click a chat image to open it full-size)
+        // =========================
+        bindImageLightbox() {
+            const container = document.getElementById('ai-messages-container');
+            if (!container) return;
+
+            // Event delegation: works for images that exist now AND ones
+            // added later (streamed replies, future history loads).
+            container.addEventListener('click', (e) => {
+                const img = e.target.closest('.ai-message-image');
+                if (img) this.openImageLightbox(img.src, img.alt);
+            });
+        },
+
+        ensureLightboxEl() {
+            let overlay = document.getElementById('ai-lightbox-overlay');
+            if (overlay) return overlay;
+
+            overlay = document.createElement('div');
+            overlay.id = 'ai-lightbox-overlay';
+            overlay.className = 'ai-lightbox-overlay';
+            overlay.innerHTML = `
+                <button class="ai-lightbox-close" aria-label="Close">
+                    <i class="fa fa-times" aria-hidden="true"></i>
+                </button>
+                <img class="ai-lightbox-img" id="ai-lightbox-img" src="" alt="">
+            `;
+            document.body.appendChild(overlay);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay || e.target.closest('.ai-lightbox-close')) {
+                    this.closeImageLightbox();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') this.closeImageLightbox();
+            });
+
+            return overlay;
+        },
+
+        openImageLightbox(src, alt) {
+            const overlay = this.ensureLightboxEl();
+            const img = document.getElementById('ai-lightbox-img');
+            img.src = src;
+            img.alt = alt || '';
+            overlay.classList.add('open');
+        },
+
+        closeImageLightbox() {
+            const overlay = document.getElementById('ai-lightbox-overlay');
+            if (overlay) overlay.classList.remove('open');
+        },
+
+        // =========================
+        // EXPORT TO PDF
+        // =========================
+        bindExportPdf() {
+            const btn = document.getElementById('ai-export-pdf-btn');
+            if (!btn) return;
+
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                this.exportChatToPdf();
+            });
+        },
+
+        // Lazily loads html2canvas + jsPDF from CDN, once, and caches the
+        // in-flight promise so rapid double-clicks don't inject the
+        // <script> tags twice.
+        //
+        // IMPORTANT: Moodle runs RequireJS on every page. The UMD builds of
+        // html2canvas/jsPDF detect `define.amd` and, when present, register
+        // themselves as an anonymous AMD module instead of attaching to
+        // `window` — so `window.html2canvas` stays undefined even though
+        // the script loaded fine. We work around this by temporarily
+        // hiding `window.define` while the script executes, forcing it
+        // down the "plain browser global" branch of its UMD wrapper.
+        ensureExportLibs() {
+            if (this._exportLibsPromise) return this._exportLibsPromise;
+
+            const loadGlobalScript = (src) => new Promise((resolve, reject) => {
+                const originalDefine = window.define;
+                window.define = undefined; // hide AMD from the UMD wrapper
+
+                const el = document.createElement('script');
+                el.src = src;
+                el.onload = () => {
+                    window.define = originalDefine;
+                    resolve();
+                };
+                el.onerror = () => {
+                    window.define = originalDefine;
+                    reject(new Error('Failed to load script: ' + src));
+                };
+                document.head.appendChild(el);
+            });
+
+            this._exportLibsPromise = (async () => {
+                if (typeof window.html2canvas !== 'function') {
+                    await loadGlobalScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+                }
+                if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+                    await loadGlobalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                }
+                if (typeof window.html2canvas !== 'function' || typeof window.jspdf?.jsPDF !== 'function') {
+                    throw new Error('PDF export libraries failed to initialize on window.');
+                }
+            })().catch((err) => {
+                // Don't cache a permanently-broken promise — allow retry
+                // on the next click (e.g. after a transient network issue).
+                this._exportLibsPromise = null;
+                throw err;
+            });
+
+            return this._exportLibsPromise;
+        },
+
+        // Builds an off-screen, print-friendly clone of the conversation
+        // (forced light background, no hover actions) so the exported PDF
+        // looks the same regardless of dark/light theme, and renders any
+        // language/script correctly since it's captured as an image rather
+        // than drawn with jsPDF's built-in (Latin-only) fonts.
+        buildExportNode(title) {
+            const source = document.getElementById('ai-messages-container');
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'ai-pdf-export-wrapper';
+
+            const heading = document.createElement('div');
+            heading.className = 'ai-pdf-export-title';
+            heading.textContent = title;
+
+            const dateLine = document.createElement('div');
+            dateLine.className = 'ai-pdf-export-date';
+            dateLine.textContent = new Date().toLocaleString();
+
+            const clone = source.cloneNode(true);
+            clone.classList.add('ai-pdf-export-clone');
+            clone.querySelectorAll('.ai-message-actions').forEach(el => el.remove());
+            clone.removeAttribute('id');
+
+            wrapper.appendChild(heading);
+            wrapper.appendChild(dateLine);
+            wrapper.appendChild(clone);
+            document.body.appendChild(wrapper);
+
+            return wrapper;
+        },
+
+        async exportChatToPdf() {
+            const btn = document.getElementById('ai-export-pdf-btn');
+            const icon = btn?.querySelector('i');
+            const container = document.getElementById('ai-messages-container');
+
+            if (!container || !container.children.length) {
+                window.alert('This chat has no messages to export yet.');
+                return;
+            }
+
+            const originalIconClass = icon?.className;
+            if (btn) btn.disabled = true;
+            if (icon) icon.className = 'fa fa-spinner fa-spin';
+
+            let exportNode = null;
+
+            try {
+                await this.ensureExportLibs();
+
+                const title = document.getElementById('ai-chat-title')?.textContent.trim()
+                    || 'SDG-Campus AI Chatbot';
+
+                exportNode = this.buildExportNode(title);
+
+                const canvas = await window.html2canvas(exportNode, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    useCORS: true
+                });
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+                const usableWidth = pageWidth - margin * 2;
+                const usableHeight = pageHeight - margin * 2;
+                const imgHeight = (canvas.height * usableWidth) / canvas.width;
+
+                const imgData = canvas.toDataURL('image/png');
+
+                let heightLeft = imgHeight;
+                let position = margin;
+
+                pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+                heightLeft -= usableHeight;
+
+                while (heightLeft > 0) {
+                    position = margin - (imgHeight - heightLeft);
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+                    heightLeft -= usableHeight;
+                }
+
+                const safeTitle = title
+                    .replace(/[^\p{L}\p{N}_\- ]+/gu, '')
+                    .trim()
+                    .replace(/\s+/g, '_')
+                    .slice(0, 60) || 'chat';
+
+                pdf.save(`${safeTitle}.pdf`);
+            } catch (e) {
+                console.error('[ChatBot] PDF export failed:', e);
+                window.alert('Sorry, something went wrong while generating the PDF. Please try again.');
+            } finally {
+                if (exportNode) exportNode.remove();
+                if (btn) btn.disabled = false;
+                if (icon) icon.className = originalIconClass;
+            }
+        },
+
+        // =========================
         // COURSE PICKER + LOCK
         // =========================
         bindCoursePicker() {
@@ -331,7 +627,7 @@ define([
                         container.innerHTML = '';
 
                         const messages = Array.isArray(result) ? result : (result.messages ?? []);
-                        messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at));
+                        messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url));
 
                         const item = document.querySelector(`.ai-session-item[data-session-id="${this.state.sessionId}"]`);
                         if (item) {
@@ -588,7 +884,7 @@ define([
 
             const container = document.getElementById('ai-messages-container');
             container.innerHTML = '';
-            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at));
+            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url));
 
             const chatTitle = document.getElementById('ai-chat-title');
             if (chatTitle) chatTitle.textContent = archived ? `${title} (archived)` : title;
@@ -723,7 +1019,7 @@ define([
 
             const send = () => {
                 const message = input.value.trim();
-                if (!message) return;
+                if (!message && !this.state.pendingImage) return;
                 input.value = '';
                 input.style.height = 'auto';
                 this.sendMessageStream(message);
@@ -772,6 +1068,8 @@ define([
         async sendMessageStream(message) {
             if (this.state.isStreaming) return;
 
+            const pendingImage = this.state.pendingImage;
+
             this.state.isStreaming = true;
             this.state.partialText = '';
             this.state.controller = new AbortController();
@@ -780,7 +1078,8 @@ define([
             document.getElementById('ai-send-btn').style.display = 'none';
             document.getElementById('ai-stop-btn').style.display = 'flex';
 
-            this.appendMessage('user', message);
+            this.appendMessage('user', message, null, pendingImage?.dataUrl);
+            this.clearPendingImage();
             const bubble = this.createAssistantBubble();
             let fullText = '';
 
@@ -788,16 +1087,21 @@ define([
             this.setCourseLock(true); // CHANGED: course is locked exactly when a message is actually sent
 
             try {
+                const body = new FormData();
+                body.append('session_id', this.state.sessionId);
+                body.append('message', message);
+                if (pendingImage) {
+                    body.append('image', pendingImage.file, pendingImage.file.name);
+                }
+
                 const response = await fetch(
                     M.cfg.wwwroot + '/local/ai_system/ajax/stream.php',
                     {
                         method: 'POST',
                         signal: this.state.controller.signal,
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({
-                            session_id: this.state.sessionId,
-                            message: message
-                        })
+                        // NOTE: no Content-Type header here — the browser sets the
+                        // correct multipart/form-data boundary automatically for FormData.
+                        body: body
                     }
                 );
 
@@ -901,7 +1205,7 @@ define([
             `;
         },
 
-        appendMessage(role, content, createdAt) {
+        appendMessage(role, content, createdAt, imageDataUrl) {
             const container = document.getElementById('ai-messages-container');
 
             const wrap = document.createElement('div');
@@ -912,6 +1216,14 @@ define([
 
             const bubble = document.createElement('div');
             bubble.className = 'ai-message-bubble';
+
+            if (imageDataUrl) {
+                const img = document.createElement('img');
+                img.className = 'ai-message-image';
+                img.src = imageDataUrl;
+                img.alt = 'Attached image';
+                bubble.appendChild(img);
+            }
 
             const text = document.createElement('div');
             text.className = 'ai-message-content';
@@ -955,6 +1267,7 @@ define([
 
             const text = document.createElement('div');
             text.className = 'ai-message-content';
+            text.innerHTML = '<span class="ai-typing-indicator"><span></span><span></span><span></span></span>';
 
             const meta = document.createElement('div');
             meta.className = 'ai-message-meta';

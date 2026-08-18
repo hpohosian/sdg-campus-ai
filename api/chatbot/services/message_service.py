@@ -1,3 +1,7 @@
+import base64
+import os
+import uuid
+
 from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.session_repository import SessionRepository
 from chatbot.repositories.message_translation_repository import MessageTranslationRepository  # NEW
@@ -6,8 +10,16 @@ from chatbot.course_links import format_course_link, build_course_links
 
 from chatbot.services.ai_service import AIService
 from translation.translator import Translator  # NEW
+from settings import settings
 
 from chatbot.schemas import MessageResponse
+
+_MIME_TO_EXT = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
 
 
 class MessageService:
@@ -50,11 +62,24 @@ class MessageService:
                 session_id=m.session_id,
                 role=m.role,
                 content=await self._translate_message(m, session.language),
+                image_url=self._build_image_url(m.session_id, m.id) if m.image_path else None,
                 tokens_used=m.tokens_used,
                 created_at=m.created_at,
             )
             for m in messages
         ]
+
+    @staticmethod
+    def _build_image_url(session_id: str, message_id: int) -> str:
+        """
+        Points at a Moodle-side relay (ajax/get_image.php), NOT directly at
+        this FastAPI service — the browser can only reach Moodle; FastAPI
+        (127.0.0.1:8001) is only reachable server-to-server from PHP. The
+        relay re-checks require_login()/capability before proxying the
+        file through, same as every other endpoint here.
+        """
+        base = settings.MOODLE_BASE_URL.rstrip("/")
+        return f"{base}/local/ai_system/ajax/get_image.php?session_id={session_id}&message_id={message_id}"
 
     # =========================
     # TRANSLATE ONE MESSAGE
@@ -74,7 +99,7 @@ class MessageService:
     # =========================
     # SAVE USER MESSAGE ONLY
     # =========================
-    async def create_user_message(self, session_id: str, content: str):
+    async def create_user_message(self, session_id: str, content: str, image_path: str | None = None):
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -83,6 +108,7 @@ class MessageService:
             session_id=session_id,
             role="user",
             content=content,
+            image_path=image_path,
         )
 
     # =========================
@@ -111,7 +137,7 @@ class MessageService:
     # =========================
     # GENERATE FULL RESPONSE
     # =========================
-    async def chat(self, session_id: str, content: str):
+    async def chat(self, session_id: str, content: str, image_base64: str | None = None, image_mime_type: str | None = None):
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -124,10 +150,19 @@ class MessageService:
             session, collection_name, relevant_course_ids
         )
 
-        user_message = await self.create_user_message(session_id, content)
+        image_path = self._save_chat_image(session_id, image_base64, image_mime_type) if image_base64 else None
+        user_message = await self.create_user_message(session_id, content, image_path=image_path)
         history = await self.get_session_messages(session_id)
+
+        history_dicts = [{"role": m.role, "content": m.content} for m in history]
+        if image_base64:
+            history_dicts[-1] = {
+                "role": "user",
+                "content": self._build_vision_content(content, image_base64, image_mime_type),
+            }
+
         ai_text = await self.ai_service.generate_response(
-            history,
+            history_dicts,
             collection_name=collection_name,
             course_ids=course_ids,
             course_link=course_link,
@@ -146,7 +181,8 @@ class MessageService:
         return {
             "user": MessageResponse(
                 id=user_message.id, session_id=user_message.session_id, role=user_message.role,
-                content=user_display, tokens_used=user_message.tokens_used, created_at=user_message.created_at,
+                content=user_display, image_url=self._build_image_url(session_id, user_message.id) if image_path else None,
+                tokens_used=user_message.tokens_used, created_at=user_message.created_at,
             ),
             "assistant": MessageResponse(
                 id=assistant_message.id, session_id=assistant_message.session_id, role=assistant_message.role,
@@ -158,7 +194,7 @@ class MessageService:
     # =========================
     # STREAM RESPONSE
     # =========================
-    async def chat_stream(self, session_id: str, content: str):
+    async def chat_stream(self, session_id: str, content: str, image_base64: str | None = None, image_mime_type: str | None = None):
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -171,10 +207,21 @@ class MessageService:
             session, collection_name, relevant_course_ids
         )
 
-        await self.create_user_message(session_id, content)
+        # The image is written to disk once here; only its relative path is
+        # stored in the DB row (see _save_chat_image). The actual base64
+        # bytes are handed to the model for this turn only, via the
+        # history[-1] override below — they never touch the database.
+        image_path = self._save_chat_image(session_id, image_base64, image_mime_type) if image_base64 else None
+        await self.create_user_message(session_id, content, image_path=image_path)
 
         raw_history = await self.get_session_messages(session_id)
         history = [{"role": msg.role, "content": msg.content} for msg in raw_history]
+
+        if image_base64:
+            history[-1] = {
+                "role": "user",
+                "content": self._build_vision_content(content, image_base64, image_mime_type),
+            }
 
         full_response = ""
         async for token in self.ai_service.stream_response(
@@ -192,7 +239,61 @@ class MessageService:
         if is_first_message and session.title == "New Chat":           # NEW
             generated_title = await self.ai_service.generate_title(content, full_response)
             self.session_repo.update(session_id, title=generated_title)
-            
+
+    @staticmethod
+    def _chat_images_root() -> str:
+        return settings.CHAT_IMAGES_DIR or os.path.join(
+            settings.MOODLEDATA_PATH, "local_ai_system", "chat_images"
+        )
+
+    def get_image_abs_path(self, session_id: str, message_id: int) -> str | None:
+        """
+        Resolve a message's stored image_path to an absolute filesystem
+        path, scoped to the given session_id (defense in depth — a caller
+        can't fetch another session's image just by guessing message_ids;
+        the router also independently checks session ownership by user).
+        """
+        message = self.message_repo.get(message_id)
+        if not message or message.session_id != session_id or not message.image_path:
+            return None
+        return os.path.join(self._chat_images_root(), message.image_path)
+
+    @classmethod
+    def _save_chat_image(cls, session_id: str, image_base64: str, image_mime_type: str | None) -> str:
+        """
+        Decodes and writes the image to disk under
+        <images_root>/<session_id>/<uuid><ext>.
+
+        Returns a path *relative* to the images root (e.g.
+        "7bea81a6.../9f2c1a....jpg") — never an absolute filesystem path,
+        so this keeps working if the storage root ever moves (different
+        machine, container, etc). Combined with session_id + message_id at
+        read time by _build_image_url()/the PHP relay.
+        """
+        ext = _MIME_TO_EXT.get(image_mime_type or "", ".jpg")
+        session_dir = os.path.join(cls._chat_images_root(), session_id)
+        os.makedirs(session_dir, exist_ok=True)
+
+        filename = f"{uuid.uuid4().hex}{ext}"
+        abs_path = os.path.join(session_dir, filename)
+
+        with open(abs_path, "wb") as f:
+            f.write(base64.b64decode(image_base64))
+
+        return f"{session_id}/{filename}"
+
+    @staticmethod
+    def _build_vision_content(text: str, image_base64: str, image_mime_type: str | None):
+        """Builds the Mistral multimodal content list: text block (if any) + image_url block."""
+        mime = image_mime_type or "image/jpeg"
+        blocks = []
+        if text:
+            blocks.append({"type": "text", "text": text})
+        blocks.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:{mime};base64,{image_base64}"},
+        })
+        return blocks
 
     def _build_course_link_context(self, session, collection_name, relevant_course_ids):
         if not relevant_course_ids:

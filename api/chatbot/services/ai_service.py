@@ -116,7 +116,7 @@ class AIService:
             role = msg["role"] if isinstance(msg, dict) else msg.role
             content = msg["content"] if isinstance(msg, dict) else msg.content
             if role == "user":
-                return content
+                return self._extract_text(content)
         return ""
 
     def _build_retrieval_query(self, messages, max_user_messages: int = 2) -> str:
@@ -146,10 +146,31 @@ class AIService:
             role = msg["role"] if isinstance(msg, dict) else msg.role
             content = msg["content"] if isinstance(msg, dict) else msg.content
             if role == "user" and content:
-                user_messages.append(content)
+                text = self._extract_text(content)
+                if text:
+                    user_messages.append(text)
 
         recent = user_messages[-max_user_messages:]
         return "\n".join(recent)
+
+    @staticmethod
+    def _extract_text(content) -> str:
+        """
+        `content` is either a plain string (text-only turn) or a list of
+        Mistral-style content blocks when an image was attached, e.g.:
+            [{"type": "text", "text": "..."}, {"type": "image_url", ...}]
+        Only the text block(s) are useful for building a search query —
+        image blocks contribute nothing to the embedding text.
+        """
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return " ".join(
+                block.get("text", "")
+                for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            ).strip()
+        return ""
 
     def _format(self, messages):
         formatted = []

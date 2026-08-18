@@ -23,7 +23,9 @@ class UpdateSessionRequest(BaseModel):
 
 
 class SendMessageRequest(BaseModel):
-    content: str
+    content: str = ""
+    image_base64: str | None = None
+    image_mime_type: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -33,6 +35,7 @@ class MessageResponse(BaseModel):
     session_id: str
     role: str
     content: str
+    image_url: str | None = None
     tokens_used: int | None = None
     created_at: int
 
