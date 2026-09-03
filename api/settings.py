@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     MISTRAL_API_KEY: str
-    MISTRAL_MODEL: str = "mistral-medium"
+    MISTRAL_MODEL: str = "mistral-medium-latest"
 
     MOODLE_SECRET: str
 
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     HF_HOME: str = "D:\\hiwi\\huggingface_cache"
     HF_HUB_DISABLE_XET: str = "1"
     
-    MISTRAL_VISION_MODEL: str = "mistral-small-latest"
+    MISTRAL_VISION_MODEL: str = "mistral-medium-latest"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -40,3 +40,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+print(f"[DEBUG] Loaded MISTRAL_MODEL = {settings.MISTRAL_MODEL}")

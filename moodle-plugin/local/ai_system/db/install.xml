@@ -39,12 +39,15 @@
         <FIELD NAME="image_path" TYPE="char" LENGTH="500" NOTNULL="false" COMMENT="Relative path to an attached chat image, if any"/>
         <FIELD NAME="tokens_used" TYPE="int" LENGTH="10" NOTNULL="false"/>
         <FIELD NAME="created_at" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="parent_id" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="Preceding message in the active thread; NULL for the first message of the session"/>
+        <FIELD NAME="is_active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" COMMENT="Whether this is the active sibling under parent_id (edit/regenerate create inactive siblings instead of deleting)"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="session_id" UNIQUE="false" FIELDS="session_id"/>
+        <INDEX NAME="parent_id" UNIQUE="false" FIELDS="parent_id"/>
       </INDEXES>
     </TABLE>
 

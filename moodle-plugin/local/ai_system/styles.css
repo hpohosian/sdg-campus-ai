@@ -519,11 +519,75 @@ body.pagelayout-embedded .ai-chatbot-layout {
 .ai-msg-action-btn.active { color: var(--ai-accent); }
 
 .ai-message--user .ai-msg-action-copy,
-.ai-message--user .ai-msg-action-regen,
-.ai-message--user .ai-msg-action-up,
-.ai-message--user .ai-msg-action-down { display: none; }
+.ai-message--user .ai-msg-action-regen { display: none; }
 
 .ai-message--assistant .ai-msg-action-edit { display: none; }
+
+/* ===== EDIT MODE (pencil icon on a user message) ===== */
+.ai-edit-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    min-width: 260px;
+}
+
+.ai-edit-textarea {
+    width: 100%;
+    resize: none;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--ai-border-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 15px;
+    font-family: inherit;
+    line-height: 1.5;
+    color: var(--ai-accent-text);
+    background: var(--ai-bg-0);
+    outline: none;
+}
+
+.ai-edit-textarea:focus { border-color: var(--ai-accent); }
+
+.ai-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* ===== VERSION NAVIGATION ("< i/N >" — edit / regenerate history) ===== */
+.ai-version-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--ai-text-muted);
+}
+
+.ai-version-prev,
+.ai-version-next {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    color: var(--ai-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+}
+
+.ai-version-prev:hover:not(:disabled),
+.ai-version-next:hover:not(:disabled) { background: var(--ai-bg-2); color: var(--ai-text-primary); }
+
+.ai-version-prev:disabled,
+.ai-version-next:disabled { opacity: 0.3; cursor: default; }
+
+.ai-version-label { padding: 0 2px; white-space: nowrap; }
 
 /* ===== TRANSLATING OVERLAY ===== */
 .ai-translating-overlay {

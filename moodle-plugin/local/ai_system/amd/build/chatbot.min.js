@@ -110,24 +110,53 @@ define([
         // =========================
         groupSessionsByDate() {
             const todayContainer = document.getElementById('ai-sb-today');
+            const weekContainer = document.getElementById('ai-sb-week');
+            const monthContainer = document.getElementById('ai-sb-month');
             const previousContainer = document.getElementById('ai-sb-previous');
+            const weekGroup = document.getElementById('ai-sb-week-group');
+            const monthGroup = document.getElementById('ai-sb-month-group');
             const previousGroup = document.getElementById('ai-sb-previous-group');
-            if (!todayContainer || !previousContainer) return;
+            if (!todayContainer || !weekContainer || !monthContainer || !previousContainer) return;
 
-            const midnight = new Date();
+            const now = new Date();
+
+            const midnight = new Date(now);
             midnight.setHours(0, 0, 0, 0);
-            const cutoff = Math.floor(midnight.getTime() / 1000);
-            let movedAny = false;
+            const todayCutoff = Math.floor(midnight.getTime() / 1000);
+
+            // Start of week = last Monday 00:00 (ISO-ish week, ignores locale
+            // week-start settings — Monday everywhere for consistency).
+            const weekStart = new Date(midnight);
+            const dayOfWeek = (weekStart.getDay() + 6) % 7; // Mon=0 ... Sun=6
+            weekStart.setDate(weekStart.getDate() - dayOfWeek);
+            const weekCutoff = Math.floor(weekStart.getTime() / 1000);
+
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            const monthCutoff = Math.floor(monthStart.getTime() / 1000);
+
+            let movedWeek = false;
+            let movedMonth = false;
+            let movedOlder = false;
 
             Array.from(todayContainer.children).forEach(el => {
                 const ts = parseInt(el.dataset.createdAt, 10);
-                if (ts && ts < cutoff) {
+                if (!ts || ts >= todayCutoff) return; // stays in Today
+
+                if (ts >= weekCutoff) {
+                    weekContainer.appendChild(el);
+                    movedWeek = true;
+                } else if (ts >= monthCutoff) {
+                    monthContainer.appendChild(el);
+                    movedMonth = true;
+                } else {
                     previousContainer.appendChild(el);
-                    movedAny = true;
+                    movedOlder = true;
                 }
             });
 
-            if (movedAny && previousGroup) previousGroup.style.display = '';
+            if (movedWeek && weekGroup) weekGroup.style.display = '';
+            if (movedMonth && monthGroup) monthGroup.style.display = '';
+            if (movedOlder && previousGroup) previousGroup.style.display = '';
         },
 
         // =========================
@@ -157,21 +186,21 @@ define([
                 });
             });
 
-            scope.querySelectorAll('.ai-msg-action-regen, .ai-msg-action-edit').forEach(btn => {
+            scope.querySelectorAll('.ai-msg-action-edit').forEach(btn => {
                 if (btn.dataset.bound) return;
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', () => {
-                    console.log('[ChatBot] action not implemented yet:', btn.className);
+                    const wrap = btn.closest('.ai-message');
+                    if (wrap) this.enterEditMode(wrap);
                 });
             });
 
-            scope.querySelectorAll('.ai-msg-action-up, .ai-msg-action-down').forEach(btn => {
+            scope.querySelectorAll('.ai-msg-action-regen').forEach(btn => {
                 if (btn.dataset.bound) return;
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', () => {
-                    const row = btn.closest('.ai-message-actions');
-                    row.querySelectorAll('.ai-msg-action-up, .ai-msg-action-down').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
+                    const wrap = btn.closest('.ai-message');
+                    if (wrap) this.regenerateMessage(wrap);
                 });
             });
         },
@@ -627,7 +656,8 @@ define([
                         container.innerHTML = '';
 
                         const messages = Array.isArray(result) ? result : (result.messages ?? []);
-                        messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url));
+                        messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
+                        await this.loadVersionNav();
 
                         const item = document.querySelector(`.ai-session-item[data-session-id="${this.state.sessionId}"]`);
                         if (item) {
@@ -884,7 +914,8 @@ define([
 
             const container = document.getElementById('ai-messages-container');
             container.innerHTML = '';
-            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url));
+            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
+            this.loadVersionNav();
 
             const chatTitle = document.getElementById('ai-chat-title');
             if (chatTitle) chatTitle.textContent = archived ? `${title} (archived)` : title;
@@ -1078,10 +1109,9 @@ define([
             document.getElementById('ai-send-btn').style.display = 'none';
             document.getElementById('ai-stop-btn').style.display = 'flex';
 
-            this.appendMessage('user', message, null, pendingImage?.dataUrl);
+            const userWrap = this.appendMessage('user', message, null, pendingImage?.dataUrl);
             this.clearPendingImage();
             const bubble = this.createAssistantBubble();
-            let fullText = '';
 
             await this.ensureSession();
             this.setCourseLock(true); // CHANGED: course is locked exactly when a message is actually sent
@@ -1105,79 +1135,393 @@ define([
                     }
                 );
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let buffer = '';
-
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();
-
-                    for (let line of lines) {
-                        line = line.trim();
-                        if (!line.startsWith('data:')) continue;
-
-                        const raw = line.replace(/^data:\s?/, '');
-                        if (raw === '[DONE]') continue;
-
-                        let parsed;
-                        try {
-                            parsed = JSON.parse(raw);
-                        } catch (err) {
-                            console.error('[ChatBot] Failed to parse SSE payload, skipping:', raw, err);
-                            continue;
-                        }
-
-                        if (parsed.title !== undefined) {
-                            this.applyGeneratedTitle(parsed.title);
-                            continue;
-                        }
-
-                        const token = parsed.token;
-                        fullText += token;
-                        this.state.partialText = fullText;
-
-                        try {
-                            bubble.innerHTML = window.marked ? window.marked.parse(fullText) : fullText;
-                        } catch (err) {
-                            bubble.innerText = fullText;
-                        }
-
-                        this.scrollToBottom();
+                await this.consumeStream(response, bubble, (meta) => {
+                    if (meta.user_message_id) userWrap.dataset.messageId = meta.user_message_id;
+                    const assistantWrap = bubble.closest('.ai-message');
+                    if (assistantWrap && meta.assistant_message_id) {
+                        assistantWrap.dataset.messageId = meta.assistant_message_id;
                     }
-                }
+                });
             } catch (e) {
                 console.error(e);
             } finally {
-                this.state.isStreaming = false;
-                this.state.controller = null;
-                this.updateUIState();
+                this.finishStreamingUI(bubble);
+            }
+        },
 
-                try {
-                    bubble.innerHTML = window.marked ? window.marked.parse(fullText || '') : fullText;
-                } catch (err) {
-                    bubble.innerText = fullText;
+        // =========================
+        // SHARED SSE CONSUMER — used by send / edit / regenerate, they all
+        // speak the same "data: {token|title|meta|error}\n\n ... [DONE]"
+        // protocol (see stream.php / edit_stream.php / regenerate_stream.php).
+        // =========================
+        async consumeStream(response, bubbleTextEl, onMeta) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            let fullText = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line.startsWith('data:')) continue;
+
+                    const raw = line.replace(/^data:\s?/, '');
+                    if (raw === '[DONE]') continue;
+
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(raw);
+                    } catch (err) {
+                        console.error('[ChatBot] Failed to parse SSE payload, skipping:', raw, err);
+                        continue;
+                    }
+
+                    if (parsed.title !== undefined) {
+                        this.applyGeneratedTitle(parsed.title);
+                        continue;
+                    }
+
+                    if (parsed.meta !== undefined) {
+                        if (onMeta) onMeta(parsed.meta);
+                        continue;
+                    }
+
+                    if (parsed.error !== undefined) {
+                        console.error('[ChatBot] Stream error:', parsed.error);
+                        continue;
+                    }
+
+                    const token = parsed.token;
+                    fullText += token;
+                    this.state.partialText = fullText;
+
+                    try {
+                        bubbleTextEl.innerHTML = window.marked ? window.marked.parse(fullText) : fullText;
+                    } catch (err) {
+                        bubbleTextEl.innerText = fullText;
+                    }
+
+                    this.scrollToBottom();
                 }
+            }
 
-                const timeEl = document.getElementById('ai-streaming-time');
-                if (timeEl) {
-                    timeEl.textContent = this.formatTime(new Date());
-                    timeEl.removeAttribute('id');
-                }
+            try {
+                bubbleTextEl.innerHTML = window.marked ? window.marked.parse(fullText || '') : fullText;
+            } catch (err) {
+                bubbleTextEl.innerText = fullText;
+            }
 
-                const actionsEl = document.getElementById('ai-streaming-actions');
-                if (actionsEl) {
-                    this.bindMessageActions(actionsEl.closest('.ai-message'));
-                    actionsEl.removeAttribute('id');
-                }
+            const wrap = bubbleTextEl.closest('.ai-message');
+            if (wrap) wrap.dataset.rawContent = fullText;
 
-                document.getElementById('ai-send-btn').style.display = 'flex';
-                document.getElementById('ai-stop-btn').style.display = 'none';
-                this.scrollToBottom();
+            return fullText;
+        },
+
+        finishStreamingUI(bubbleTextEl) {
+            this.state.isStreaming = false;
+            this.state.controller = null;
+            this.updateUIState();
+
+            const timeEl = document.getElementById('ai-streaming-time');
+            if (timeEl) {
+                timeEl.textContent = this.formatTime(new Date());
+                timeEl.removeAttribute('id');
+            }
+
+            const actionsEl = document.getElementById('ai-streaming-actions');
+            if (actionsEl) {
+                this.bindMessageActions(actionsEl.closest('.ai-message'));
+                actionsEl.removeAttribute('id');
+            }
+
+            document.getElementById('ai-send-btn').style.display = 'flex';
+            document.getElementById('ai-stop-btn').style.display = 'none';
+            this.scrollToBottom();
+        },
+
+        // =========================
+        // EDIT A USER MESSAGE
+        // =========================
+        enterEditMode(wrap) {
+            if (this.state.isStreaming) return;
+            if (wrap.querySelector('.ai-edit-wrap')) return; // already editing
+
+            const bubble = wrap.querySelector('.ai-message-bubble');
+            const contentEl = wrap.querySelector('.ai-message-content');
+            const metaEl = wrap.querySelector('.ai-message-meta');
+            if (!bubble || !contentEl) return;
+
+            const rawContent = wrap.dataset.rawContent || contentEl.innerText;
+
+            contentEl.style.display = 'none';
+            if (metaEl) metaEl.style.display = 'none';
+
+            const editWrap = document.createElement('div');
+            editWrap.className = 'ai-edit-wrap';
+            editWrap.innerHTML = `
+                <textarea class="ai-edit-textarea"></textarea>
+                <div class="ai-edit-actions">
+                    <button type="button" class="btn btn-secondary btn-sm ai-edit-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm ai-edit-save">Save &amp; submit</button>
+                </div>
+            `;
+            bubble.appendChild(editWrap);
+
+            const textarea = editWrap.querySelector('.ai-edit-textarea');
+            textarea.value = rawContent;
+            textarea.focus();
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 300) + 'px';
+            textarea.addEventListener('input', () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 300) + 'px';
+            });
+
+            const exitEditMode = () => {
+                editWrap.remove();
+                contentEl.style.display = '';
+                if (metaEl) metaEl.style.display = '';
+            };
+
+            editWrap.querySelector('.ai-edit-cancel').addEventListener('click', exitEditMode);
+
+            editWrap.querySelector('.ai-edit-save').addEventListener('click', () => {
+                const newContent = textarea.value.trim();
+                if (!newContent) return;
+                exitEditMode();
+                this.submitEdit(wrap, newContent);
+            });
+        },
+
+        async submitEdit(wrap, newContent) {
+            if (this.state.isStreaming) return;
+
+            const messageId = wrap.dataset.messageId;
+            const sessionId = this.state.sessionId;
+            if (!messageId || !sessionId) {
+                console.error('[ChatBot] Cannot edit: missing message id or session id.');
+                return;
+            }
+
+            // Everything after this message belonged to the branch we're
+            // about to replace — drop it from view (it stays in the DB,
+            // reachable again if the user navigates back to the old
+            // version via the "< i/N >" arrows).
+            this.removeMessagesAfter(wrap);
+
+            const contentEl = wrap.querySelector('.ai-message-content');
+            contentEl.innerHTML = window.marked ? window.marked.parse(newContent) : newContent;
+            wrap.dataset.rawContent = newContent;
+
+            this.state.isStreaming = true;
+            this.state.controller = new AbortController();
+            this.updateUIState();
+            document.getElementById('ai-send-btn').style.display = 'none';
+            document.getElementById('ai-stop-btn').style.display = 'flex';
+
+            const bubble = this.createAssistantBubble();
+
+            try {
+                const response = await fetch(
+                    M.cfg.wwwroot + '/local/ai_system/ajax/edit_stream.php',
+                    {
+                        method: 'POST',
+                        signal: this.state.controller.signal,
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'session_id=' + encodeURIComponent(sessionId)
+                            + '&message_id=' + encodeURIComponent(messageId)
+                            + '&content=' + encodeURIComponent(newContent)
+                    }
+                );
+
+                await this.consumeStream(response, bubble, (meta) => {
+                    if (meta.user_message_id) wrap.dataset.messageId = meta.user_message_id;
+                    const assistantWrap = bubble.closest('.ai-message');
+                    if (assistantWrap && meta.assistant_message_id) {
+                        assistantWrap.dataset.messageId = meta.assistant_message_id;
+                    }
+                    if (meta.version_count > 1) {
+                        this.renderVersionNav(meta.user_message_id, meta.version_index, meta.version_count, meta.sibling_ids);
+                    }
+                });
+            } catch (e) {
+                console.error('[ChatBot] Edit failed:', e);
+            } finally {
+                this.finishStreamingUI(bubble);
+            }
+        },
+
+        // =========================
+        // REGENERATE AN ASSISTANT REPLY
+        // =========================
+        async regenerateMessage(wrap) {
+            if (this.state.isStreaming) return;
+
+            const messageId = wrap.dataset.messageId;
+            const sessionId = this.state.sessionId;
+            if (!messageId || !sessionId) {
+                console.error('[ChatBot] Cannot regenerate: missing message id or session id.');
+                return;
+            }
+
+            this.removeMessagesAfter(wrap);
+            wrap.remove();
+
+            this.state.isStreaming = true;
+            this.state.controller = new AbortController();
+            this.updateUIState();
+            document.getElementById('ai-send-btn').style.display = 'none';
+            document.getElementById('ai-stop-btn').style.display = 'flex';
+
+            const bubble = this.createAssistantBubble();
+
+            try {
+                const response = await fetch(
+                    M.cfg.wwwroot + '/local/ai_system/ajax/regenerate_stream.php',
+                    {
+                        method: 'POST',
+                        signal: this.state.controller.signal,
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'session_id=' + encodeURIComponent(sessionId)
+                            + '&message_id=' + encodeURIComponent(messageId)
+                    }
+                );
+
+                await this.consumeStream(response, bubble, (meta) => {
+                    const assistantWrap = bubble.closest('.ai-message');
+                    if (assistantWrap && meta.assistant_message_id) {
+                        assistantWrap.dataset.messageId = meta.assistant_message_id;
+                    }
+                    if (meta.version_count > 1) {
+                        this.renderVersionNav(meta.assistant_message_id, meta.version_index, meta.version_count, meta.sibling_ids);
+                    }
+                });
+            } catch (e) {
+                console.error('[ChatBot] Regenerate failed:', e);
+            } finally {
+                this.finishStreamingUI(bubble);
+            }
+        },
+
+        removeMessagesAfter(wrap) {
+            let sib = wrap.nextElementSibling;
+            while (sib) {
+                const next = sib.nextElementSibling;
+                sib.remove();
+                sib = next;
+            }
+        },
+
+        // =========================
+        // VERSION NAVIGATION ("< i/N >")
+        // =========================
+        renderVersionNav(messageId, versionIndex, versionCount, siblingIds) {
+            const wrap = document.querySelector(`.ai-message[data-message-id="${messageId}"]`);
+            if (!wrap) return;
+            const meta = wrap.querySelector('.ai-message-meta');
+            if (!meta) return;
+
+            let nav = meta.querySelector('.ai-version-nav');
+
+            if (!versionCount || versionCount <= 1) {
+                if (nav) nav.remove();
+                return;
+            }
+
+            if (!nav) {
+                nav = document.createElement('div');
+                nav.className = 'ai-version-nav';
+                meta.insertBefore(nav, meta.firstChild);
+            }
+
+            nav.innerHTML = `
+                <button type="button" class="ai-version-prev" aria-label="Previous version" ${versionIndex <= 1 ? 'disabled' : ''}>
+                    <i class="fa fa-chevron-left"></i>
+                </button>
+                <span class="ai-version-label">${versionIndex}/${versionCount}</span>
+                <button type="button" class="ai-version-next" aria-label="Next version" ${versionIndex >= versionCount ? 'disabled' : ''}>
+                    <i class="fa fa-chevron-right"></i>
+                </button>
+            `;
+            nav.dataset.siblingIds = JSON.stringify(siblingIds || []);
+            nav.dataset.currentIndex = versionIndex;
+
+            if (!nav.dataset.bound) {
+                nav.dataset.bound = '1';
+                nav.addEventListener('click', (e) => {
+                    const prevBtn = e.target.closest('.ai-version-prev');
+                    const nextBtn = e.target.closest('.ai-version-next');
+                    if ((!prevBtn && !nextBtn) || this.state.isStreaming) return;
+
+                    const ids = JSON.parse(nav.dataset.siblingIds || '[]');
+                    const currentIdx = parseInt(nav.dataset.currentIndex, 10) - 1; // 0-based
+                    const targetIdx = prevBtn ? currentIdx - 1 : currentIdx + 1;
+                    if (targetIdx < 0 || targetIdx >= ids.length) return;
+
+                    this.activateVersion(ids[targetIdx]);
+                });
+            }
+        },
+
+        async activateVersion(messageId) {
+            const sessionId = this.state.sessionId;
+            if (!sessionId || this.state.isStreaming) return;
+
+            try {
+                await fetch(M.cfg.wwwroot + '/local/ai_system/ajax/activate_version.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'session_id=' + encodeURIComponent(sessionId)
+                        + '&message_id=' + encodeURIComponent(messageId)
+                });
+                await this.refreshMessages();
+            } catch (e) {
+                console.error('[ChatBot] Failed to switch version:', e);
+            }
+        },
+
+        // Re-fetches the active conversation thread and re-renders it —
+        // same shape as loadSession(), minus touching the sidebar/title.
+        async refreshMessages() {
+            const sessionId = this.state.sessionId;
+            if (!sessionId) return;
+
+            const result = await Ajax.call([{
+                methodname: 'local_ai_system_get_messages',
+                args: { session_id: sessionId }
+            }])[0];
+
+            const messages = Array.isArray(result) ? result : (result.messages ?? []);
+
+            const container = document.getElementById('ai-messages-container');
+            container.innerHTML = '';
+            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
+            await this.loadVersionNav();
+        },
+
+        async loadVersionNav() {
+            const sessionId = this.state.sessionId;
+            if (!sessionId) return;
+
+            try {
+                const resp = await fetch(M.cfg.wwwroot + '/local/ai_system/ajax/versions_meta.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'session_id=' + encodeURIComponent(sessionId)
+                });
+                const meta = await resp.json();
+                Object.entries(meta).forEach(([messageId, info]) => {
+                    this.renderVersionNav(messageId, info.version_index, info.version_count, info.sibling_ids);
+                });
+            } catch (e) {
+                console.error('[ChatBot] Failed to load version metadata:', e);
             }
         },
 
@@ -1200,16 +1544,16 @@ define([
             return `
                 <button class="ai-msg-action-btn ai-msg-action-copy" aria-label="Copy"><i class="fa fa-clone"></i></button>
                 <button class="ai-msg-action-btn ai-msg-action-regen" aria-label="Regenerate"><i class="fa fa-refresh"></i></button>
-                <button class="ai-msg-action-btn ai-msg-action-up" aria-label="Good response"><i class="fa fa-thumbs-o-up"></i></button>
-                <button class="ai-msg-action-btn ai-msg-action-down" aria-label="Bad response"><i class="fa fa-thumbs-o-down"></i></button>
             `;
         },
 
-        appendMessage(role, content, createdAt, imageDataUrl) {
+        appendMessage(role, content, createdAt, imageDataUrl, messageId) {
             const container = document.getElementById('ai-messages-container');
 
             const wrap = document.createElement('div');
             wrap.className = `ai-message ai-message--${role}`;
+            if (messageId) wrap.dataset.messageId = messageId;
+            wrap.dataset.rawContent = content || '';
 
             const bubbleWrap = document.createElement('div');
             bubbleWrap.className = 'ai-bubble-wrap';
@@ -1251,6 +1595,7 @@ define([
 
             this.bindMessageActions(wrap);
             this.scrollToBottom();
+            return wrap;
         },
 
         createAssistantBubble() {
@@ -1258,6 +1603,7 @@ define([
 
             const wrap = document.createElement('div');
             wrap.className = 'ai-message ai-message--assistant';
+            wrap.dataset.rawContent = '';
 
             const bubbleWrap = document.createElement('div');
             bubbleWrap.className = 'ai-bubble-wrap';

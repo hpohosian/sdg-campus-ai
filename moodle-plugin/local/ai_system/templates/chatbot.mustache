@@ -57,6 +57,16 @@
         </div>
       </div>
 
+      <div class="ai-sb-group" id="ai-sb-week-group" style="display:none;">
+        <p class="ai-sb-group-label">{{#str}} this_week, local_ai_system {{/str}}</p>
+        <div id="ai-sb-week"></div>
+      </div>
+
+      <div class="ai-sb-group" id="ai-sb-month-group" style="display:none;">
+        <p class="ai-sb-group-label">{{#str}} this_month, local_ai_system {{/str}}</p>
+        <div id="ai-sb-month"></div>
+      </div>
+
       <div class="ai-sb-group" id="ai-sb-previous-group" style="display:none;">
         <p class="ai-sb-group-label">{{#str}} previous, local_ai_system {{/str}}</p>
         <div id="ai-sb-previous"></div>
@@ -101,9 +111,6 @@
         <button class="ai-header-icon-btn" id="ai-export-pdf-btn" aria-label="Export chat" title="{{#str}} export_chat_pdf, local_ai_system {{/str}}">
           <i class="fa fa-download" aria-hidden="true"></i>
         </button>
-        <button class="ai-header-icon-btn" aria-label="Share chat" title="{{#str}} coming_soon, local_ai_system {{/str}}">
-          <i class="fa fa-share-alt" aria-hidden="true"></i>
-        </button>
         <button class="ai-header-icon-btn ai-theme-toggle" id="ai-theme-toggle" aria-label="Toggle theme" title="{{#str}} switch_theme, local_ai_system {{/str}}">
           <i class="fa fa-sun-o" id="ai-theme-icon" aria-hidden="true"></i>
         </button>
@@ -145,7 +152,7 @@
     <div class="ai-chatbot-messages-wrap">
       <div class="ai-chatbot-messages" id="ai-messages-container">
         {{#messages}}
-        <div class="ai-message ai-message--{{role}}">
+        <div class="ai-message ai-message--{{role}}" data-message-id="{{id}}">
           <div class="ai-bubble-wrap">
             <div class="ai-message-bubble">
               <div class="ai-message-content">{{{content_html}}}</div>
@@ -156,8 +163,6 @@
                 <button class="ai-msg-action-btn ai-msg-action-edit" aria-label="Edit"><i class="fa fa-pencil"></i></button>
                 <button class="ai-msg-action-btn ai-msg-action-copy" aria-label="Copy"><i class="fa fa-clone"></i></button>
                 <button class="ai-msg-action-btn ai-msg-action-regen" aria-label="Regenerate"><i class="fa fa-refresh"></i></button>
-                <button class="ai-msg-action-btn ai-msg-action-up" aria-label="Good response"><i class="fa fa-thumbs-o-up"></i></button>
-                <button class="ai-msg-action-btn ai-msg-action-down" aria-label="Bad response"><i class="fa fa-thumbs-o-down"></i></button>
               </div>
             </div>
           </div>

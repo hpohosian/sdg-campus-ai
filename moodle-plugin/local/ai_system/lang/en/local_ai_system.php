@@ -35,3 +35,5 @@ $string['coming_soon'] = 'Coming soon';
 $string['switch_theme'] = 'Switch theme';
 $string['no_pinned_chats'] = 'No pinned chats yet';
 $string['attach_image'] = 'Attach image';
+$string['this_week'] = 'This week';
+$string['this_month'] = 'This month';

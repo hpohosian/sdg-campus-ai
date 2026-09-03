@@ -43,7 +43,7 @@ class MessageService:
     # GET SESSION MESSAGES 
     # =========================
     async def get_session_messages(self, session_id: str):
-        messages = self.message_repo.get_by_session(session_id)
+        messages = self.message_repo.get_active_thread(session_id)
         return messages
 
     # =========================
@@ -54,7 +54,7 @@ class MessageService:
         if not session:
             raise ValueError("Session not found")
 
-        messages = self.message_repo.get_by_session(session_id)
+        messages = self.message_repo.get_active_thread(session_id)
 
         return [
             MessageResponse(
@@ -99,7 +99,7 @@ class MessageService:
     # =========================
     # SAVE USER MESSAGE ONLY
     # =========================
-    async def create_user_message(self, session_id: str, content: str, image_path: str | None = None):
+    async def create_user_message(self, session_id: str, content: str, image_path: str | None = None, parent_id: int | None = None):
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -109,12 +109,13 @@ class MessageService:
             role="user",
             content=content,
             image_path=image_path,
+            parent_id=parent_id,
         )
 
     # =========================
     # SAVE ASSISTANT MESSAGE ONLY
     # =========================
-    async def create_assistant_message(self, session_id: str, content: str, tokens_used: int | None = None):
+    async def create_assistant_message(self, session_id: str, content: str, tokens_used: int | None = None, parent_id: int | None = None):
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
@@ -124,6 +125,7 @@ class MessageService:
             role="assistant",
             content=content,
             tokens_used=tokens_used,
+            parent_id=parent_id,
         )
 
     def _resolve_search_scope(self, session) -> tuple[str | None, list[int] | None, list[int]]:
@@ -150,8 +152,10 @@ class MessageService:
             session, collection_name, relevant_course_ids
         )
 
+        parent_id = existing_messages[-1].id if existing_messages else None
+
         image_path = self._save_chat_image(session_id, image_base64, image_mime_type) if image_base64 else None
-        user_message = await self.create_user_message(session_id, content, image_path=image_path)
+        user_message = await self.create_user_message(session_id, content, image_path=image_path, parent_id=parent_id)
         history = await self.get_session_messages(session_id)
 
         history_dicts = [{"role": m.role, "content": m.content} for m in history]
@@ -168,7 +172,7 @@ class MessageService:
             course_link=course_link,
             course_links=course_links,
         )
-        assistant_message = await self.create_assistant_message(session_id, ai_text)
+        assistant_message = await self.create_assistant_message(session_id, ai_text, parent_id=user_message.id)
 
         generated_title = None
         if is_first_message and session.title == "New Chat":
@@ -194,13 +198,17 @@ class MessageService:
     # =========================
     # STREAM RESPONSE
     # =========================
-    async def chat_stream(self, session_id: str, content: str, image_base64: str | None = None, image_mime_type: str | None = None):
+    async def chat_stream(self, session_id: str, content: str, image_base64: str | None = None, image_mime_type: str | None = None, result: dict | None = None):
+        if result is None:
+            result = {}
+
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
 
         existing_messages = await self.get_session_messages(session_id)
         is_first_message = len(existing_messages) == 0                # NEW
+        parent_id = existing_messages[-1].id if existing_messages else None
 
         collection_name, course_ids, relevant_course_ids = self._resolve_search_scope(session)
         course_link, course_links = self._build_course_link_context(
@@ -212,7 +220,8 @@ class MessageService:
         # bytes are handed to the model for this turn only, via the
         # history[-1] override below — they never touch the database.
         image_path = self._save_chat_image(session_id, image_base64, image_mime_type) if image_base64 else None
-        await self.create_user_message(session_id, content, image_path=image_path)
+        user_message = await self.create_user_message(session_id, content, image_path=image_path, parent_id=parent_id)
+        result["user_message_id"] = user_message.id
 
         raw_history = await self.get_session_messages(session_id)
         history = [{"role": msg.role, "content": msg.content} for msg in raw_history]
@@ -234,11 +243,166 @@ class MessageService:
             full_response += token
             yield token
 
-        await self.create_assistant_message(session_id, full_response)
+        assistant_message = await self.create_assistant_message(session_id, full_response, parent_id=user_message.id)
+        result["assistant_message_id"] = assistant_message.id
 
         if is_first_message and session.title == "New Chat":           # NEW
             generated_title = await self.ai_service.generate_title(content, full_response)
             self.session_repo.update(session_id, title=generated_title)
+
+    # =========================
+    # EDIT A USER MESSAGE (creates a new version + regenerates the reply)
+    # =========================
+    async def edit_message_stream(self, session_id: str, message_id: int, content: str, result: dict | None = None):
+        """
+        Creates a new version of a user message (a sibling under the same
+        parent) and makes it active, then generates a fresh assistant
+        reply as its child -- exactly like a normal turn, except the
+        "turn" is inserted in the middle of the tree instead of appended
+        at the end. The previous version (and whatever used to follow it)
+        is left untouched in the DB with is_active=0, so switching back
+        is non-destructive.
+        """
+        if result is None:
+            result = {}
+
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+
+        original = self.message_repo.get(message_id)
+        if not original or original.session_id != session_id or original.role != "user":
+            raise ValueError("Message not found")
+
+        new_user_message = self.message_repo.create(
+            session_id=session_id,
+            role="user",
+            content=content,
+            image_path=original.image_path,  # editing text only for now
+            parent_id=original.parent_id,
+            is_active=True,
+        )
+        # Deactivates `original` (and any older versions) in the same slot.
+        self.message_repo.activate(new_user_message.id)
+        result["user_message_id"] = new_user_message.id
+
+        collection_name, course_ids, relevant_course_ids = self._resolve_search_scope(session)
+        course_link, course_links = self._build_course_link_context(
+            session, collection_name, relevant_course_ids
+        )
+
+        history = await self.get_session_messages(session_id)  # active thread, now ending at new_user_message
+        history_dicts = [{"role": m.role, "content": m.content} for m in history]
+
+        full_response = ""
+        async for token in self.ai_service.stream_response(
+            history_dicts,
+            collection_name=collection_name,
+            course_ids=course_ids,
+            course_link=course_link,
+            course_links=course_links,
+        ):
+            full_response += token
+            yield token
+
+        new_assistant_message = await self.create_assistant_message(
+            session_id, full_response, parent_id=new_user_message.id
+        )
+        result["assistant_message_id"] = new_assistant_message.id
+        result.update(self.get_version_info(session_id, new_user_message.id))
+
+    # =========================
+    # REGENERATE AN ASSISTANT REPLY (creates a new version)
+    # =========================
+    async def regenerate_message_stream(self, session_id: str, message_id: int, result: dict | None = None):
+        if result is None:
+            result = {}
+
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+
+        original = self.message_repo.get(message_id)
+        if not original or original.session_id != session_id or original.role != "assistant":
+            raise ValueError("Message not found")
+
+        # History = active thread up to and including the user message
+        # that triggered the reply being regenerated.
+        full_thread = self.message_repo.get_active_thread(session_id)
+        history = []
+        for m in full_thread:
+            history.append(m)
+            if m.id == original.parent_id:
+                break
+
+        collection_name, course_ids, relevant_course_ids = self._resolve_search_scope(session)
+        course_link, course_links = self._build_course_link_context(
+            session, collection_name, relevant_course_ids
+        )
+
+        history_dicts = [{"role": m.role, "content": m.content} for m in history]
+
+        full_response = ""
+        async for token in self.ai_service.stream_response(
+            history_dicts,
+            collection_name=collection_name,
+            course_ids=course_ids,
+            course_link=course_link,
+            course_links=course_links,
+        ):
+            full_response += token
+            yield token
+
+        new_assistant_message = self.message_repo.create(
+            session_id=session_id,
+            role="assistant",
+            content=full_response,
+            parent_id=original.parent_id,
+            is_active=True,
+        )
+        self.message_repo.activate(new_assistant_message.id)
+        result["assistant_message_id"] = new_assistant_message.id
+        result.update(self.get_version_info(session_id, new_assistant_message.id))
+
+    # =========================
+    # VERSION METADATA
+    # =========================
+    def get_version_info(self, session_id: str, message_id: int) -> dict:
+        msg = self.message_repo.get(message_id)
+        siblings = self.message_repo.get_siblings(session_id, msg.parent_id)
+        ids = [s.id for s in siblings]
+        return {
+            "version_index": ids.index(message_id) + 1,
+            "version_count": len(ids),
+            "sibling_ids": ids,
+        }
+
+    async def get_session_versions_meta(self, session_id: str) -> dict:
+        """
+        For every message in the currently active thread that has more
+        than one version, returns its position among siblings. Lets the
+        frontend render "< i/N >" navigation for the whole history in one
+        request instead of one call per message.
+        """
+        thread = self.message_repo.get_active_thread(session_id)
+        meta = {}
+        for m in thread:
+            siblings = self.message_repo.get_siblings(session_id, m.parent_id)
+            if len(siblings) <= 1:
+                continue
+            ids = [s.id for s in siblings]
+            meta[str(m.id)] = {
+                "version_index": ids.index(m.id) + 1,
+                "version_count": len(ids),
+                "sibling_ids": ids,
+            }
+        return meta
+
+    async def activate_message_version(self, session_id: str, message_id: int):
+        message = self.message_repo.get(message_id)
+        if not message or message.session_id != session_id:
+            raise ValueError("Message not found")
+        self.message_repo.activate(message_id)
 
     @staticmethod
     def _chat_images_root() -> str:
@@ -305,5 +469,3 @@ class MessageService:
         if collection_name:
             return links.get(session.course_id), None
         return None, links
-    
-    

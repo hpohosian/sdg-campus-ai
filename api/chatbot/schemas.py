@@ -28,6 +28,10 @@ class SendMessageRequest(BaseModel):
     image_mime_type: str | None = None
 
 
+class EditMessageRequest(BaseModel):
+    content: str
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,4 +60,3 @@ class RagStatusResponse(BaseModel):
 class IndexAllResponse(BaseModel):
     total_courses: int
     message: str
-    
