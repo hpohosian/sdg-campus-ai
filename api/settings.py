@@ -40,4 +40,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-print(f"[DEBUG] Loaded MISTRAL_MODEL = {settings.MISTRAL_MODEL}")

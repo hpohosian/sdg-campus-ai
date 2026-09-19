@@ -63,3 +63,6 @@ $string['privacy:metadata:mistral'] = 'To generate responses, chat content is se
 $string['privacy:metadata:mistral:content'] = 'The message content sent for processing';
 
 $string['privacy:metadata:mistral'] = 'To generate responses, chat content is sent to Mistral AI (hosted in the EU), which retains it for up to 30 days for abuse-monitoring purposes before deletion, unless zero data retention has been configured for this integration';
+
+$string['apisecret'] = 'API secret';
+$string['apisecret_desc'] = 'Shared HMAC secret used to sign requests between Moodle and the Python API';

@@ -135,12 +135,19 @@ class service {
             $userid
         );
 
-        // Moodle's external API rejects `null` for VALUE_OPTIONAL fields —
-        // the key must be entirely absent, not present-with-null.
-        // FastAPI/pydantic always serializes "image_url": null for
-        // messages with no attachment (rather than omitting the key), so
-        // strip it here before it reaches chatbot_api.php's return-value
-        // validation.
+        return self::strip_null_image_urls($messages);
+    }
+
+    /**
+     * Moodle's external API rejects `null` for VALUE_OPTIONAL fields —
+     * the key must be entirely absent, not present-with-null.
+     * FastAPI/pydantic always serializes "image_url": null for
+     * messages with no attachment (rather than omitting the key), so
+     * strip it here before it reaches chatbot_api.php's return-value
+     * validation. Pulled out as its own method so it's testable
+     * without a live backend.
+     */
+    public static function strip_null_image_urls(array $messages): array {
         foreach ($messages as &$message) {
             if (array_key_exists('image_url', $message) && $message['image_url'] === null) {
                 unset($message['image_url']);
