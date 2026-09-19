@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import select
 from db.models.message import MessageModel
+from db.models.message_translation import MessageTranslationModel
 import time
 
 
@@ -120,4 +121,30 @@ class MessageRepository:
         self.db.commit()
         self.db.refresh(target)
         return target
+    
+    # =========================
+    # CASCADE DELETE
+    # =========================
+    def delete_by_session(self, session_id: str) -> int:
+        """
+        Deletes every message row (all versions/siblings) for a session,
+        and their translations. Does NOT touch image files on disk —
+        that's a separate, still-open task (see image_path on each row
+        if a caller needs to clean those up afterwards).
+        """
+        messages = self.get_by_session(session_id)
+        message_ids = [m.id for m in messages]
+
+        if message_ids:
+            self.db.query(MessageTranslationModel).filter(
+                MessageTranslationModel.message_id.in_(message_ids)
+            ).delete(synchronize_session=False)
+
+        deleted = self.db.query(MessageModel).filter(
+            MessageModel.session_id == session_id
+        ).delete(synchronize_session=False)
+
+        self.db.commit()
+
+        return deleted
     

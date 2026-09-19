@@ -1120,6 +1120,7 @@ define([
                 const body = new FormData();
                 body.append('session_id', this.state.sessionId);
                 body.append('message', message);
+                body.append('sesskey', M.cfg.sesskey);
                 if (pendingImage) {
                     body.append('image', pendingImage.file, pendingImage.file.name);
                 }
@@ -1338,6 +1339,7 @@ define([
                         body: 'session_id=' + encodeURIComponent(sessionId)
                             + '&message_id=' + encodeURIComponent(messageId)
                             + '&content=' + encodeURIComponent(newContent)
+                            + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
                     }
                 );
 
@@ -1391,6 +1393,7 @@ define([
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'session_id=' + encodeURIComponent(sessionId)
                             + '&message_id=' + encodeURIComponent(messageId)
+                            + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
                     }
                 );
 
@@ -1480,6 +1483,7 @@ define([
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'session_id=' + encodeURIComponent(sessionId)
                         + '&message_id=' + encodeURIComponent(messageId)
+                        + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
                 });
                 await this.refreshMessages();
             } catch (e) {
@@ -1515,6 +1519,7 @@ define([
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'session_id=' + encodeURIComponent(sessionId)
+                        + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
                 });
                 const meta = await resp.json();
                 Object.entries(meta).forEach(([messageId, info]) => {

@@ -1,10 +1,12 @@
 from uuid import uuid4
 from chatbot.repositories.session_repository import SessionRepository, Session, _UNSET
+from chatbot.repositories.message_repository import MessageRepository
 
 
 class SessionService:
-    def __init__(self, session_repo: SessionRepository):
+    def __init__(self, session_repo: SessionRepository, message_repo: MessageRepository):
         self.session_repo = session_repo
+        self.message_repo = message_repo
 
 
     # =========================
@@ -98,6 +100,11 @@ class SessionService:
     # DELETE
     # =========================
     async def delete_session(self, session_id: str):
+        # Delete children (messages + their translations) BEFORE the parent
+        # session row, so a failure mid-way never leaves messages orphaned
+        # with no session to belong to.
+        self.message_repo.delete_by_session(session_id)
+
         result = self.session_repo.delete(session_id)
 
         if not result:

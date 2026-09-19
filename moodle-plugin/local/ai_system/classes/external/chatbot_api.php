@@ -87,7 +87,7 @@ class chatbot_api extends external_api {
         );
 
         self::validate_context(\context_system::instance());
-        require_capability('local_ai_system:use_chatbot', \context_system::instance());
+        require_capability('local/ai_system:use_chatbot', \context_system::instance());
 
         $service = new \local_ai_system\chatbot\service();
 
@@ -116,7 +116,7 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local_ai_system:use_chatbot',
+            'local/ai_system:use_chatbot',
             $context
         );
 
@@ -166,7 +166,7 @@ class chatbot_api extends external_api {
 
         $context = \context_system::instance();
         self::validate_context($context);
-        require_capability('local_ai_system:use_chatbot', $context);
+        require_capability('local/ai_system:use_chatbot', $context);
 
         global $USER;
 
@@ -230,7 +230,7 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local_ai_system:use_chatbot',
+            'local/ai_system:use_chatbot',
             $context
         );
 
@@ -285,7 +285,7 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local_ai_system:use_chatbot',
+            'local/ai_system:use_chatbot',
             $context
         );
 
@@ -340,7 +340,7 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local_ai_system:use_chatbot',
+            'local/ai_system:use_chatbot',
             $context
         );
 
@@ -398,7 +398,7 @@ class chatbot_api extends external_api {
         self::validate_context($context);
 
         require_capability(
-            'local_ai_system:use_chatbot',
+            'local/ai_system:use_chatbot',
             $context
         );
 
@@ -450,53 +450,6 @@ class chatbot_api extends external_api {
     }
 
 
-    // =========================
-    // STREAM MESSAGE
-    // =========================
-
-    public static function stream_message_parameters() {
-
-        return new external_function_parameters([
-            'session_id' => new external_value(
-                PARAM_TEXT,
-                'Session ID'
-            ),
-
-            'message' => new external_value(
-                PARAM_RAW,
-                'User message'
-            )
-        ]);
-    }
-
-    public static function stream_message($session_id, $message) {
-        $params = self::validate_parameters(
-            self::stream_message_parameters(),
-            ['session_id' => $session_id, 'message' => $message]
-        );
-
-        $context = \context_system::instance();
-        self::validate_context($context);
-
-        require_capability('local_ai_system:use_chatbot', $context);
-
-        $service = new \local_ai_system\chatbot\service();
-
-        return $service->stream_message(
-            $params['session_id'],
-            $params['message']
-        );
-    }
-
-    public static function stream_message_returns() {
-
-        return new external_value(
-            PARAM_RAW,
-            'Streaming response'
-        );
-    }
-
-
     public static function save_partial_message_parameters() {
         return new external_function_parameters([
             'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
@@ -512,7 +465,7 @@ class chatbot_api extends external_api {
 
         $context = \context_system::instance();
         self::validate_context($context);
-        require_capability('local_ai_system:use_chatbot', $context);
+        require_capability('local/ai_system:use_chatbot', $context);
 
         $service = new \local_ai_system\chatbot\service();
 

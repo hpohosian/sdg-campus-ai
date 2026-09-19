@@ -67,7 +67,7 @@ local/ai_system/
 | `local_ai_system:view_history` | system | teacher, editingteacher, manager |
 
 `view_history` is **defined but not currently enforced anywhere** in the codebase — no
-`require_capability('local_ai_system:view_history', ...)` call exists in any file. It
+`require_capability('local/ai_system:view_history', ...)` call exists in any file. It
 appears to be a placeholder for a not-yet-built teacher-facing chat history/analytics
 view.
 

@@ -3,9 +3,10 @@
 require_once(__DIR__ . '/../../../config.php');
 
 require_login();
+require_sesskey();
 
 $context = context_system::instance();
-require_capability('local_ai_system:use_chatbot', $context);
+require_capability('local/ai_system:use_chatbot', $context);
 
 $session_id = required_param('session_id', PARAM_TEXT);
 $message_id = required_param('message_id', PARAM_INT);

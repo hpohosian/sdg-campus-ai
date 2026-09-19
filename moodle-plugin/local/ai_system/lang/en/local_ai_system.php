@@ -37,3 +37,29 @@ $string['no_pinned_chats'] = 'No pinned chats yet';
 $string['attach_image'] = 'Attach image';
 $string['this_week'] = 'This week';
 $string['this_month'] = 'This month';
+
+// Privacy API
+$string['privacy:metadata:sessions'] = 'Information about your chatbot sessions';
+$string['privacy:metadata:sessions:user_id'] = 'The ID of the user who owns the session';
+$string['privacy:metadata:sessions:course_id'] = 'The course the session was linked to, if any';
+$string['privacy:metadata:sessions:title'] = 'The title of the chat session';
+$string['privacy:metadata:sessions:language'] = 'The display language selected for the session';
+$string['privacy:metadata:sessions:created_at'] = 'The time the session was created';
+$string['privacy:metadata:sessions:updated_at'] = 'The time the session was last updated';
+
+$string['privacy:metadata:messages'] = 'Individual messages exchanged with the chatbot';
+$string['privacy:metadata:messages:role'] = 'Whether the message was sent by the user or the assistant';
+$string['privacy:metadata:messages:content'] = 'The text content of the message';
+$string['privacy:metadata:messages:image_path'] = 'The path to an image attached to the message, if any';
+$string['privacy:metadata:messages:tokens_used'] = 'The number of tokens used to generate the message';
+$string['privacy:metadata:messages:created_at'] = 'The time the message was sent';
+
+$string['privacy:metadata:translations'] = 'Translations of chatbot messages into other languages';
+$string['privacy:metadata:translations:language'] = 'The language of the translation';
+$string['privacy:metadata:translations:content'] = 'The translated text content';
+$string['privacy:metadata:translations:created_at'] = 'The time the translation was created';
+
+$string['privacy:metadata:mistral'] = 'To generate responses, chat content is sent to Mistral AI, a third-party language model provider';
+$string['privacy:metadata:mistral:content'] = 'The message content sent for processing';
+
+$string['privacy:metadata:mistral'] = 'To generate responses, chat content is sent to Mistral AI (hosted in the EU), which retains it for up to 30 days for abuse-monitoring purposes before deletion, unless zero data retention has been configured for this integration';

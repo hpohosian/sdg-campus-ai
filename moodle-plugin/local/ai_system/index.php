@@ -7,7 +7,7 @@ $plugin = new stdClass();
 require($CFG->dirroot . '/local/ai_system/version.php');
 
 $context = context_system::instance();
-require_capability('local_ai_system:use_chatbot', $context);
+require_capability('local/ai_system:use_chatbot', $context);
 
 $course_id = optional_param('course_id', 0, PARAM_INT);
 

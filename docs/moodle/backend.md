@@ -83,7 +83,7 @@ Standard shape repeated for every function:
 1. `self::validate_parameters(...)` — type-checks and coerces input against the declared
    parameter spec.
 2. `self::validate_context(\context_system::instance())`.
-3. `require_capability('local_ai_system:use_chatbot', $context)`.
+3. `require_capability('local/ai_system:use_chatbot', $context)`.
 4. Delegate to a new `\local_ai_system\chatbot\service()` instance.
 5. Return data matching the declared `*_returns()` structure.
 

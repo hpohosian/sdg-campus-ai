@@ -67,11 +67,14 @@ def get_translator(
 def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository:
     return SessionRepository(db)
 
+def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
+    return MessageRepository(db)
 
 def get_session_service(
     repo: SessionRepository = Depends(get_session_repository),
+    message_repo: MessageRepository = Depends(get_message_repository),
 ):
-    return SessionService(repo)
+    return SessionService(repo, message_repo)
 
 
 def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
