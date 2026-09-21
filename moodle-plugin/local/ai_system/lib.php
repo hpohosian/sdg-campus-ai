@@ -1,23 +1,27 @@
 <?php
 // Library file for AI System plugin
 
+/**
+ * Pure page-type matching logic, split out of before_footer() so it's
+ * testable without a real $PAGE object. NOTE: this is substring
+ * matching (strpos), not exact match -- e.g. "my-index-dashboard"
+ * would also match "my-index". Keep that in mind if a future core
+ * pagetype accidentally contains one of these substrings.
+ */
+function local_ai_system_is_page_allowed_pagetype(string $pagetype): bool {
+    $allowed = ['site-index', 'my-index', 'course-index'];
+    foreach ($allowed as $pattern) {
+        if (strpos($pagetype, $pattern) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function local_ai_system_before_footer() {
     global $PAGE;
 
-    $allowed = ['site-index', 'my-index', 'course-index'];
-    $pagetype = $PAGE->pagetype;
-
-    $show = false;
-    foreach ($allowed as $pattern) {
-        if (strpos($pagetype, $pattern) !== false) {
-            $show = true;
-            break;
-        }
-    }
-
-    // $show = true; // раскомментируй для теста на всех страницах
-
-    if (!$show) {
+    if (!local_ai_system_is_page_allowed_pagetype($PAGE->pagetype)) {
         return '';
     }
 

@@ -23,7 +23,7 @@ class chatbot_api extends external_api {
         return new external_function_parameters([
             'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
             'message' => new external_value(PARAM_TEXT, 'User message'),
-            'course_id' => new external_value(PARAM_INT, 'Course ID', VALUE_OPTIONAL)
+            'course_id' => new external_value(PARAM_INT, 'Course ID', VALUE_DEFAULT, 0)
         ]);
     }
 

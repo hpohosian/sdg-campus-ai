@@ -172,6 +172,42 @@ class provider implements
         $DB->delete_records('local_ai_system_sessions', ['user_id' => $userid]);
     }
 
+
+    /**
+     * Delete all user data for all users within a given context.
+     *
+     * All personal data in this plugin lives at the CONTEXT_USER level
+     * (one context = one user), so this is never called with a course/
+     * module/system context containing multiple users' data -- if it's
+     * called at all, the context is a single user's, and deleting "all
+     * users in it" means deleting that one user's data.
+     */
+    public static function delete_data_for_all_users_in_context(\context $context): void {
+        if ($context->contextlevel !== CONTEXT_USER) {
+            return;
+        }
+
+        global $DB;
+
+        $userid = $context->instanceid;
+
+        $sessions = $DB->get_records('local_ai_system_sessions', ['user_id' => $userid], '', 'id, session_id');
+
+        foreach ($sessions as $session) {
+            $messages = $DB->get_records('local_ai_system_messages', ['session_id' => $session->session_id], '', 'id');
+            $messageids = array_keys($messages);
+
+            if (!empty($messageids)) {
+                [$insql, $inparams] = $DB->get_in_or_equal($messageids);
+                $DB->delete_records_select('local_ai_system_message_translations', "message_id $insql", $inparams);
+            }
+
+            $DB->delete_records('local_ai_system_messages', ['session_id' => $session->session_id]);
+        }
+
+        $DB->delete_records('local_ai_system_sessions', ['user_id' => $userid]);
+    }
+
     private static function db() {
         global $DB;
         return $DB;

@@ -5,8 +5,6 @@ api/.venv
 
 .env
 
-**/tests/*
-
 docker.md
 repository_structure.md
 work_plan.md

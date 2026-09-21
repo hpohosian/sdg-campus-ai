@@ -66,3 +66,6 @@ $string['privacy:metadata:mistral'] = 'To generate responses, chat content is se
 
 $string['apisecret'] = 'API secret';
 $string['apisecret_desc'] = 'Shared HMAC secret used to sign requests between Moodle and the Python API';
+
+$string['ai_system:use_chatbot'] = 'Use the AI chatbot';
+$string['ai_system:view_history'] = 'View chat history';
