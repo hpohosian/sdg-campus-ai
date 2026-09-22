@@ -167,8 +167,14 @@ async def dearchive_session(
 @router.delete("/{session_id}")
 async def delete_session(
     session_id: str,
+    user_id: int = Depends(get_current_user_id),
     service: SessionService = Depends(get_session_service),
 ):
+    session = await service.get_session(session_id)
+
+    if session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     try:
         await service.delete_session(session_id)
     except ValueError:

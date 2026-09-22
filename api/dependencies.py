@@ -23,6 +23,8 @@ from rag.embeddings import EmbeddingModel
 from rag.vector_store import VectorStore
 from rag.retriever import Retriever
 
+from chatbot.services.image_storage import ImageStorage
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -70,11 +72,15 @@ def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository
 def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
     return MessageRepository(db)
 
+def get_image_storage() -> ImageStorage:
+    return ImageStorage()
+
 def get_session_service(
     repo: SessionRepository = Depends(get_session_repository),
     message_repo: MessageRepository = Depends(get_message_repository),
+    image_storage: ImageStorage = Depends(get_image_storage),
 ):
-    return SessionService(repo, message_repo)
+    return SessionService(repo, message_repo, image_storage)
 
 
 def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
@@ -119,8 +125,9 @@ def get_message_service(
     session_repo: SessionRepository = Depends(get_session_repository),
     ai_service: AIService = Depends(get_ai_service),
     course_repo: CourseRepository = Depends(get_course_repository),
-    translation_repo: MessageTranslationRepository = Depends(get_message_translation_repository),  # NEW
-    translator: Translator = Depends(get_translator),  # NEW
+    translation_repo: MessageTranslationRepository = Depends(get_message_translation_repository),
+    translator: Translator = Depends(get_translator),
+    image_storage: ImageStorage = Depends(get_image_storage),
 ):
     return MessageService(
         message_repo,
@@ -129,5 +136,5 @@ def get_message_service(
         course_repo,
         translation_repo,
         translator,
+        image_storage,
     )
-    

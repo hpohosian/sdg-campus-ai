@@ -1,6 +1,6 @@
-import base64
+# import base64
 import os
-import uuid
+# import uuid
 
 from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.session_repository import SessionRepository
@@ -13,6 +13,11 @@ from translation.translator import Translator  # NEW
 from settings import settings
 
 from chatbot.schemas import MessageResponse
+
+import shutil
+
+from chatbot.services.image_storage import ImageStorage
+
 
 _MIME_TO_EXT = {
     "image/jpeg": ".jpg",
@@ -31,6 +36,7 @@ class MessageService:
         course_repo: CourseRepository,
         translation_repo: MessageTranslationRepository,
         translator: Translator,
+        image_storage: ImageStorage,
     ):
         self.message_repo = message_repo
         self.session_repo = session_repo
@@ -38,6 +44,7 @@ class MessageService:
         self.course_repo = course_repo
         self.translation_repo = translation_repo
         self.translator = translator
+        self.image_storage = image_storage
 
     # =========================
     # GET SESSION MESSAGES 
@@ -404,12 +411,48 @@ class MessageService:
             raise ValueError("Message not found")
         self.message_repo.activate(message_id)
 
-    @staticmethod
-    def _chat_images_root() -> str:
-        return settings.CHAT_IMAGES_DIR or os.path.join(
-            settings.MOODLEDATA_PATH, "local_ai_system", "chat_images"
-        )
+    # @staticmethod
+    # def _chat_images_root() -> str:
+    #     return settings.CHAT_IMAGES_DIR or os.path.join(
+    #         settings.MOODLEDATA_PATH, "local_ai_system", "chat_images"
+    #     )
 
+    # def get_image_abs_path(self, session_id: str, message_id: int) -> str | None:
+    #     """
+    #     Resolve a message's stored image_path to an absolute filesystem
+    #     path, scoped to the given session_id (defense in depth — a caller
+    #     can't fetch another session's image just by guessing message_ids;
+    #     the router also independently checks session ownership by user).
+    #     """
+    #     message = self.message_repo.get(message_id)
+    #     if not message or message.session_id != session_id or not message.image_path:
+    #         return None
+    #     return os.path.join(self._chat_images_root(), message.image_path)
+
+    # @classmethod
+    # def _save_chat_image(cls, session_id: str, image_base64: str, image_mime_type: str | None) -> str:
+    #     """
+    #     Decodes and writes the image to disk under
+    #     <images_root>/<session_id>/<uuid><ext>.
+
+    #     Returns a path *relative* to the images root (e.g.
+    #     "7bea81a6.../9f2c1a....jpg") — never an absolute filesystem path,
+    #     so this keeps working if the storage root ever moves (different
+    #     machine, container, etc). Combined with session_id + message_id at
+    #     read time by _build_image_url()/the PHP relay.
+    #     """
+    #     ext = _MIME_TO_EXT.get(image_mime_type or "", ".jpg")
+    #     session_dir = os.path.join(cls._chat_images_root(), session_id)
+    #     os.makedirs(session_dir, exist_ok=True)
+
+    #     filename = f"{uuid.uuid4().hex}{ext}"
+    #     abs_path = os.path.join(session_dir, filename)
+
+    #     with open(abs_path, "wb") as f:
+    #         f.write(base64.b64decode(image_base64))
+
+    #     return f"{session_id}/{filename}"
+    
     def get_image_abs_path(self, session_id: str, message_id: int) -> str | None:
         """
         Resolve a message's stored image_path to an absolute filesystem
@@ -420,31 +463,10 @@ class MessageService:
         message = self.message_repo.get(message_id)
         if not message or message.session_id != session_id or not message.image_path:
             return None
-        return os.path.join(self._chat_images_root(), message.image_path)
+        return self.image_storage.get_abs_path(session_id, message.image_path)
 
-    @classmethod
-    def _save_chat_image(cls, session_id: str, image_base64: str, image_mime_type: str | None) -> str:
-        """
-        Decodes and writes the image to disk under
-        <images_root>/<session_id>/<uuid><ext>.
-
-        Returns a path *relative* to the images root (e.g.
-        "7bea81a6.../9f2c1a....jpg") — never an absolute filesystem path,
-        so this keeps working if the storage root ever moves (different
-        machine, container, etc). Combined with session_id + message_id at
-        read time by _build_image_url()/the PHP relay.
-        """
-        ext = _MIME_TO_EXT.get(image_mime_type or "", ".jpg")
-        session_dir = os.path.join(cls._chat_images_root(), session_id)
-        os.makedirs(session_dir, exist_ok=True)
-
-        filename = f"{uuid.uuid4().hex}{ext}"
-        abs_path = os.path.join(session_dir, filename)
-
-        with open(abs_path, "wb") as f:
-            f.write(base64.b64decode(image_base64))
-
-        return f"{session_id}/{filename}"
+    def _save_chat_image(self, session_id: str, image_base64: str, image_mime_type: str | None) -> str:
+        return self.image_storage.save(session_id, image_base64, image_mime_type)
 
     @staticmethod
     def _build_vision_content(text: str, image_base64: str, image_mime_type: str | None):
@@ -469,3 +491,15 @@ class MessageService:
         if collection_name:
             return links.get(session.course_id), None
         return None, links
+
+    def delete_session_images(self, session_id: str) -> None:
+        """
+        Removes the entire <images_root>/<session_id>/ directory, i.e.
+        every image ever attached to any message (any version/sibling)
+        in this session. Safe to call even if the session never had any
+        images — just does nothing in that case.
+        """
+        session_dir = os.path.join(self._chat_images_root(), session_id)
+        if os.path.isdir(session_dir):
+            shutil.rmtree(session_dir)
+            
