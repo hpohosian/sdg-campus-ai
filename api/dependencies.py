@@ -31,7 +31,13 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def get_llm(settings: Settings = Depends(get_settings)) -> BaseLLM:
+@lru_cache
+def get_llm() -> BaseLLM:
+    """
+    Created ONCE per process. Building the Mistral client costs ~500 ms
+    (HTTP clients + SSL context), so it must not happen per request.
+    """
+    settings = get_settings()
     return MistralLLM(api_key=settings.MISTRAL_API_KEY)
 
 
@@ -69,11 +75,14 @@ def get_translator(
 def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository:
     return SessionRepository(db)
 
+
 def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
     return MessageRepository(db)
 
+
 def get_image_storage() -> ImageStorage:
     return ImageStorage()
+
 
 def get_session_service(
     repo: SessionRepository = Depends(get_session_repository),
@@ -81,10 +90,6 @@ def get_session_service(
     image_storage: ImageStorage = Depends(get_image_storage),
 ):
     return SessionService(repo, message_repo, image_storage)
-
-
-def get_message_repository(db: DBSession = Depends(get_db)) -> MessageRepository:
-    return MessageRepository(db)
 
 
 def get_message_translation_repository(

@@ -58,10 +58,13 @@ class MistralLLM(BaseLLM):
     ) -> str:
         """
         Send a request to the Mistral API and return the full response text.
+
+        Uses the SDK's async method: the sync variant would block the whole
+        event loop (every other request) for the duration of the API call.
         """
         model = self._resolve_model(messages, kwargs.pop("model", None))
 
-        response = self.client.chat.complete(
+        response = await self.client.chat.complete_async(
             model=model,
             messages=messages,
             **kwargs

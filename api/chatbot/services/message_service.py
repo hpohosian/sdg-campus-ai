@@ -1,4 +1,5 @@
 # import base64
+import asyncio
 import os
 # import uuid
 
@@ -25,6 +26,11 @@ _MIME_TO_EXT = {
     "image/webp": ".webp",
     "image/gif": ".gif",
 }
+
+
+# How many translation LLM calls may run at the same time when a session
+# is opened in a language that hasn't been translated yet.
+_TRANSLATION_CONCURRENCY = 12
 
 
 class MessageService:
@@ -63,18 +69,41 @@ class MessageService:
 
         messages = self.message_repo.get_active_thread(session_id)
 
-        return [
-            MessageResponse(
-                id=m.id,
-                session_id=m.session_id,
-                role=m.role,
-                content=await self._translate_message(m, session.language),
-                image_url=self._build_image_url(m.session_id, m.id) if m.image_path else None,
-                tokens_used=m.tokens_used,
-                created_at=m.created_at,
+        # Translate messages concurrently instead of one after another.
+        # The semaphore caps parallel LLM calls to stay clear of API rate limits.
+        semaphore = asyncio.Semaphore(_TRANSLATION_CONCURRENCY)
+
+        async def translate_one(m):
+            async with semaphore:
+                return await self._translate_message(m, session.language)
+
+        contents = await asyncio.gather(
+            *(translate_one(m) for m in messages),
+            return_exceptions=True,
+        )
+
+        result = []
+        for m, content in zip(messages, contents):
+            if isinstance(content, Exception):
+                # One failed translation must not break the whole chat:
+                # show the original text (nothing is cached, so the next
+                # open will retry).
+                print(f"[translate] message {m.id} failed: {content!r}")
+                content = m.content
+
+            result.append(
+                MessageResponse(
+                    id=m.id,
+                    session_id=m.session_id,
+                    role=m.role,
+                    content=content,
+                    image_url=self._build_image_url(m.session_id, m.id) if m.image_path else None,
+                    tokens_used=m.tokens_used,
+                    created_at=m.created_at,
+                )
             )
-            for m in messages
-        ]
+
+        return result
 
     @staticmethod
     def _build_image_url(session_id: str, message_id: int) -> str:
