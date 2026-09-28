@@ -915,7 +915,6 @@ define([
             const container = document.getElementById('ai-messages-container');
             container.innerHTML = '';
             messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
-            this.loadVersionNav();
 
             const chatTitle = document.getElementById('ai-chat-title');
             if (chatTitle) chatTitle.textContent = archived ? `${title} (archived)` : title;
@@ -932,6 +931,8 @@ define([
                 if (sendBtn) sendBtn.disabled = false;
                 this.state.sessionId = sessionId;
             }
+
+            await this.loadVersionNav();
 
             this.setCourseLock(archived || messages.length > 0);
 
