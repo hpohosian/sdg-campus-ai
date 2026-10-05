@@ -1,3 +1,5 @@
+import time
+
 from chatbot.prompts import RAG_SYSTEM_PROMPT, RAG_CONTEXT_TEMPLATE, NO_CONTEXT_PROMPT
 from llm.base import BaseLLM
 from rag.retriever import Retriever
@@ -16,11 +18,13 @@ class AIService:
         self.retriever = retriever
         
     async def generate_title(self, user_message: str, assistant_message: str) -> str:
+        t0 = time.perf_counter()
         messages = [
             {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
             {"role": "user", "content": f"Student: {user_message}\nAssistant: {assistant_message}"},
         ]
         title = await self.llm.chat(messages)
+        print(f"[timing] title generation: {(time.perf_counter() - t0) * 1000:.0f} ms")
         return title.strip().strip('"').strip("'")[:255]
 
     async def generate_response(
@@ -52,19 +56,33 @@ class AIService:
         course_link: str = None,
         course_links: dict[int, str] = None,
     ):
+        t_start = time.perf_counter()
+
         retrieval_query = self._build_retrieval_query(messages)
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt(
             retrieval_query, collection_name, course_ids, course_link, course_links
         )
+        t_retrieval = time.perf_counter()
 
         formatted.insert(0, {
             "role": "system",
             "content": system_prompt,
         })
 
+        first_token = True
         async for token in self.llm.stream(formatted):
+            if first_token:
+                first_token = False
+                t_first = time.perf_counter()
+                print(
+                    f"[timing] retrieval + prompt: {(t_retrieval - t_start) * 1000:.0f} ms | "
+                    f"LLM time to first token: {(t_first - t_retrieval) * 1000:.0f} ms | "
+                    f"system prompt: {len(system_prompt)} chars"
+                )
             yield token
+
+        print(f"[timing] LLM generation total: {(time.perf_counter() - t_retrieval) * 1000:.0f} ms")
 
     async def _build_system_prompt(
         self,

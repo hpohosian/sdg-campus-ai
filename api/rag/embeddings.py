@@ -16,6 +16,8 @@ import numpy as np
 # 768-dimensional vectors, good balance of quality and speed
 DEFAULT_MODEL = settings.EMBEDDING_MODEL
 
+print("settings.EMBEDDING_MODEL", settings.EMBEDDING_MODEL)
+
 
 class EmbeddingModel:
     """

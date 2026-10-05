@@ -214,6 +214,7 @@ class Retriever:
             n_results=n_results,
             min_score=min_score,
             where=where,
+            debug=True
         )
 
         if not chunks:
