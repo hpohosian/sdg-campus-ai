@@ -1,8 +1,46 @@
 import time
 
+from langdetect import detect, DetectorFactory
+from langdetect.lang_detect_exception import LangDetectException
+
 from chatbot.prompts import RAG_SYSTEM_PROMPT, RAG_CONTEXT_TEMPLATE, NO_CONTEXT_PROMPT
 from llm.base import BaseLLM
 from rag.retriever import Retriever
+
+# Makes langdetect's output deterministic across runs (it's internally
+# probabilistic otherwise, which would make the same question sometimes
+# detected as one language, sometimes another).
+DetectorFactory.seed = 0
+
+_LANGUAGE_NAMES = {
+    "en": "English",
+    "de": "German",
+    "ru": "Russian",
+    "uk": "Ukrainian",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "ar": "Arabic",
+}
+
+
+def _detect_language_name(text: str) -> str | None:
+    """
+    Best-effort language name for the explicit "answer in X" directive.
+    Returns None when detection isn't possible/reliable (very short text,
+    e.g. a single word or "hi") -- callers fall back to the generic
+    language-matching instruction already in the prompt in that case.
+    """
+    text = (text or "").strip()
+    if len(text) < 3:
+        return None
+    try:
+        code = detect(text)
+    except LangDetectException:
+        return None
+    return _LANGUAGE_NAMES.get(code, code)
 
 
 _TITLE_SYSTEM_PROMPT = (
@@ -36,10 +74,13 @@ class AIService:
         course_links: dict[int, str] = None,
     ):
         retrieval_query = self._build_retrieval_query(messages)
+        last_user_message = self._get_last_user_message(messages)
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt(
-            retrieval_query, collection_name, course_ids, course_link, course_links
+            retrieval_query, collection_name, course_ids, course_link, course_links, last_message=last_user_message,
         )
+        system_prompt += self._language_directive_block(last_user_message)
+        self._inject_inline_language_directive(formatted, last_user_message)
 
         formatted.insert(0, {
             "role": "system",
@@ -59,10 +100,13 @@ class AIService:
         t_start = time.perf_counter()
 
         retrieval_query = self._build_retrieval_query(messages)
+        last_user_message = self._get_last_user_message(messages)
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt(
-            retrieval_query, collection_name, course_ids, course_link, course_links
+            retrieval_query, collection_name, course_ids, course_link, course_links, last_message=last_user_message,
         )
+        system_prompt += self._language_directive_block(last_user_message)
+        self._inject_inline_language_directive(formatted, last_user_message)
         t_retrieval = time.perf_counter()
 
         formatted.insert(0, {
@@ -84,6 +128,60 @@ class AIService:
 
         print(f"[timing] LLM generation total: {(time.perf_counter() - t_retrieval) * 1000:.0f} ms")
 
+    @staticmethod
+    def _language_directive_block(last_user_message: str) -> str:
+        """
+        Appended to the END of the system prompt, i.e. right after the
+        (possibly huge, mostly-German) retrieved context — this is a
+        fallback/reinforcement for _inject_inline_language_directive below,
+        which is the stronger of the two because it sits right next to the
+        actual question.
+        """
+        language_name = _detect_language_name(last_user_message)
+        if not language_name:
+            return ""
+        return (
+            "\n\n===========================================================\n"
+            f"LANGUAGE CHECK: the student's question has been automatically "
+            f"detected as {language_name}. Write your entire answer in "
+            f"{language_name} — every sentence, including any \"not covered\" "
+            f"statement and the final Source line — no matter what language "
+            f"the course materials above are written in.\n"
+            "==========================================================="
+        )
+
+    @staticmethod
+    def _inject_inline_language_directive(formatted: list[dict], last_user_message: str) -> None:
+        """
+        Appends the same directive directly onto the last user turn (the
+        message immediately preceding generation), NOT into the stored
+        conversation -- `formatted` is a fresh list built by _format(),
+        so this never touches what's persisted in the database. Models
+        generally follow instructions placed close to the end of the
+        prompt more reliably than ones buried earlier in a long system
+        message, so this is the primary mechanism; the system-prompt
+        block above is a secondary reinforcement.
+        """
+        if not formatted or formatted[-1]["role"] != "user":
+            return
+
+        language_name = _detect_language_name(last_user_message)
+        if not language_name:
+            return
+
+        directive = (
+            f"\n\n[System note: answer the above in {language_name}, regardless "
+            f"of the language of any course materials you were given.]"
+        )
+
+        content = formatted[-1]["content"]
+        if isinstance(content, str):
+            formatted[-1]["content"] = content + directive
+        elif isinstance(content, list):
+            # Vision turn (image attached): content is a list of blocks,
+            # append the directive as one more text block.
+            formatted[-1]["content"] = content + [{"type": "text", "text": directive}]
+
     async def _build_system_prompt(
         self,
         query: str,
@@ -91,12 +189,18 @@ class AIService:
         course_ids: list[int] = None,
         course_link: str = None,
         course_links: dict[int, str] = None,
+        last_message: str = None,
     ) -> str:
         """
         Priority:
         1. If a specific course is selected (collection_name) — search only that course.
         2. Otherwise, if the user has enrolled courses (course_ids) — search across all of them.
         3. Otherwise — plain LLM, no RAG context.
+
+        `query` is the combined (last-N-messages) retrieval query, `last_message`
+        is just the latest user message -- the "smart" retrieval methods try
+        last_message alone first (see retriever.py) so a sudden topic switch
+        within a chat doesn't get diluted by an unrelated earlier question.
 
         course_link / course_links: pre-built markdown link(s) for the
         course(s) in scope (see chatbot/course_links.py). These are
@@ -107,15 +211,17 @@ class AIService:
             return NO_CONTEXT_PROMPT
 
         if collection_name:
-            context = self.retriever.retrieve_as_context(
-                query=query,
+            context = self.retriever.retrieve_as_context_smart(
+                last_message=last_message or query,
+                combined_query=query,
                 collection_name=collection_name,
                 n_results=8,
                 course_link=course_link,
             )
         elif course_ids:
-            context = self.retriever.retrieve_as_context_global(
-                query=query,
+            context = self.retriever.retrieve_as_context_global_smart(
+                last_message=last_message or query,
+                combined_query=query,
                 course_ids=course_ids,
                 n_results=8,
                 course_links=course_links,

@@ -15,3 +15,4 @@ work_plan_global.md
 **/data/*
 
 files.py
+check_indexed_sources.py

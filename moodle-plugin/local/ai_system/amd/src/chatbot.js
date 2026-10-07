@@ -551,7 +551,7 @@ define([
         // =========================
         // COURSE PICKER + LOCK
         // =========================
-        bindCoursePicker() {
+                bindCoursePicker() {
             const toggle = document.getElementById('ai-course-toggle');
             const dropdown = document.getElementById('ai-course-dropdown');
             const currentLabel = document.getElementById('ai-course-current-label');
@@ -573,7 +573,7 @@ define([
             options.forEach(option => {
                 if (option.dataset.courseId === '0') option.classList.add('selected');
 
-                option.addEventListener('click', (e) => {
+                option.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const courseId = parseInt(option.dataset.courseId, 10) || 0;
                     this.state.courseId = courseId;
@@ -587,9 +587,27 @@ define([
 
                     dropdown.classList.add('hidden');
                     toggle.classList.remove('open');
+
+                    // The picker is only clickable (not disabled) while the
+                    // currently open chat is still empty. If that chat was
+                    // already created on the backend (e.g. via "New Chat"),
+                    // its course_id was fixed at creation time and never
+                    // updates on its own — patch it now, or every message
+                    // sent afterwards keeps using the old course for RAG.
+                    if (this.state.sessionId) {
+                        try {
+                            await Ajax.call([{
+                                methodname: 'local_ai_system_update_session',
+                                args: { session_id: this.state.sessionId, course_id: courseId }
+                            }])[0];
+                        } catch (err) {
+                            console.error('[ChatBot] Failed to update session course_id:', err);
+                        }
+                    }
                 });
             });
         },
+        
 
         // Locked only once the active chat actually has at least one
         // message (not just because a session row exists) — an empty

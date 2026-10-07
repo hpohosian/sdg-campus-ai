@@ -85,6 +85,7 @@ async def get_user_sessions(
 # UPDATE SESSION
 # =========================
 @router.put("/{session_id}", response_model=SessionResponse)
+@router.put("/{session_id}", response_model=SessionResponse)
 async def update_session(
     session_id: str,
     request: UpdateSessionRequest,          # CHANGED: было CreateSessionRequest
@@ -101,10 +102,16 @@ async def update_session(
     else:
         language = _UNSET
 
+    if "course_id" in request.model_fields_set:
+        course_id = request.course_id or None
+    else:
+        course_id = _UNSET
+
     updated = await service.update_session(
         session_id=session_id,
         title=request.title,
         language=language,
+        course_id=course_id,
     )
 
     return SessionResponse(

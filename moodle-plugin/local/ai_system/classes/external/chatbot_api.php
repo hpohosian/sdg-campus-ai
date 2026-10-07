@@ -16,6 +16,9 @@ class chatbot_api extends external_api {
     private const UNSET = '__unset__';
 
 
+    private const UNSET_COURSE_ID = -1; // real Moodle course ids are always >= 1
+
+
     // =========================
     // SEND MESSAGE
     // =========================
@@ -148,12 +151,13 @@ class chatbot_api extends external_api {
     public static function update_session_parameters() {
         return new external_function_parameters([
             'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
-            'title'      => new external_value(PARAM_TEXT, 'New title', VALUE_DEFAULT, self::UNSET),          // CHANGED
-            'language'   => new external_value(PARAM_TEXT, 'Display language ("" resets to original)', VALUE_DEFAULT, self::UNSET), // NEW
+            'title'      => new external_value(PARAM_TEXT, 'New title', VALUE_DEFAULT, self::UNSET),
+            'language'   => new external_value(PARAM_TEXT, 'Display language ("" resets to original)', VALUE_DEFAULT, self::UNSET),
+            'course_id'  => new external_value(PARAM_INT, 'Course ID (0 = global/all courses)', VALUE_DEFAULT, self::UNSET_COURSE_ID), // NEW
         ]);
     }
 
-    public static function update_session($session_id, $title = self::UNSET, $language = self::UNSET) {  // CHANGED
+    public static function update_session($session_id, $title = self::UNSET, $language = self::UNSET, $course_id = self::UNSET_COURSE_ID) {  // CHANGED
 
         $params = self::validate_parameters(
             self::update_session_parameters(),
@@ -161,6 +165,7 @@ class chatbot_api extends external_api {
                 'session_id' => $session_id,
                 'title'      => $title,
                 'language'   => $language,
+                'course_id'  => $course_id,
             ]
         );
 
@@ -181,6 +186,11 @@ class chatbot_api extends external_api {
             // Пустая строка с фронта = явный сброс на оригинал → передаём null,
             // а не пустую строку, чтобы совпасть с семантикой Python-стороны
             $data['language'] = $params['language'] === '' ? null : $params['language'];
+        }
+
+        if ($params['course_id'] !== self::UNSET_COURSE_ID) {
+            // 0 = "All my courses" in the dropdown -> global mode (null on backend)
+            $data['course_id'] = $params['course_id'] ?: null;
         }
 
         $service = new \local_ai_system\chatbot\service();

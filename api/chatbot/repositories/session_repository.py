@@ -66,7 +66,7 @@ class SessionRepository:
         sessions = result.scalars().all()
         return sessions
 
-    def update(self, session_id: str, title: str | None = None, language=_UNSET):
+    def update(self, session_id: str, title: str | None = None, language=_UNSET, course_id=_UNSET):
         db_session = self.get(session_id)
 
         if not db_session:
@@ -77,6 +77,14 @@ class SessionRepository:
 
         if language is not _UNSET:
             db_session.language = language
+
+        if course_id is not _UNSET:
+            # Used when the user changes the selected course on an already-
+            # created-but-still-empty chat (see chatbot.js bindCoursePicker).
+            # Without this, the backend session keeps the course_id it was
+            # created with, and all RAG retrieval for that chat stays scoped
+            # to the wrong/old course until a reload creates a fresh session.
+            db_session.course_id = course_id
 
         db_session.updated_at = int(time.time())
 

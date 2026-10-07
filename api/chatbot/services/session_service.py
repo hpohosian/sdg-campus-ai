@@ -61,11 +61,13 @@ class SessionService:
         session_id: str,
         title: str | None = None,
         language=_UNSET,
+        course_id=_UNSET,
     ):
         session = self.session_repo.update(
             session_id=session_id,
             title=title,
             language=language,
+            course_id=course_id,
         )
 
         if not session:

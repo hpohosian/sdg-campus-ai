@@ -20,6 +20,7 @@ class SessionResponse(BaseModel):
 class UpdateSessionRequest(BaseModel):
     title: str | None = None
     language: str | None = None
+    course_id: int | None = None
 
 
 class SendMessageRequest(BaseModel):

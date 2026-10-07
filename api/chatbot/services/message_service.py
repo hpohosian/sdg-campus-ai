@@ -166,6 +166,7 @@ class MessageService:
 
     def _resolve_search_scope(self, session) -> tuple[str | None, list[int] | None, list[int]]:
         if session.course_id:
+            print(f"[scope] course mode: session_id={session.id} course_id={session.course_id}")
             return f"course_{session.course_id}", None, [session.course_id]
 
         course_ids = self.course_repo.get_enrolled_course_ids(session.user_id)

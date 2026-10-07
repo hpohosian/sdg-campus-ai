@@ -229,3 +229,125 @@ class Retriever:
 
         return "\n\n".join(parts)
     
+    
+    def retrieve_global_smart(
+        self,
+        last_message: str,
+        combined_query: str,
+        course_ids: list[int],
+        n_results: int = None,
+        min_score: float = None,
+        where: dict = None,
+    ) -> list[dict]:
+        """
+        Two-tier retrieval for follow-up-aware search without letting an
+        unrelated multi-message query dilute a genuine topic switch.
+
+        1. Try searching with ONLY the latest user message. If that alone
+           clears min_score, trust it — the student just asked about a
+           new/different topic, and blending in the previous question
+           would only hurt.
+        2. Only if that comes back empty, fall back to the combined
+           (last N messages) query — this is the case a short follow-up
+           like "can you explain more?" needs the earlier message's
+           context to mean anything in embedding space.
+        """
+        if last_message and last_message.strip():
+            narrow = self.retrieve_global(
+                query=last_message,
+                course_ids=course_ids,
+                n_results=n_results,
+                min_score=min_score,
+                where=where,
+            )
+            if narrow:
+                return narrow
+
+        if combined_query and combined_query != last_message:
+            return self.retrieve_global(
+                query=combined_query,
+                course_ids=course_ids,
+                n_results=n_results,
+                min_score=min_score,
+                where=where,
+            )
+
+        return []
+
+    def retrieve_as_context_global_smart(
+        self,
+        last_message: str,
+        combined_query: str,
+        course_ids: list[int],
+        n_results: int = None,
+        min_score: float = None,
+        where: dict = None,
+        course_links: dict[int, str] = None,
+    ) -> str:
+        course_links = course_links or {}
+
+        chunks = self.retrieve_global_smart(
+            last_message=last_message,
+            combined_query=combined_query,
+            course_ids=course_ids,
+            n_results=n_results,
+            min_score=min_score,
+            where=where,
+        )
+
+        if not chunks:
+            return ""
+
+        parts = []
+        for chunk in chunks:
+            source_label = self._format_source_label(chunk["metadata"])
+            course_id = chunk["metadata"].get("course_id", "?")
+            course_label = course_links.get(course_id, f"Course {course_id}")
+            parts.append(f"[Course: {course_label} — Source: {source_label}]\n{chunk['text']}")
+
+        return "\n\n".join(parts)
+    
+    
+    def retrieve_as_context_smart(
+        self,
+        last_message: str,
+        combined_query: str,
+        collection_name: str,
+        n_results: int = None,
+        min_score: float = None,
+        where: dict = None,
+        course_link: str = None,
+    ) -> str:
+        """Same two-tier logic as retrieve_as_context_global_smart, for the
+        single-course search path."""
+        chunks = []
+        if last_message and last_message.strip():
+            chunks = self.retrieve(
+                query=last_message,
+                collection_name=collection_name,
+                n_results=n_results,
+                min_score=min_score,
+                where=where,
+            )
+
+        if not chunks and combined_query and combined_query != last_message:
+            chunks = self.retrieve(
+                query=combined_query,
+                collection_name=collection_name,
+                n_results=n_results,
+                min_score=min_score,
+                where=where,
+            )
+
+        if not chunks:
+            return ""
+
+        parts = []
+        for chunk in chunks:
+            source_label = self._format_source_label(chunk["metadata"])
+            if course_link:
+                parts.append(f"[Course: {course_link} — Source: {source_label}]\n{chunk['text']}")
+            else:
+                parts.append(f"[Source: {source_label}]\n{chunk['text']}")
+
+        return "\n\n".join(parts)
