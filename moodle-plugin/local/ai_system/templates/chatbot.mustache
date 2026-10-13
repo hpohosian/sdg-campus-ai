@@ -3,6 +3,11 @@
 
   <div class="ai-chatbot-sidebar">
     <div class="ai-sb-top">
+      <div class="ai-sb-brand">
+        <span class="ai-sb-brand-mark" aria-hidden="true"></span>
+        <span>SDG Campus</span>
+      </div>
+
       {{#has_courses}}
       <div class="ai-course-picker">
         <div class="ai-course-picker-toggle" id="ai-course-toggle">
@@ -31,55 +36,62 @@
         <i class="fa fa-edit" aria-hidden="true"></i>
         {{#str}} new_session, local_ai_system {{/str}}
       </button>
+
+      <div class="ai-sb-search">
+        <i class="fa fa-search" aria-hidden="true"></i>
+        <input type="text" id="ai-sb-search-input" autocomplete="off"
+               placeholder="{{#str}} search_chats, local_ai_system {{/str}}"
+               aria-label="{{#str}} search_chats, local_ai_system {{/str}}">
+        <kbd id="ai-sb-search-kbd">Ctrl K</kbd>
+      </div>
     </div>
 
-    <div class="ai-sb-scroll">
-      <div class="ai-sb-group" id="ai-sb-pinned-group">
-        <p class="ai-sb-group-label">{{#str}} pinned, local_ai_system {{/str}}</p>
-        <div id="ai-sb-pinned">
-          <p class="ai-sb-empty" id="ai-pinned-empty">{{#str}} no_pinned_chats, local_ai_system {{/str}}</p>
-        </div>
-      </div>
-
-      <div class="ai-sb-group">
-        <p class="ai-sb-group-label">{{#str}} today, local_ai_system {{/str}}</p>
-        <div id="ai-sb-today">
-          {{#sessions}}
-          <div class="ai-session-item" data-session-id="{{session_id}}" data-language="{{language}}" data-created-at="{{created_at}}">
-            <span class="ai-session-lang-badge" data-language="{{language}}">{{language}}</span>
-            <span class="ai-session-title">{{title}}</span>
-            <i class="fa fa-star ai-session-pin-icon hidden" aria-hidden="true"></i>
-            <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Chat options">
-              <i class="fa fa-ellipsis-v"></i>
-            </button>
+    <div class="ai-sb-mid">
+      <div class="ai-sb-scroll">
+        <div class="ai-sb-group" id="ai-sb-pinned-group">
+          <p class="ai-sb-group-label">{{#str}} pinned, local_ai_system {{/str}}</p>
+          <div id="ai-sb-pinned">
+            <p class="ai-sb-empty" id="ai-pinned-empty">{{#str}} no_pinned_chats, local_ai_system {{/str}}</p>
           </div>
-          {{/sessions}}
         </div>
+
+        <div class="ai-sb-group">
+          <p class="ai-sb-group-label">{{#str}} today, local_ai_system {{/str}}</p>
+          <div id="ai-sb-today">
+            {{#sessions}}
+            <div class="ai-session-item" data-session-id="{{session_id}}" data-language="{{language}}" data-created-at="{{created_at}}">
+              <span class="ai-session-lang-badge" data-language="{{language}}">{{language}}</span>
+              <span class="ai-session-title">{{title}}</span>
+              <i class="fa fa-star ai-session-pin-icon hidden" aria-hidden="true"></i>
+              <button class="ai-session-menu-btn" data-session-id="{{session_id}}" aria-label="Chat options">
+                <i class="fa fa-ellipsis-v"></i>
+              </button>
+            </div>
+            {{/sessions}}
+          </div>
+        </div>
+
+        <div class="ai-sb-group" id="ai-sb-week-group" style="display:none;">
+          <p class="ai-sb-group-label">{{#str}} this_week, local_ai_system {{/str}}</p>
+          <div id="ai-sb-week"></div>
+        </div>
+
+        <div class="ai-sb-group" id="ai-sb-month-group" style="display:none;">
+          <p class="ai-sb-group-label">{{#str}} this_month, local_ai_system {{/str}}</p>
+          <div id="ai-sb-month"></div>
+        </div>
+
+        <div class="ai-sb-group" id="ai-sb-previous-group" style="display:none;">
+          <p class="ai-sb-group-label">{{#str}} previous, local_ai_system {{/str}}</p>
+          <div id="ai-sb-previous"></div>
+        </div>
+
+        <p class="ai-sb-empty hidden" id="ai-sb-no-results">{{#str}} no_results, local_ai_system {{/str}}</p>
       </div>
 
-      <div class="ai-sb-group" id="ai-sb-week-group" style="display:none;">
-        <p class="ai-sb-group-label">{{#str}} this_week, local_ai_system {{/str}}</p>
-        <div id="ai-sb-week"></div>
-      </div>
-
-      <div class="ai-sb-group" id="ai-sb-month-group" style="display:none;">
-        <p class="ai-sb-group-label">{{#str}} this_month, local_ai_system {{/str}}</p>
-        <div id="ai-sb-month"></div>
-      </div>
-
-      <div class="ai-sb-group" id="ai-sb-previous-group" style="display:none;">
-        <p class="ai-sb-group-label">{{#str}} previous, local_ai_system {{/str}}</p>
-        <div id="ai-sb-previous"></div>
-      </div>
-    </div>
-
-    <div class="ai-sb-bottom">
-      <div class="ai-sb-archive" id="ai-archive-toggle">
-        <i class="fa fa-archive" aria-hidden="true"></i>
-        {{#str}} archive, local_ai_system {{/str}}
-        <i class="fa fa-chevron-down ai-archive-chevron"></i>
-      </div>
+      {{! Archive list: an overlay on top of the chat list, opened from the footer row below }}
       <div class="ai-archive-dropdown hidden" id="ai-archive-dropdown">
+        <div class="ai-archive-head">{{#str}} archive, local_ai_system {{/str}}</div>
         {{#archived_sessions}}
         <div class="ai-session-item ai-session-archived" data-session-id="{{session_id}}" data-language="{{language}}">
           <span class="ai-session-lang-badge" data-language="{{language}}">{{language}}</span>
@@ -93,6 +105,14 @@
         {{^archived_sessions}}
         <div class="ai-archive-empty">{{#str}} archive_empty, local_ai_system {{/str}}</div>
         {{/archived_sessions}}
+      </div>
+    </div>
+
+    <div class="ai-sb-bottom">
+      <div class="ai-sb-archive" id="ai-archive-toggle">
+        <i class="fa fa-archive" aria-hidden="true"></i>
+        {{#str}} archive, local_ai_system {{/str}}
+        <i class="fa fa-chevron-up ai-archive-chevron"></i>
       </div>
     </div>
   </div>
@@ -150,25 +170,34 @@
     </div>
 
     <div class="ai-chatbot-messages-wrap">
-      <div class="ai-chatbot-messages" id="ai-messages-container">
-        {{#messages}}
-        <div class="ai-message ai-message--{{role}}" data-message-id="{{id}}">
-          <div class="ai-bubble-wrap">
-            <div class="ai-message-bubble">
-              <div class="ai-message-content">{{{content_html}}}</div>
-            </div>
-            <div class="ai-message-meta">
-              <span class="ai-message-time" data-created-at="{{created_at}}"></span>
-              <div class="ai-message-actions">
-                <button class="ai-msg-action-btn ai-msg-action-edit" aria-label="Edit"><i class="fa fa-pencil"></i></button>
-                <button class="ai-msg-action-btn ai-msg-action-copy" aria-label="Copy"><i class="fa fa-clone"></i></button>
-                <button class="ai-msg-action-btn ai-msg-action-regen" aria-label="Regenerate"><i class="fa fa-refresh"></i></button>
-              </div>
-            </div>
-          </div>
+      {{! The messages container must stay free of whitespace when there are no messages:
+          the start screen below is shown by the CSS rule ".ai-chatbot-messages:empty + .ai-empty-state". }}
+      <div class="ai-chatbot-messages" id="ai-messages-container">{{#messages}}<div class="ai-message ai-message--{{role}}" data-message-id="{{id}}"><div class="ai-bubble-wrap"><div class="ai-message-bubble"><div class="ai-message-content">{{{content_html}}}</div></div><div class="ai-message-meta"><span class="ai-message-time" data-created-at="{{created_at}}"></span><div class="ai-message-actions"><button class="ai-msg-action-btn ai-msg-action-edit" aria-label="Edit"><i class="fa fa-pencil"></i></button><button class="ai-msg-action-btn ai-msg-action-copy" aria-label="Copy"><i class="fa fa-clone"></i></button><button class="ai-msg-action-btn ai-msg-action-regen" aria-label="Regenerate"><i class="fa fa-refresh"></i></button></div></div></div></div>{{/messages}}</div>
+
+      <div class="ai-empty-state" id="ai-empty-state">
+        <div class="ai-empty-mark" aria-hidden="true"></div>
+        <h2 class="ai-empty-title">{{#str}} empty_title, local_ai_system {{/str}}</h2>
+        <p class="ai-empty-sub">{{#str}} empty_subtitle, local_ai_system {{/str}}</p>
+        <div class="ai-suggest-grid">
+          <button type="button" class="ai-suggest-card">
+            <i class="fa fa-list-alt" aria-hidden="true"></i>
+            <span class="ai-suggest-text">{{#str}} suggest_1, local_ai_system {{/str}}</span>
+          </button>
+          <button type="button" class="ai-suggest-card">
+            <i class="fa fa-lightbulb-o" aria-hidden="true"></i>
+            <span class="ai-suggest-text">{{#str}} suggest_2, local_ai_system {{/str}}</span>
+          </button>
+          <button type="button" class="ai-suggest-card">
+            <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+            <span class="ai-suggest-text">{{#str}} suggest_3, local_ai_system {{/str}}</span>
+          </button>
+          <button type="button" class="ai-suggest-card">
+            <i class="fa fa-search" aria-hidden="true"></i>
+            <span class="ai-suggest-text">{{#str}} suggest_4, local_ai_system {{/str}}</span>
+          </button>
         </div>
-        {{/messages}}
       </div>
+
       <div class="ai-translating-overlay hidden" id="ai-translating-overlay"
            data-label-translating="{{#str}} translating, local_ai_system {{/str}}"
            data-label-loading="{{#str}} loading_original, local_ai_system {{/str}}">

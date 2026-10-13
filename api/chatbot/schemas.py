@@ -15,6 +15,7 @@ class SessionResponse(BaseModel):
     title: str | None = None
     language: str | None = None
     is_active: int
+    created_at: int | None = None  # unix seconds; the sidebar date groups (Today / This week / ...) depend on it
 
 
 class UpdateSessionRequest(BaseModel):

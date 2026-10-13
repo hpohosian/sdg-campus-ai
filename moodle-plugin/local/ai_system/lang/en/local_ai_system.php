@@ -69,3 +69,13 @@ $string['apisecret_desc'] = 'Shared HMAC secret used to sign requests between Mo
 
 $string['ai_system:use_chatbot'] = 'Use the AI chatbot';
 $string['ai_system:view_history'] = 'View chat history';
+
+// Redesign: sidebar search, start screen
+$string['search_chats'] = 'Search chats';
+$string['no_results'] = 'No chats found';
+$string['empty_title'] = 'What are you working on today?';
+$string['empty_subtitle'] = 'Ask about your course materials. Every answer shows where it comes from.';
+$string['suggest_1'] = 'Summarize the key points of this course';
+$string['suggest_2'] = 'Explain a topic in simple terms';
+$string['suggest_3'] = 'Quiz me on the course content';
+$string['suggest_4'] = 'Where in the materials is this covered?';

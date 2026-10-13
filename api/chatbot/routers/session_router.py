@@ -30,7 +30,8 @@ async def create_session(
         course_id=session.course_id,
         title=session.title,
         language=session.language,     # NEW — будет None у только что созданной сессии
-        is_active=session.is_active
+        is_active=session.is_active,
+        created_at=session.created_at,
     )
 
 
@@ -54,7 +55,8 @@ async def get_session(
         course_id=session.course_id,
         title=session.title,
         language=session.language,     # NEW
-        is_active=session.is_active
+        is_active=session.is_active,
+        created_at=session.created_at,
     )
 
 
@@ -75,7 +77,8 @@ async def get_user_sessions(
             course_id=s.course_id,
             title=s.title,
             language=s.language,       # NEW — фронт красит иконку по этому полю в списке чатов
-            is_active=s.is_active
+            is_active=s.is_active,
+            created_at=s.created_at,
         )
         for s in sessions
     ]
@@ -84,7 +87,6 @@ async def get_user_sessions(
 # =========================
 # UPDATE SESSION
 # =========================
-@router.put("/{session_id}", response_model=SessionResponse)
 @router.put("/{session_id}", response_model=SessionResponse)
 async def update_session(
     session_id: str,
@@ -120,7 +122,8 @@ async def update_session(
         course_id=updated.course_id,
         title=updated.title,
         language=updated.language,
-        is_active=updated.is_active
+        is_active=updated.is_active,
+        created_at=updated.created_at,
     )
 
 

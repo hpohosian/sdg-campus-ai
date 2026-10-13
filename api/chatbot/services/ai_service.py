@@ -6,41 +6,33 @@ from langdetect.lang_detect_exception import LangDetectException
 from chatbot.prompts import RAG_SYSTEM_PROMPT, RAG_CONTEXT_TEMPLATE, NO_CONTEXT_PROMPT
 from llm.base import BaseLLM
 from rag.retriever import Retriever
+from translation.translator import Translator
 
 # Makes langdetect's output deterministic across runs (it's internally
 # probabilistic otherwise, which would make the same question sometimes
 # detected as one language, sometimes another).
 DetectorFactory.seed = 0
 
-_LANGUAGE_NAMES = {
-    "en": "English",
-    "de": "German",
-    "ru": "Russian",
-    "uk": "Ukrainian",
-    "fr": "French",
-    "es": "Spanish",
-    "it": "Italian",
-    "pl": "Polish",
-    "tr": "Turkish",
-    "ar": "Arabic",
-}
+# Languages the embedding model aligns well with the (mostly German)
+# course materials on its own — no retrieval-query translation needed.
+_RETRIEVAL_SAFE_LANGUAGES = {"en", "de"}
 
 
-def _detect_language_name(text: str) -> str | None:
+def _detect_language_code(text: str) -> str | None:
     """
-    Best-effort language name for the explicit "answer in X" directive.
-    Returns None when detection isn't possible/reliable (very short text,
-    e.g. a single word or "hi") -- callers fall back to the generic
-    language-matching instruction already in the prompt in that case.
+    ISO 639-1 code (e.g. "en", "de", "ru") of the given text, or None if
+    detection isn't possible/reliable (very short text, e.g. a single
+    word or "hi"). No name lookup here on purpose — passing the raw code
+    to the LLM (see _language_directive_block) works for any of the ~55
+    languages langdetect supports, not just ones we've bothered to name.
     """
     text = (text or "").strip()
     if len(text) < 3:
         return None
     try:
-        code = detect(text)
+        return detect(text)
     except LangDetectException:
         return None
-    return _LANGUAGE_NAMES.get(code, code)
 
 
 _TITLE_SYSTEM_PROMPT = (
@@ -51,10 +43,11 @@ _TITLE_SYSTEM_PROMPT = (
 
 
 class AIService:
-    def __init__(self, llm: BaseLLM, retriever: Retriever = None):
+    def __init__(self, llm: BaseLLM, retriever: Retriever = None, translator: Translator = None):
         self.llm = llm
         self.retriever = retriever
-        
+        self.translator = translator
+
     async def generate_title(self, user_message: str, assistant_message: str) -> str:
         t0 = time.perf_counter()
         messages = [
@@ -75,9 +68,14 @@ class AIService:
     ):
         retrieval_query = self._build_retrieval_query(messages)
         last_user_message = self._get_last_user_message(messages)
+
+        retrieval_query_for_search = await self._translate_for_retrieval(retrieval_query)
+        last_message_for_search = await self._translate_for_retrieval(last_user_message)
+
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt(
-            retrieval_query, collection_name, course_ids, course_link, course_links, last_message=last_user_message,
+            retrieval_query_for_search, collection_name, course_ids, course_link, course_links,
+            last_message=last_message_for_search,
         )
         system_prompt += self._language_directive_block(last_user_message)
         self._inject_inline_language_directive(formatted, last_user_message)
@@ -101,9 +99,14 @@ class AIService:
 
         retrieval_query = self._build_retrieval_query(messages)
         last_user_message = self._get_last_user_message(messages)
+
+        retrieval_query_for_search = await self._translate_for_retrieval(retrieval_query)
+        last_message_for_search = await self._translate_for_retrieval(last_user_message)
+
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt(
-            retrieval_query, collection_name, course_ids, course_link, course_links, last_message=last_user_message,
+            retrieval_query_for_search, collection_name, course_ids, course_link, course_links,
+            last_message=last_message_for_search,
         )
         system_prompt += self._language_directive_block(last_user_message)
         self._inject_inline_language_directive(formatted, last_user_message)
@@ -128,6 +131,36 @@ class AIService:
 
         print(f"[timing] LLM generation total: {(time.perf_counter() - t_retrieval) * 1000:.0f} ms")
 
+    async def _translate_for_retrieval(self, text: str) -> str:
+        """
+        The embedding model aligns English and German with each other
+        reasonably well, but other languages (observed: Russian) show much
+        weaker cross-lingual similarity to the mostly-German course
+        materials — relevant chunks end up scoring below min_score even
+        though they genuinely answer the question.
+
+        Fix: translate the SEARCH text (never the text shown to the
+        student — that's handled separately by the language-directive
+        methods below) into English before embedding it, whenever the
+        detected language isn't already English or German. Falls back to
+        the original text if detection or translation fails, so a
+        translation hiccup degrades retrieval quality rather than
+        breaking the request.
+        """
+        if not text or not text.strip() or not self.translator:
+            return text
+
+        code = _detect_language_code(text)
+        if code is None or code in _RETRIEVAL_SAFE_LANGUAGES:
+            return text
+
+        try:
+            translated = await self.translator.translate(text, "en")
+            return translated or text
+        except Exception as e:
+            print(f"[retrieval-translate] failed for lang={code!r}, using original query: {e!r}")
+            return text
+
     @staticmethod
     def _language_directive_block(last_user_message: str) -> str:
         """
@@ -136,17 +169,23 @@ class AIService:
         fallback/reinforcement for _inject_inline_language_directive below,
         which is the stronger of the two because it sits right next to the
         actual question.
+
+        Passes the raw ISO 639-1 code (e.g. "ru", "tr") rather than a
+        looked-up display name — the model reliably knows what these codes
+        mean, so no hardcoded code->name table is needed, and this works
+        for any language langdetect can detect, not just ones we bothered
+        to list.
         """
-        language_name = _detect_language_name(last_user_message)
-        if not language_name:
+        code = _detect_language_code(last_user_message)
+        if not code:
             return ""
         return (
             "\n\n===========================================================\n"
             f"LANGUAGE CHECK: the student's question has been automatically "
-            f"detected as {language_name}. Write your entire answer in "
-            f"{language_name} — every sentence, including any \"not covered\" "
-            f"statement and the final Source line — no matter what language "
-            f"the course materials above are written in.\n"
+            f"detected as ISO 639-1 language code \"{code}\". Write your "
+            f"entire answer in that language — every sentence, including any "
+            f"\"not covered\" statement and the final Source line — no matter "
+            f"what language the course materials above are written in.\n"
             "==========================================================="
         )
 
@@ -165,13 +204,14 @@ class AIService:
         if not formatted or formatted[-1]["role"] != "user":
             return
 
-        language_name = _detect_language_name(last_user_message)
-        if not language_name:
+        code = _detect_language_code(last_user_message)
+        if not code:
             return
 
         directive = (
-            f"\n\n[System note: answer the above in {language_name}, regardless "
-            f"of the language of any course materials you were given.]"
+            f"\n\n[System note: the ISO 639-1 language code of this question is "
+            f"\"{code}\" — answer in that language, regardless of the language "
+            f"of any course materials you were given.]"
         )
 
         content = formatted[-1]["content"]
@@ -197,10 +237,10 @@ class AIService:
         2. Otherwise, if the user has enrolled courses (course_ids) — search across all of them.
         3. Otherwise — plain LLM, no RAG context.
 
-        `query` is the combined (last-N-messages) retrieval query, `last_message`
-        is just the latest user message -- the "smart" retrieval methods try
-        last_message alone first (see retriever.py) so a sudden topic switch
-        within a chat doesn't get diluted by an unrelated earlier question.
+        `query`/`last_message` here are already the RETRIEVAL-side texts
+        (possibly translated by _translate_for_retrieval above) — they are
+        used only for the vector search, never shown to the student or
+        passed to the final answer-generation call.
 
         course_link / course_links: pre-built markdown link(s) for the
         course(s) in scope (see chatbot/course_links.py). These are
@@ -215,7 +255,7 @@ class AIService:
                 last_message=last_message or query,
                 combined_query=query,
                 collection_name=collection_name,
-                n_results=8,
+                n_results=12,
                 course_link=course_link,
             )
         elif course_ids:
@@ -223,7 +263,7 @@ class AIService:
                 last_message=last_message or query,
                 combined_query=query,
                 course_ids=course_ids,
-                n_results=8,
+                n_results=12,
                 course_links=course_links,
             )
         else:

@@ -15,6 +15,7 @@ $PAGE->set_url(new moodle_url('/local/ai_system/index.php'));
 $PAGE->set_context($context);
 $PAGE->set_title('AI Chatbot');
 $PAGE->set_heading('AI Chatbot');
+$PAGE->add_body_class('ai-chatbot-page');
 
 $PAGE->requires->css(new moodle_url('/local/ai_system/styles.css', ['v' => $plugin->version]));
 $PAGE->requires->js(

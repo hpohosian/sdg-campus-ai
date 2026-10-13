@@ -46,6 +46,8 @@ define([
             this.bindExportPdf();
             this.bindArchiveToggle();
             this.bindCoursePicker();
+            this.bindSidebarSearch();
+            this.bindSuggestions();
             this.formatServerMessageTimes();
             this.scrollToBottom();
 
@@ -868,6 +870,170 @@ define([
         },
 
         // =========================
+        // SOURCE CARDS
+        // RAG_SYSTEM_PROMPT makes the model end an answer with
+        // "Source: <file link>, from <course link>". That paragraph is found
+        // language-independently (a short paragraph containing a link to
+        // /pluginfile.php/) and replaced by cards. The word before the first
+        // link ("Quelle", "Source", ...) becomes the small label above them.
+        // =========================
+        renderSourceCards(contentEl) {
+            if (!contentEl || contentEl.querySelector('.ai-sources')) return;
+
+            const FILE_SEL = 'a[href*="/pluginfile.php/"]';
+            const para = Array.from(contentEl.querySelectorAll(':scope > p')).reverse().find(p => {
+                if (!p.querySelector(FILE_SEL)) return false;
+                let rest = p.textContent;
+                p.querySelectorAll('a').forEach(a => { rest = rest.replace(a.textContent, ''); });
+                return rest.replace(/[\s.,:;\u2013\u2014-]/g, '').length <= 40;
+            });
+            if (!para) return;
+
+            const files = Array.from(para.querySelectorAll(FILE_SEL));
+            const courses = Array.from(para.querySelectorAll('a[href*="/course/view.php"]'));
+
+            const firstLink = para.querySelector('a');
+            const fullText = para.textContent;
+            let label = fullText.slice(0, fullText.indexOf(firstLink.textContent)).replace(/[:\s]+$/, '').trim();
+            if (label.length > 24) label = '';
+
+            const iconFor = (name) => {
+                const ext = (name.split('.').pop() || '').toLowerCase();
+                return ({
+                    pdf: 'fa-file-pdf-o', doc: 'fa-file-word-o', docx: 'fa-file-word-o',
+                    ppt: 'fa-file-powerpoint-o', pptx: 'fa-file-powerpoint-o',
+                    xls: 'fa-file-excel-o', xlsx: 'fa-file-excel-o'
+                })[ext] || 'fa-file-text-o';
+            };
+
+            const list = document.createElement('div');
+            list.className = 'ai-sources-list';
+
+            files.forEach((a, i) => {
+                let name = a.textContent.trim();
+                if (!name) {
+                    try { name = decodeURIComponent(a.pathname.split('/').pop() || ''); } catch (e) { name = a.pathname; }
+                }
+                const course = courses[i] || courses[0];
+
+                const card = document.createElement('a');
+                card.className = 'ai-source-card';
+                card.href = a.href;
+                card.target = '_blank';
+                card.rel = 'noopener noreferrer';
+
+                const icon = document.createElement('i');
+                icon.className = 'fa ' + iconFor(name);
+                icon.setAttribute('aria-hidden', 'true');
+
+                const text = document.createElement('span');
+                text.className = 'ai-source-text';
+
+                const nameEl = document.createElement('span');
+                nameEl.className = 'ai-source-name';
+                nameEl.textContent = name;
+                nameEl.title = name;
+                text.appendChild(nameEl);
+
+                if (course) {
+                    const courseEl = document.createElement('span');
+                    courseEl.className = 'ai-source-course';
+                    courseEl.textContent = course.textContent.trim();
+                    text.appendChild(courseEl);
+                }
+
+                card.appendChild(icon);
+                card.appendChild(text);
+                list.appendChild(card);
+            });
+
+            const box = document.createElement('div');
+            box.className = 'ai-sources';
+            if (label) {
+                const labelEl = document.createElement('div');
+                labelEl.className = 'ai-sources-label';
+                labelEl.textContent = label;
+                box.appendChild(labelEl);
+            }
+            box.appendChild(list);
+            para.replaceWith(box);
+        },
+
+        // =========================
+        // SIDEBAR SEARCH (client-side filter over the chats already in the sidebar)
+        // =========================
+        bindSidebarSearch() {
+            const input = document.getElementById('ai-sb-search-input');
+            const kbd = document.getElementById('ai-sb-search-kbd');
+            if (!input) return;
+
+            const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+            if (kbd) kbd.textContent = isMac ? '\u2318K' : 'Ctrl K';
+
+            const apply = () => {
+                const q = input.value.trim().toLowerCase();
+                const items = document.querySelectorAll('#ai-chatbot-layout .ai-session-item');
+                let visibleInList = 0;
+
+                items.forEach(el => {
+                    const title = (el.querySelector('.ai-session-title')?.textContent || '').toLowerCase();
+                    const match = !q || title.includes(q);
+                    el.classList.toggle('hidden', !match);
+                    if (match && !el.classList.contains('ai-session-archived')) visibleInList++;
+                });
+
+                document.querySelectorAll('#ai-chatbot-layout .ai-sb-group').forEach(group => {
+                    if (!q) {
+                        group.classList.remove('hidden');
+                        return;
+                    }
+                    group.classList.toggle('hidden', !group.querySelector('.ai-session-item:not(.hidden)'));
+                });
+
+                const none = document.getElementById('ai-sb-no-results');
+                if (none) none.classList.toggle('hidden', !q || visibleInList > 0);
+            };
+
+            input.addEventListener('input', apply);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    input.value = '';
+                    apply();
+                    input.blur();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'k') {
+                    e.preventDefault();
+                    input.focus();
+                    input.select();
+                }
+            });
+        },
+
+        // =========================
+        // START SCREEN SUGGESTIONS (fill the input, the user sends it)
+        // =========================
+        bindSuggestions() {
+            document.querySelectorAll('.ai-suggest-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const input = document.getElementById('ai-message-input');
+                    const text = card.querySelector('.ai-suggest-text')?.textContent.trim();
+                    if (!input || !text) return;
+                    input.value = text;
+                    input.dispatchEvent(new Event('input'));
+                    input.focus();
+                });
+            });
+        },
+
+        closeArchivePanel() {
+            document.getElementById('ai-archive-dropdown')?.classList.add('hidden');
+            document.getElementById('ai-archive-toggle')?.classList.remove('open');
+        },
+
+        // =========================
         // ARCHIVE TOGGLE
         // =========================
         bindArchiveToggle() {
@@ -920,6 +1086,7 @@ define([
             const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
             const title = item ? item.querySelector('.ai-session-title').textContent.trim() : 'Chat';
             const archived = item ? item.classList.contains('ai-session-archived') : false;
+            if (!archived) this.closeArchivePanel();
 
             this.setActiveLanguage(item?.dataset.language || '');
 
@@ -1237,6 +1404,8 @@ define([
             } catch (err) {
                 bubbleTextEl.innerText = fullText;
             }
+
+            this.renderSourceCards(bubbleTextEl);
 
             const wrap = bubbleTextEl.closest('.ai-message');
             if (wrap) wrap.dataset.rawContent = fullText;
@@ -1596,6 +1765,7 @@ define([
             const text = document.createElement('div');
             text.className = 'ai-message-content';
             text.innerHTML = window.marked.parse(content || '');
+            if (role === 'assistant') this.renderSourceCards(text);
 
             const meta = document.createElement('div');
             meta.className = 'ai-message-meta';
@@ -1668,6 +1838,7 @@ define([
             if (!btn) return;
 
             btn.addEventListener('click', async () => {
+                this.closeArchivePanel();
                 const { title } = await this.createNewSession();
                 document.getElementById('ai-messages-container').innerHTML = '';
                 document.getElementById('ai-chat-title').textContent = title;
