@@ -2,7 +2,6 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from chatbot.routers.session_router import router as session_router
@@ -10,6 +9,8 @@ from chatbot.routers.message_router import router as message_router
 from chatbot.routers.rag_router import router as rag_router
 from middleware.timing import TimingMiddleware
 from middleware.auth import HMACAuthMiddleware
+from middleware.rate_limit import RateLimitMiddleware
+from middleware.security_headers import SecurityHeadersMiddleware
 from db.connection import chat_engine
 from settings import settings
 from dependencies import get_embedding_model, get_vector_store, get_llm
@@ -53,27 +54,30 @@ _unsigned_paths = {"/health"}
 if _docs_enabled:
     _unsigned_paths |= {"/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
 
-# Added first = innermost: Timing and CORS still wrap it, so rejected
-# requests are timed/logged like any other.
+# Middleware order: the FIRST one added is the innermost, the last one added
+# is the outermost. A request passes (outside -> in):
+#   Timing -> SecurityHeaders -> HMACAuth -> RateLimit -> endpoint
+# so every answer (also 401 / 429) is timed and gets the security headers, and
+# the rate limiter already knows the verified user id.
+app.add_middleware(
+    RateLimitMiddleware,
+    general_per_minute=settings.RATE_LIMIT_PER_MIN,
+    llm_per_minute=settings.RATE_LIMIT_LLM_PER_MIN,
+    exempt_paths=frozenset(_unsigned_paths),
+)
+
 app.add_middleware(
     HMACAuthMiddleware,
     secret=settings.MOODLE_SECRET,
     exempt_paths=frozenset(_unsigned_paths),
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(TimingMiddleware)
 
-origins = [
-    "http://127.0.0.1",  # Moodle address
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # allow these domains
-    allow_credentials=True,
-    allow_methods=["*"],    # GET, POST, PUT, DELETE...
-    allow_headers=["*"],    # any headers
-)
+# No CORS: the browser never talks to this backend. It talks to Moodle (PHP),
+# and PHP calls the backend server-to-server. Without CORS headers a browser
+# refuses any cross-origin call to the backend, which is what we want.
 
 app.include_router(session_router)
 app.include_router(message_router)

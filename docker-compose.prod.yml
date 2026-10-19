@@ -1,0 +1,31 @@
+# Optional HTTPS layer in front of the backend. Use it ONLY when something outside
+# the docker network has to reach the backend (e.g. Moodle on another server).
+# If Moodle runs on the same machine / in the same docker network, it can talk to the
+# backend directly (http://127.0.0.1:8001 or http://backend:8001) and you do not need this.
+#
+#   1. Put the certificate and key here (never commit them, see .gitignore):
+#        deploy/certs/fullchain.pem
+#        deploy/certs/privkey.pem
+#   2. Set NGINX_SERVER_NAME in .env.docker (the host name of the certificate).
+#   3. Start (after a backup):
+#        docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   4. Check:  curl -fsS https://<NGINX_SERVER_NAME>/health
+#
+# The Moodle plugin setting "api_base_url" must then be https://<NGINX_SERVER_NAME>.
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:?Set NGINX_SERVER_NAME in .env.docker}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # The image fills ${NGINX_SERVER_NAME} into every file in /etc/nginx/templates/*.template.
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    restart: unless-stopped

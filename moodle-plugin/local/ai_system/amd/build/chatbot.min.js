@@ -1331,6 +1331,19 @@ define([
                 });
             } catch (e) {
                 console.error(e);
+                if (e && e.handled) {
+                    // Refused before anything was saved: take the message back out of the
+                    // conversation and into the input box (with its image), so it can be sent again.
+                    userWrap.remove();
+                    const input = document.getElementById('ai-message-input');
+                    if (input && !input.value) {
+                        input.value = message;
+                        input.dispatchEvent(new Event('input'));
+                    }
+                    if (pendingImage && !this.state.pendingImage) {
+                        this.setPendingImage(pendingImage.file);
+                    }
+                }
             } finally {
                 this.finishStreamingUI(bubble);
             }
@@ -1342,6 +1355,22 @@ define([
         // protocol (see stream.php / edit_stream.php / regenerate_stream.php).
         // =========================
         async consumeStream(response, bubbleTextEl, onMeta) {
+            if (!response.ok) {
+                // The backend (via stream.php) refused the request: show why, instead of an empty bubble.
+                const text = await this.describeStreamError(response);
+                bubbleTextEl.innerHTML = '';
+                const note = document.createElement('div');
+                note.className = 'ai-stream-error';
+                note.style.color = 'var(--bs-danger, #b42318)';
+                note.textContent = text;
+                bubbleTextEl.appendChild(note);
+
+                const err = new Error('stream_http_' + response.status);
+                err.handled = true;
+                err.status = response.status;
+                throw err;
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
             let buffer = '';
@@ -1411,6 +1440,35 @@ define([
             if (wrap) wrap.dataset.rawContent = fullText;
 
             return fullText;
+        },
+
+        // Human-readable text for an error answer of the stream endpoints.
+        async describeStreamError(response) {
+            let detail = '';
+            try {
+                const data = JSON.parse(await response.text());
+                detail = String(data.detail || data.error || '');
+            } catch (e) {
+                // body is not JSON, the status code alone has to do
+            }
+
+            switch (response.status) {
+                case 429: {
+                    const wait = parseInt(response.headers.get('Retry-After'), 10);
+                    return 'You are sending messages too quickly. Please wait '
+                        + (wait > 0 ? wait + ' seconds' : 'a moment') + ' and try again.';
+                }
+                case 403:
+                    return /enrolled/i.test(detail)
+                        ? 'You are not enrolled in this course, so you cannot chat about it.'
+                        : 'You do not have access to this chat.';
+                case 401:
+                    return 'The chatbot could not verify your session. Please reload the page and try again.';
+                case 413:
+                    return 'The message or the image is too large.';
+                default:
+                    return 'Something went wrong while generating the answer. Please try again.';
+            }
         },
 
         finishStreamingUI(bubbleTextEl) {

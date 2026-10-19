@@ -7,6 +7,11 @@ class Settings(BaseSettings):
 
     MOODLE_SECRET: str
 
+    # Requests per user and minute (0 = no limit). "LLM" = everything that
+    # makes the language model answer (send, stream, edit, regenerate).
+    RATE_LIMIT_PER_MIN: int = 120
+    RATE_LIMIT_LLM_PER_MIN: int = 12
+
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False

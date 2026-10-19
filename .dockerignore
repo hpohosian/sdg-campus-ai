@@ -21,3 +21,8 @@ data/
 moodle-plugin/
 docs/
 *.md
+
+# Deployment files (nginx, scripts, compose files) are not part of the backend image
+deploy/
+scripts/
+docker-compose*.yml

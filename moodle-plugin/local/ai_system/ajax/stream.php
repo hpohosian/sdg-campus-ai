@@ -114,9 +114,35 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) {
+// Pass the backend's HTTP status on to the browser (429 too many requests, 403 not enrolled,
+// 401, 413, ...). Without this the browser would always see "200 OK" and an error body.
+$status = 200;
+$retry_after = null;
+$head_sent = false;
+
+curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $line) use (&$status, &$retry_after) {
+    if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+        $status = (int) $m[1];
+        $retry_after = null;
+    } else if (stripos($line, 'Retry-After:') === 0) {
+        $retry_after = (int) trim(substr($line, 12));
+    }
+    return strlen($line);
+});
+
+curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) use (&$status, &$retry_after, &$head_sent) {
     if (connection_aborted()) {
         return 0;
+    }
+
+    if (!$head_sent) {
+        $head_sent = true;
+        if ($status !== 200) {
+            http_response_code($status);
+            if ($retry_after) {
+                header('Retry-After: ' . $retry_after);
+            }
+        }
     }
 
     echo $data;

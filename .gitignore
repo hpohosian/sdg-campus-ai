@@ -18,3 +18,6 @@ files.py
 check_indexed_sources.py
 
 .env.docker
+
+# TLS certificates and keys for the nginx overlay (never commit)
+deploy/certs/
