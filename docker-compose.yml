@@ -56,7 +56,8 @@ services:
         condition: service_healthy
     ports:
       # Only reachable from this computer (the Moodle plugin runs on the same host).
-      - "127.0.0.1:8001:8001"
+      # BACKEND_HOST_PORT is only changed by scripts/restore.sh for its test stack.
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8001}:8001"
     volumes:
       # ChromaDB index survives container re-creation.
       - chroma_data:/app/data/chromadb

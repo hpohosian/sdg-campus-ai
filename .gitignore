@@ -21,3 +21,5 @@ check_indexed_sources.py
 
 # TLS certificates and keys for the nginx overlay (never commit)
 deploy/certs/
+
+backups/
