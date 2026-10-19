@@ -11,7 +11,13 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     
+    # Moodle's database (MariaDB). READ ONLY: course texts, PDFs, enrolments.
+    # Goes away once the backend is decoupled from Moodle.
     DATABASE_URL: str
+
+    # OUR database for chat data (PostgreSQL), e.g.
+    # postgresql+psycopg://user:password@127.0.0.1:5433/sdgchat
+    CHAT_DATABASE_URL: str
     
     MOODLEDATA_PATH: str = "D:\\Moodle\\MoodleWindowsInstaller-latest-500\\server\\moodledata"
 

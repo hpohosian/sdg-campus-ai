@@ -49,11 +49,13 @@ class service {
      * Get single session
      */
     public function get_session(
-        string $session_id
+        string $session_id,
+        int $userid = 0
     ): array {
 
         return $this->client->get(
-            "/sessions/{$session_id}"
+            "/sessions/{$session_id}",
+            $userid
         );
     }
 
@@ -163,14 +165,16 @@ class service {
      */
     public function send_message(
         string $session_id,
-        string $message
+        string $message,
+        int $userid = 0
     ): array {
 
         return $this->client->post(
             "/sessions/{$session_id}/messages",
             [
                 'message' => $message
-            ]
+            ],
+            $userid
         );
     }
 
@@ -178,10 +182,11 @@ class service {
     /**
      * Persist a partially generated assistant response (after Stop)
      */
-    public function save_partial_message(string $session_id, string $content): array {
+    public function save_partial_message(string $session_id, string $content, int $userid = 0): array {
         return $this->client->post(
             "/sessions/{$session_id}/messages/partial",
-            ['content' => $content]
+            ['content' => $content],
+            $userid
         );
     }
 }

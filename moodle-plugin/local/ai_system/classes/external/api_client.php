@@ -6,21 +6,31 @@ defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir . '/filelib.php');
 
+/**
+ * Non-streaming HTTP client for the FastAPI backend.
+ *
+ * Authentication headers (signature, user id, enrolled courses) come from
+ * request_signer, the same code the streaming ajax scripts use.
+ */
 class api_client {
 
-    private string $base_url;
-    private string $secret;
     private string $internal_key;
 
     public function __construct() {
-        $this->base_url    = get_config('local_ai_system', 'api_base_url') ?: 'http://127.0.0.1:8001';
-        $this->secret       = get_config('local_ai_system', 'api_secret');
-        $this->internal_key = get_config('local_ai_system', 'internal_api_key');
+        $this->internal_key = (string) get_config('local_ai_system', 'internal_api_key');
     }
 
+    /**
+     * Debug log, only while Moodle's developer debugging is on. Request and
+     * response bodies contain chat messages, so they must not be written
+     * to a file on production systems.
+     */
     private function log(string $message): void {
         global $CFG;
 
+        if (!debugging('', DEBUG_DEVELOPER)) {
+            return;
+        }
         file_put_contents(
             $CFG->dirroot . '/debug.log',
             "[" . date('H:i:s') . "] " . $message . "\n",
@@ -34,32 +44,20 @@ class api_client {
 
     private function request(string $method, string $path, array $body = [], int $user_id = 0, bool $internal = false): array {
 
-        $url = $this->base_url . $path;
+        $method  = strtoupper($method);
+        $url     = request_signer::base_url() . $path;
+        $payload = !empty($body) ? json_encode($body, JSON_UNESCAPED_UNICODE) : '';
+        $user_id = $user_id ?: $this->extractUserId($body);
 
         $this->log("METHOD: $method");
         $this->log("URL: $url");
-        $this->log("BODY: " . json_encode($body));
+        $this->log("BODY: " . $payload);
 
-        $timestamp = time();
-        $payload   = !empty($body)
-            ? json_encode($body, JSON_UNESCAPED_UNICODE)
-            : '';
-
-        $signature = hash_hmac(
-            'sha256',
-            $timestamp . $payload,
-            $this->secret
+        // The signature covers exactly the $payload that is sent below.
+        $headers = array_merge(
+            ['Content-Type: application/json'],
+            request_signer::headers($method, $path, $payload, $user_id)
         );
-
-        $curl = new \curl();
-        $curl->ignore_security_hosts = true;
-
-        $headers = [
-            'Content-Type: application/json',
-            'X-Timestamp: ' . $timestamp,
-            'X-Signature: ' . $signature,
-            'X-User-Id: ' . ($user_id ?: $this->extractUserId($body)),
-        ];
 
         if ($internal) {
             $headers[] = 'X-Internal-Api-Key: ' . $this->internal_key;
@@ -69,7 +67,7 @@ class api_client {
         $curl->ignore_security_hosts = true;
         $curl->setHeader($headers);
 
-        switch (strtoupper($method)) {
+        switch ($method) {
 
             case 'GET':
                 $response = $curl->get($url);

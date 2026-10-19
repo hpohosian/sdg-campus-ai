@@ -1,12 +1,13 @@
 from functools import lru_cache
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 
 from llm.base import BaseLLM
 from llm.mistral import MistralLLM
 from settings import Settings
 
-from db.connection import get_db
+from db.connection import get_db, get_moodle_db
+from middleware.auth import AuthContext
 
 from chatbot.services.session_service import SessionService
 from chatbot.repositories.session_repository import SessionRepository
@@ -98,30 +99,26 @@ def get_message_translation_repository(
     return MessageTranslationRepository(db)
 
 
-def get_current_user_id(x_user_id: str | None = Header(default=None)) -> int:
+def get_auth_context(request: Request) -> AuthContext:
     """
-    Temporary auth system for development.
-    In production this will be replaced with Moodle token validation.
-
-    Now in Postman - add Header (X-User-Id: n)
-
-    Option 2 (correct for Moodle later)
-    def get_current_user_id(token: str = Header(...)):
-        # 1. check Moodle token
-        # 2. request in Moodle API
-        # 3. return user.id
+    The verified identity of the caller (user id + the courses the user is
+    enrolled in), as signed by the Moodle plugin. It is put on the request by
+    HMACAuthMiddleware after the signature has been checked; it is the ONLY
+    trusted source of "who is asking" -- never read it from a plain header.
     """
-
-    if not x_user_id or x_user_id == "0":
-        raise HTTPException(status_code=401, detail="Missing user header")
-
-    try:
-        return int(x_user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user id")
+    auth = getattr(request.state, "auth", None)
+    if auth is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return auth
 
 
-def get_course_repository(db: DBSession = Depends(get_db)) -> CourseRepository:
+def get_current_user_id(auth: AuthContext = Depends(get_auth_context)) -> int:
+    if auth.user_id <= 0:
+        raise HTTPException(status_code=401, detail="Missing user")
+    return auth.user_id
+
+
+def get_course_repository(db: DBSession = Depends(get_moodle_db)) -> CourseRepository:
     return CourseRepository(db)
 
 
@@ -129,7 +126,7 @@ def get_message_service(
     message_repo: MessageRepository = Depends(get_message_repository),
     session_repo: SessionRepository = Depends(get_session_repository),
     ai_service: AIService = Depends(get_ai_service),
-    course_repo: CourseRepository = Depends(get_course_repository),
+    auth: AuthContext = Depends(get_auth_context),
     translation_repo: MessageTranslationRepository = Depends(get_message_translation_repository),
     translator: Translator = Depends(get_translator),
     image_storage: ImageStorage = Depends(get_image_storage),
@@ -138,7 +135,7 @@ def get_message_service(
         message_repo,
         session_repo,
         ai_service,
-        course_repo,
+        auth.enrolled_courses,
         translation_repo,
         translator,
         image_storage,

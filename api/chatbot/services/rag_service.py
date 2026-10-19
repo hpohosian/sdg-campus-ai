@@ -4,7 +4,7 @@ from settings import Settings
 from chatbot.repositories.rag_repository import RagRepository
 from rag.loaders.course_indexer import CourseIndexer
 from rag.ingestion import IngestionPipeline
-from db.connection import SessionLocal
+from db.connection import MoodleSessionLocal
 from db.repositories.db_course_repository import CourseRepository
 
 class RagService:
@@ -19,7 +19,7 @@ class RagService:
         that initiated the indexing (the request has already completed by this point).
         """
         collection_name = f"course_{course_id}"
-        db = SessionLocal()
+        db = MoodleSessionLocal()
         try:
             print(f"[RagService] Starting background indexing for course {course_id}")
 

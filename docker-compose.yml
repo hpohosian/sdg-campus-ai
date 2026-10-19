@@ -1,13 +1,40 @@
 # Local run on Windows (Docker Desktop), from the repository root:
 #
-#   docker compose --env-file .env.docker up --build
+#   docker compose --env-file .env.docker up -d --build
 #
 # Stop (data is kept):   docker compose --env-file .env.docker down
-# NEVER use "down -v" - it deletes the volumes (ChromaDB index).
+# NEVER use "down -v" - it deletes the volumes (chat database, chat images,
+# ChromaDB index).
+#
+# Only the database, e.g. for "fastapi dev" on your PC:
+#   docker compose --env-file .env.docker up -d db
 
 name: sdg-campus-ai
 
 services:
+  # --- Chat database (our own PostgreSQL, separate from Moodle) -------------
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env.docker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.docker}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env.docker}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      # Host port is configurable (POSTGRES_HOST_PORT in .env.docker, default
+      # 15432). Not 5432/5433: Windows often reserves such ports for itself
+      # (Hyper-V / WinNAT) and Docker then cannot bind them. Used only by
+      # "fastapi dev" and admin tools; the backend container uses db:5432.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-15432}:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Backend (FastAPI + RAG) ----------------------------------------------
   backend:
     build:
       context: .
@@ -15,19 +42,29 @@ services:
     image: sdg-campus-ai-backend:dev
     env_file: .env.docker
     environment:
-      # Linux paths inside the container. "environment" wins over "env_file".
+      # "environment" wins over "env_file".
+      # Linux paths inside the container:
       HF_HOME: /opt/hf_cache
       HF_HUB_OFFLINE: "1"          # model is baked into the image, never go online
       MOODLEDATA_PATH: /moodledata
+      # Chat images live in the backend's OWN volume (not in Moodle's moodledata).
+      CHAT_IMAGES_DIR: /data/chat_images
+      # Chat database = the "db" service above (reachable by its service name).
+      CHAT_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       # Only reachable from this computer (the Moodle plugin runs on the same host).
       - "127.0.0.1:8001:8001"
     volumes:
       # ChromaDB index survives container re-creation.
       - chroma_data:/app/data/chromadb
-      # TEMPORARY (step 1a): the backend still reads course PDFs from Moodle's
-      # moodledata and stores chat images there (get_image.php may rely on it).
-      # This mount disappears when the backend is decoupled from Moodle.
+      # Chat images (message attachments), owned by the backend.
+      - chat_images:/data/chat_images
+      # TEMPORARY: the backend still reads course PDFs from Moodle's moodledata
+      # (stage 2.3, waiting for the decision on how course content reaches the
+      # backend). This mount disappears when the backend is decoupled from Moodle.
       - ${MOODLEDATA_HOST_PATH:?Set MOODLEDATA_HOST_PATH in .env.docker}:/moodledata
     extra_hosts:
       # Lets the container reach services on the host (Moodle's MariaDB) as
@@ -35,12 +72,14 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      # There is no /health endpoint yet, so check that the port accepts connections.
-      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8001), 3)"]
+      # /health is unsigned and also checks the chat database (SELECT 1).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 120s           # embedding model + vector store warm-up
+      start_period: 120s           # migrations + embedding model + vector store warm-up
 
 volumes:
   chroma_data:
+  pg_data:
+  chat_images:

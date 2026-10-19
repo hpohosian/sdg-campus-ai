@@ -11,7 +11,7 @@ from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.message_translation_repository import MessageTranslationRepository
 from chatbot.repositories.session_repository import SessionRepository
 from db.repositories.db_course_repository import CourseRepository
-from db.connection import SessionLocal
+from db.connection import ChatSessionLocal, MoodleSessionLocal
 from dependencies import get_embedding_model, get_vector_store
 
 
@@ -37,10 +37,14 @@ timed("AIService", lambda: AIService(llm=llm, retriever=retriever))
 
 timed("ImageStorage", ImageStorage)
 
-db = SessionLocal()
-timed("DB: SELECT 1", lambda: db.execute(text("SELECT 1")).scalar())
+db = ChatSessionLocal()
+timed("CHAT DB (PostgreSQL): SELECT 1", lambda: db.execute(text("SELECT 1")).scalar())
 timed("SessionRepository", lambda: SessionRepository(db))
 timed("MessageRepository", lambda: MessageRepository(db))
 timed("MessageTranslationRepository", lambda: MessageTranslationRepository(db))
-timed("CourseRepository", lambda: CourseRepository(db))
 db.close()
+
+moodle_db = MoodleSessionLocal()
+timed("MOODLE DB (MariaDB): SELECT 1", lambda: moodle_db.execute(text("SELECT 1")).scalar())
+timed("CourseRepository", lambda: CourseRepository(moodle_db))
+moodle_db.close()

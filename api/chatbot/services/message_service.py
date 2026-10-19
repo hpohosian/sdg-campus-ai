@@ -1,12 +1,8 @@
-# import base64
 import asyncio
-import os
-# import uuid
 
 from chatbot.repositories.message_repository import MessageRepository
 from chatbot.repositories.session_repository import SessionRepository
 from chatbot.repositories.message_translation_repository import MessageTranslationRepository  # NEW
-from db.repositories.db_course_repository import CourseRepository
 from chatbot.course_links import format_course_link, build_course_links
 
 from chatbot.services.ai_service import AIService
@@ -15,17 +11,7 @@ from settings import settings
 
 from chatbot.schemas import MessageResponse
 
-import shutil
-
 from chatbot.services.image_storage import ImageStorage
-
-
-_MIME_TO_EXT = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
 
 
 # How many translation LLM calls may run at the same time when a session
@@ -39,7 +25,7 @@ class MessageService:
         message_repo: MessageRepository,
         session_repo: SessionRepository,
         ai_service: AIService,
-        course_repo: CourseRepository,
+        enrolled_courses: dict[int, str],
         translation_repo: MessageTranslationRepository,
         translator: Translator,
         image_storage: ImageStorage,
@@ -47,7 +33,10 @@ class MessageService:
         self.message_repo = message_repo
         self.session_repo = session_repo
         self.ai_service = ai_service
-        self.course_repo = course_repo
+        # {course_id: full name} of the courses the user is enrolled in, as
+        # stated by Moodle in the signed request (see middleware/auth.py).
+        # The backend no longer asks Moodle's database for this.
+        self.enrolled_courses = enrolled_courses
         self.translation_repo = translation_repo
         self.translator = translator
         self.image_storage = image_storage
@@ -169,7 +158,7 @@ class MessageService:
             print(f"[scope] course mode: session_id={session.id} course_id={session.course_id}")
             return f"course_{session.course_id}", None, [session.course_id]
 
-        course_ids = self.course_repo.get_enrolled_course_ids(session.user_id)
+        course_ids = list(self.enrolled_courses)
         print(f"[scope] global mode: user_id={session.user_id}, enrolled course_ids={course_ids}")
         return None, (course_ids or None), (course_ids or [])
 
@@ -441,48 +430,6 @@ class MessageService:
             raise ValueError("Message not found")
         self.message_repo.activate(message_id)
 
-    # @staticmethod
-    # def _chat_images_root() -> str:
-    #     return settings.CHAT_IMAGES_DIR or os.path.join(
-    #         settings.MOODLEDATA_PATH, "local_ai_system", "chat_images"
-    #     )
-
-    # def get_image_abs_path(self, session_id: str, message_id: int) -> str | None:
-    #     """
-    #     Resolve a message's stored image_path to an absolute filesystem
-    #     path, scoped to the given session_id (defense in depth — a caller
-    #     can't fetch another session's image just by guessing message_ids;
-    #     the router also independently checks session ownership by user).
-    #     """
-    #     message = self.message_repo.get(message_id)
-    #     if not message or message.session_id != session_id or not message.image_path:
-    #         return None
-    #     return os.path.join(self._chat_images_root(), message.image_path)
-
-    # @classmethod
-    # def _save_chat_image(cls, session_id: str, image_base64: str, image_mime_type: str | None) -> str:
-    #     """
-    #     Decodes and writes the image to disk under
-    #     <images_root>/<session_id>/<uuid><ext>.
-
-    #     Returns a path *relative* to the images root (e.g.
-    #     "7bea81a6.../9f2c1a....jpg") — never an absolute filesystem path,
-    #     so this keeps working if the storage root ever moves (different
-    #     machine, container, etc). Combined with session_id + message_id at
-    #     read time by _build_image_url()/the PHP relay.
-    #     """
-    #     ext = _MIME_TO_EXT.get(image_mime_type or "", ".jpg")
-    #     session_dir = os.path.join(cls._chat_images_root(), session_id)
-    #     os.makedirs(session_dir, exist_ok=True)
-
-    #     filename = f"{uuid.uuid4().hex}{ext}"
-    #     abs_path = os.path.join(session_dir, filename)
-
-    #     with open(abs_path, "wb") as f:
-    #         f.write(base64.b64decode(image_base64))
-
-    #     return f"{session_id}/{filename}"
-    
     def get_image_abs_path(self, session_id: str, message_id: int) -> str | None:
         """
         Resolve a message's stored image_path to an absolute filesystem
@@ -515,21 +462,11 @@ class MessageService:
         if not relevant_course_ids:
             return None, None
 
-        course_names = self.course_repo.get_course_names(relevant_course_ids)
+        # Names come from the signed request; an id that is not in it falls
+        # back to "Course {id}" in format_course_link().
+        course_names = {cid: self.enrolled_courses.get(cid) for cid in relevant_course_ids}
         links = build_course_links(course_names)
 
         if collection_name:
             return links.get(session.course_id), None
         return None, links
-
-    def delete_session_images(self, session_id: str) -> None:
-        """
-        Removes the entire <images_root>/<session_id>/ directory, i.e.
-        every image ever attached to any message (any version/sibling)
-        in this session. Safe to call even if the session never had any
-        images — just does nothing in that case.
-        """
-        session_dir = os.path.join(self._chat_images_root(), session_id)
-        if os.path.isdir(session_dir):
-            shutil.rmtree(session_dir)
-            

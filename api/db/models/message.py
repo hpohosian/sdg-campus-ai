@@ -1,13 +1,12 @@
-from sqlalchemy import Column, Integer, String, Text
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import BigInteger, Column, Integer, String, Text
 
-Base = declarative_base()
+from db.base import Base
 
 
 class MessageModel(Base):
-    __tablename__ = "mdl_local_ai_system_messages"
+    __tablename__ = "messages"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
 
     session_id = Column(String(64), nullable=False, index=True)
 
@@ -36,4 +35,4 @@ class MessageModel(Base):
 
     tokens_used = Column(Integer, nullable=True)
 
-    created_at = Column(Integer, nullable=False)
+    created_at = Column(BigInteger, nullable=False)

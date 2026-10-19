@@ -3,7 +3,12 @@
 require_once(__DIR__ . '/../../../config.php');
 
 require_login();
-require_sesskey();
+// No require_sesskey() here on purpose: this endpoint is opened by the browser
+// as a plain <img src="..."> GET request, which cannot carry a sesskey (the
+// URL is built by the backend). sesskey protects requests that CHANGE state
+// (CSRF); this one only reads. Access is still protected by require_login(),
+// the capability check below, and the backend, which returns the image only
+// to the user who owns the session.
 
 $context = context_system::instance();
 require_capability('local/ai_system:use_chatbot', $context);
@@ -11,7 +16,9 @@ require_capability('local/ai_system:use_chatbot', $context);
 // ==========================
 // INPUT
 // ==========================
-$session_id = required_param('session_id', PARAM_TEXT);
+// PARAM_ALPHANUMEXT (letters, digits, _ and -): the value is put into the URL
+// path sent to the backend, so slashes and dots must not get through.
+$session_id = required_param('session_id', PARAM_ALPHANUMEXT);
 $message_id = required_param('message_id', PARAM_INT);
 
 global $USER;
@@ -19,19 +26,23 @@ global $USER;
 // ==========================
 // FASTAPI CONFIG
 // ==========================
-$base_url = 'http://127.0.0.1:8001';
-$url = $base_url . "/sessions/{$session_id}/messages/{$message_id}/image";
+$path = "/sessions/{$session_id}/messages/{$message_id}/image";
+$url  = \local_ai_system\external\request_signer::base_url() . $path;
 
 // ==========================
-// SIGNATURE (same scheme as stream.php — HMAC over timestamp + JSON body).
+// BODY + SIGNED HEADERS
 // The body content itself is unused by the image endpoint; it exists only
-// so the signature check has the same shape as every other authenticated
-// request in this plugin.
+// so the request has the same shape as every other authenticated request.
 // ==========================
-$timestamp = time();
-$secret = get_config('local_ai_system', 'api_secret');
 $payload = json_encode(['content' => '']);
-$signature = hash_hmac('sha256', $timestamp . $payload, $secret);
+
+// Signed headers (timestamp, signature, user id, enrolled courses): see
+// classes/external/request_signer.php. The signature covers method, path,
+// user, courses and body, so none of them can be changed on the way.
+$headers = array_merge(
+    ['Content-Type: application/json'],
+    \local_ai_system\external\request_signer::headers('POST', $path, $payload, (int) $USER->id)
+);
 
 // ==========================
 // FETCH + RELAY
@@ -41,12 +52,7 @@ $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json',
-    'X-Timestamp: ' . $timestamp,
-    'X-Signature: ' . $signature,
-    'X-User-Id: ' . $USER->id,
-]);
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HEADER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 15);
@@ -75,6 +81,7 @@ header('Content-Type: ' . ($content_type ?: 'application/octet-stream'));
 // Private cache: the browser (this user only) may cache it, shared/proxy
 // caches must not — these are per-user chat attachments, not public assets.
 header('Cache-Control: private, max-age=86400');
+header('X-Content-Type-Options: nosniff');
 header('Content-Length: ' . strlen($body));
 
 echo $body;

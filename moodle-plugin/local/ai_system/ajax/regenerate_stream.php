@@ -6,12 +6,14 @@ require_login();
 require_sesskey();
 
 $context = context_system::instance();
-require_capability('local/ai_system:use_chatbot', $context);;
+require_capability('local/ai_system:use_chatbot', $context);
 
 // ==========================
 // INPUT
 // ==========================
-$session_id = required_param('session_id', PARAM_TEXT);
+// PARAM_ALPHANUMEXT (letters, digits, _ and -): the value is put into the URL
+// path sent to the backend, so slashes and dots must not get through.
+$session_id = required_param('session_id', PARAM_ALPHANUMEXT);
 $message_id = required_param('message_id', PARAM_INT);
 
 global $USER;
@@ -19,23 +21,20 @@ global $USER;
 // ==========================
 // FASTAPI CONFIG
 // ==========================
-$base_url = 'http://127.0.0.1:8001';
-
-$url = $base_url . "/sessions/{$session_id}/messages/{$message_id}/regenerate/stream";
+$path = "/sessions/{$session_id}/messages/{$message_id}/regenerate/stream";
+$url  = \local_ai_system\external\request_signer::base_url() . $path;
 
 // ==========================
-// SIGNATURE (same scheme as stream.php) — no body content, sign "{}"
+// BODY (none needed, so "{}") + SIGNED HEADERS
 // ==========================
-$timestamp = time();
-
-$secret = get_config('local_ai_system', 'api_secret');
-
 $payload = '{}';
 
-$signature = hash_hmac(
-    'sha256',
-    $timestamp . $payload,
-    $secret
+// Signed headers (timestamp, signature, user id, enrolled courses): see
+// classes/external/request_signer.php. The signature covers method, path,
+// user, courses and body, so none of them can be changed on the way.
+$headers = array_merge(
+    ['Content-Type: application/json'],
+    \local_ai_system\external\request_signer::headers('POST', $path, $payload, (int) $USER->id)
 );
 
 // ==========================
@@ -51,12 +50,7 @@ curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json',
-    'X-Timestamp: ' . $timestamp,
-    'X-Signature: ' . $signature,
-    'X-User-Id: ' . $USER->id,
-]);
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
 curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) {
     if (connection_aborted()) {

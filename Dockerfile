@@ -15,7 +15,7 @@ WORKDIR /app
 
 # 1) CPU-only PyTorch. The default build ships CUDA libraries (several GB);
 #    the VM most likely has no GPU and the embedding model is small.
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install torch==2.12.0 --index-url https://download.pytorch.org/whl/cpu
 
 # 2) Python dependencies. Separate layer: rebuilt only when requirements.txt changes.
 COPY requirements.txt .
@@ -39,8 +39,22 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 COPY --chown=appuser:appuser api/ /app/api/
 WORKDIR /app/api
 
+# 6) Directory for chat images (mounted as a named volume in docker-compose).
+#    It must exist in the image and belong to appuser: Docker copies that
+#    ownership into a fresh named volume, otherwise the volume is root-only and
+#    the app could not write to it. Kept after the code COPY so the expensive
+#    layers above stay cached.
+USER root
+RUN mkdir -p /data/chat_images && chown -R appuser:appuser /data
+USER appuser
+
 EXPOSE 8001
 
-# One worker on purpose: the embedding model and the ChromaDB PersistentClient
-# live in the process memory and must not be duplicated across workers.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# On every start: first bring the chat database schema up to date
+# ("alembic upgrade head" does nothing when it is already current), then start
+# the server. "exec" makes uvicorn PID 1 so "docker stop" shuts it down cleanly.
+#
+# One uvicorn worker on purpose: the embedding model and the ChromaDB
+# PersistentClient live in the process memory and must not be duplicated
+# across workers.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn main:app --host 0.0.0.0 --port 8001"]
