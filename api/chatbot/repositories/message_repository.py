@@ -44,24 +44,32 @@ class MessageRepository:
         flips is_active -- so returning to an older version is just
         flipping the flag back, and this walk picks it up automatically.
         """
+        # .first() on the newest row instead of scalar_one_or_none(): if two
+        # siblings ever end up active at once (e.g. a "Stop" saved twice), the
+        # chat must still open -- showing the newest one -- instead of failing
+        # with MultipleResultsFound and an empty chat.
         root = self.db.execute(
-            select(MessageModel).where(
+            select(MessageModel)
+            .where(
                 MessageModel.session_id == session_id,
                 MessageModel.parent_id.is_(None),
                 MessageModel.is_active == 1,
             )
-        ).scalar_one_or_none()
+            .order_by(MessageModel.id.desc())
+        ).scalars().first()
 
         thread = []
         current = root
         while current is not None:
             thread.append(current)
             current = self.db.execute(
-                select(MessageModel).where(
+                select(MessageModel)
+                .where(
                     MessageModel.parent_id == current.id,
                     MessageModel.is_active == 1,
                 )
-            ).scalar_one_or_none()
+                .order_by(MessageModel.id.desc())
+            ).scalars().first()
 
         return thread
 

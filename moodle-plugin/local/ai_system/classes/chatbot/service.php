@@ -55,7 +55,7 @@ class service {
 
         return $this->client->get(
             "/sessions/{$session_id}",
-            $userid
+            self::user_or_current($userid)
         );
     }
 
@@ -174,7 +174,7 @@ class service {
             [
                 'message' => $message
             ],
-            $userid
+            self::user_or_current($userid)
         );
     }
 
@@ -186,7 +186,16 @@ class service {
         return $this->client->post(
             "/sessions/{$session_id}/messages/partial",
             ['content' => $content],
-            $userid
+            self::user_or_current($userid)
         );
+    }
+
+    /**
+     * The backend needs to know whose request this is (it is part of the signature).
+     * Callers that do not pass a user id are acting for the logged-in user.
+     */
+    private static function user_or_current(int $userid): int {
+        global $USER;
+        return $userid > 0 ? $userid : (int) $USER->id;
     }
 }

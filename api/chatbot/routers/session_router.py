@@ -3,7 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from chatbot.schemas import CreateSessionRequest, UpdateSessionRequest, SessionResponse
 from chatbot.services.session_service import SessionService
 from chatbot.repositories.session_repository import _UNSET
-from dependencies import get_session_service, get_current_user_id
+from dependencies import get_session_service, get_current_user_id, get_auth_context
+from middleware.auth import AuthContext
+
+
+def _require_enrolled(course_id: int | None, auth: AuthContext) -> None:
+    """Only courses the user is enrolled in (as signed by Moodle) may be chosen."""
+    if course_id and course_id not in auth.enrolled_courses:
+        raise HTTPException(status_code=403, detail="Not enrolled in this course")
 
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -16,8 +23,11 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 async def create_session(
     request: CreateSessionRequest,
     user_id: int = Depends(get_current_user_id),
+    auth: AuthContext = Depends(get_auth_context),
     service: SessionService = Depends(get_session_service),
 ):
+    _require_enrolled(request.course_id, auth)
+
     session = await service.create_session(
         user_id=user_id,
         course_id=request.course_id,
@@ -92,6 +102,7 @@ async def update_session(
     session_id: str,
     request: UpdateSessionRequest,          # CHANGED: было CreateSessionRequest
     user_id: int = Depends(get_current_user_id),
+    auth: AuthContext = Depends(get_auth_context),
     service: SessionService = Depends(get_session_service),
 ):
     session = await service.get_session(session_id)
@@ -106,6 +117,7 @@ async def update_session(
 
     if "course_id" in request.model_fields_set:
         course_id = request.course_id or None
+        _require_enrolled(course_id, auth)
     else:
         course_id = _UNSET
 

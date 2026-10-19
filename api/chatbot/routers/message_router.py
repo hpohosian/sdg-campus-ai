@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse, FileResponse
 import json
 import os
@@ -13,7 +13,9 @@ from dependencies import (
     get_message_service,
     get_session_service,
     get_current_user_id,
+    get_auth_context,
 )
+from middleware.auth import AuthContext
 
 
 router = APIRouter(prefix="/sessions", tags=["messages"])
@@ -22,6 +24,17 @@ router = APIRouter(prefix="/sessions", tags=["messages"])
 # encoded string a bit above that. Mirrors the limit enforced in stream.php
 # on the Moodle side; this is the backend's own belt-and-braces check.
 MAX_IMAGE_BASE64_CHARS = 11 * 1024 * 1024
+
+
+def _require_course_access(session, auth: AuthContext) -> None:
+    """
+    A chat bound to a course may only be used by someone who is enrolled in
+    that course. The list of enrolled courses comes from the signed request
+    (Moodle), so it cannot be forged by the caller. Reading old messages stays
+    possible; this guards everything that makes the backend search the course.
+    """
+    if session.course_id and session.course_id not in auth.enrolled_courses:
+        raise HTTPException(status_code=403, detail="Not enrolled in this course")
 
 
 def _validate_image_size(request: SendMessageRequest) -> None:
@@ -57,6 +70,7 @@ async def send_message(
     session_id: str,
     request: SendMessageRequest,
     user_id: int = Depends(get_current_user_id),
+    auth: AuthContext = Depends(get_auth_context),
     session_service: SessionService = Depends(get_session_service),
     message_service: MessageService = Depends(get_message_service),
 ):
@@ -64,6 +78,8 @@ async def send_message(
 
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+    _require_course_access(session, auth)
 
     _validate_image_size(request)
 
@@ -84,7 +100,9 @@ async def send_message(
 async def stream_message(
     session_id: str,
     request: SendMessageRequest,
+    http_request: Request,
     user_id: int = Depends(get_current_user_id),
+    auth: AuthContext = Depends(get_auth_context),
     session_service: SessionService = Depends(get_session_service),
     message_service: MessageService = Depends(get_message_service),
 ):
@@ -93,20 +111,32 @@ async def stream_message(
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    _require_course_access(session, auth)
+
     _validate_image_size(request)
 
     result: dict = {}
 
     async def generator():
-        async for token in message_service.chat_stream(
+        tokens = message_service.chat_stream(
             session_id,
             request.content,
             image_base64=request.image_base64,
             image_mime_type=request.image_mime_type,
             result=result,
-        ):
-            payload = json.dumps({"token": token})
-            yield f"data: {payload}\n\n"
+        )
+        try:
+            async for token in tokens:
+                payload = json.dumps({"token": token})
+                yield f"data: {payload}\n\n"
+
+                # Stop button / closed tab: stop generating (and paying for)
+                # the answer. Closing the generator makes the service save
+                # the partial text.
+                if await http_request.is_disconnected():
+                    return
+        finally:
+            await tokens.aclose()
 
         updated_session = await session_service.get_session(session_id)
         title_payload = json.dumps({"title": updated_session.title})
@@ -126,7 +156,9 @@ async def edit_message_stream(
     session_id: str,
     message_id: int,
     request: EditMessageRequest,
+    http_request: Request,
     user_id: int = Depends(get_current_user_id),
+    auth: AuthContext = Depends(get_auth_context),
     session_service: SessionService = Depends(get_session_service),
     message_service: MessageService = Depends(get_message_service),
 ):
@@ -135,18 +167,26 @@ async def edit_message_stream(
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    _require_course_access(session, auth)
+
     result: dict = {}
 
     async def generator():
+        tokens = message_service.edit_message_stream(
+            session_id, message_id, request.content, result=result
+        )
         try:
-            async for token in message_service.edit_message_stream(
-                session_id, message_id, request.content, result=result
-            ):
+            async for token in tokens:
                 yield f"data: {json.dumps({'token': token})}\n\n"
+                if await http_request.is_disconnected():
+                    return
         except ValueError as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             yield "data: [DONE]\n\n"
             return
+        finally:
+            # No-op when the stream finished; on Stop it makes the service save the partial text.
+            await tokens.aclose()
 
         yield f"data: {json.dumps({'meta': result})}\n\n"
         yield "data: [DONE]\n\n"
@@ -161,7 +201,9 @@ async def edit_message_stream(
 async def regenerate_message_stream(
     session_id: str,
     message_id: int,
+    http_request: Request,
     user_id: int = Depends(get_current_user_id),
+    auth: AuthContext = Depends(get_auth_context),
     session_service: SessionService = Depends(get_session_service),
     message_service: MessageService = Depends(get_message_service),
 ):
@@ -170,18 +212,26 @@ async def regenerate_message_stream(
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    _require_course_access(session, auth)
+
     result: dict = {}
 
     async def generator():
+        tokens = message_service.regenerate_message_stream(
+            session_id, message_id, result=result
+        )
         try:
-            async for token in message_service.regenerate_message_stream(
-                session_id, message_id, result=result
-            ):
+            async for token in tokens:
                 yield f"data: {json.dumps({'token': token})}\n\n"
+                if await http_request.is_disconnected():
+                    return
         except ValueError as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             yield "data: [DONE]\n\n"
             return
+        finally:
+            # No-op when the stream finished; on Stop it makes the service save the partial text.
+            await tokens.aclose()
 
         yield f"data: {json.dumps({'meta': result})}\n\n"
         yield "data: [DONE]\n\n"
@@ -249,7 +299,7 @@ async def save_partial_message(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return MessageResponse.from_orm(message)
+    return MessageResponse.model_validate(message)
 
 
 # =========================

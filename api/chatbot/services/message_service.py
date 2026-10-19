@@ -18,6 +18,13 @@ from chatbot.services.image_storage import ImageStorage
 # is opened in a language that hasn't been translated yet.
 _TRANSLATION_CONCURRENCY = 12
 
+# Sessions whose running answer the user has just stopped (the browser's "Stop"
+# report arrived while the backend was still generating). The generating
+# request checks this after every token and stops. The backend runs as ONE
+# uvicorn process, so a module-level set is enough; with several workers this
+# would have to move to the database or Redis.
+_STOP_REQUESTED: set[str] = set()
+
 
 class MessageService:
     def __init__(
@@ -153,6 +160,44 @@ class MessageService:
             parent_id=parent_id,
         )
 
+    def _has_reply(self, session_id: str, parent_id: int) -> bool:
+        """True if `parent_id` already has a child message (an answer saved by someone else)."""
+        return bool(self.message_repo.get_siblings(session_id, parent_id))
+
+    # =========================
+    # SAVE A PARTIAL ASSISTANT ANSWER (user pressed Stop)
+    # =========================
+    async def create_partial_assistant_message(self, session_id: str, content: str):
+        """
+        When the user stops a streaming answer, the stream is cut before
+        chat_stream() can save the reply. The browser then sends the text it
+        has received so far, and it is stored here as the assistant message
+        under the last message of the active thread -- which must be the
+        user's question that is still waiting for an answer.
+        """
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+
+        content = (content or "").strip()
+        if not content:
+            raise ValueError("Empty partial message")
+
+        thread = await self.get_session_messages(session_id)
+        if thread and thread[-1].role == "assistant":
+            # Already stored: the backend saves the partial answer itself when
+            # the client disconnects, usually before the browser reports it.
+            return thread[-1]
+        if not thread or thread[-1].role != "user":
+            raise ValueError("No unanswered user message to attach the partial answer to")
+
+        message = await self.create_assistant_message(
+            session_id, content, parent_id=thread[-1].id
+        )
+        # If the backend is still generating this answer, tell it to stop.
+        _STOP_REQUESTED.add(session_id)
+        return message
+
     def _resolve_search_scope(self, session) -> tuple[str | None, list[int] | None, list[int]]:
         if session.course_id:
             print(f"[scope] course mode: session_id={session.id} course_id={session.course_id}")
@@ -259,18 +304,43 @@ class MessageService:
             }
 
         full_response = ""
-        async for token in self.ai_service.stream_response(
-            history,
-            collection_name=collection_name,
-            course_ids=course_ids,
-            course_link=course_link,
-            course_links=course_links,
-        ):
-            full_response += token
-            yield token
+        _STOP_REQUESTED.discard(session_id)
+        try:
+            async for token in self.ai_service.stream_response(
+                history,
+                collection_name=collection_name,
+                course_ids=course_ids,
+                course_link=course_link,
+                course_links=course_links,
+            ):
+                full_response += token
+                yield token
+                if session_id in _STOP_REQUESTED:
+                    # "Stop" was pressed: the browser has already stored the partial text.
+                    _STOP_REQUESTED.discard(session_id)
+                    break
+        except (GeneratorExit, asyncio.CancelledError):
+            # The client went away (Stop button, closed tab): keep what was
+            # generated so far as the answer instead of losing it.
+            print(f"[stream] client disconnected after {len(full_response)} chars, session={session_id}")
+            # The browser also reports the partial text itself (create_partial_assistant_message);
+            # whoever is first saves it, the other one must not add a second answer.
+            if full_response.strip() and not self._has_reply(session_id, user_message.id):
+                self.message_repo.create(
+                    session_id=session_id,
+                    role="assistant",
+                    content=full_response,
+                    parent_id=user_message.id,
+                )
+            raise
 
-        assistant_message = await self.create_assistant_message(session_id, full_response, parent_id=user_message.id)
-        result["assistant_message_id"] = assistant_message.id
+        if self._has_reply(session_id, user_message.id):
+            # Stopped by the user: the partial answer is already stored, do not add the full one next to it.
+            existing = self.message_repo.get_siblings(session_id, user_message.id)[-1]
+            result["assistant_message_id"] = existing.id
+        else:
+            assistant_message = await self.create_assistant_message(session_id, full_response, parent_id=user_message.id)
+            result["assistant_message_id"] = assistant_message.id
 
         if is_first_message and session.title == "New Chat":           # NEW
             generated_title = await self.ai_service.generate_title(content, full_response)
@@ -321,19 +391,38 @@ class MessageService:
         history_dicts = [{"role": m.role, "content": m.content} for m in history]
 
         full_response = ""
-        async for token in self.ai_service.stream_response(
-            history_dicts,
-            collection_name=collection_name,
-            course_ids=course_ids,
-            course_link=course_link,
-            course_links=course_links,
-        ):
-            full_response += token
-            yield token
+        _STOP_REQUESTED.discard(session_id)
+        try:
+            async for token in self.ai_service.stream_response(
+                history_dicts,
+                collection_name=collection_name,
+                course_ids=course_ids,
+                course_link=course_link,
+                course_links=course_links,
+            ):
+                full_response += token
+                yield token
+                if session_id in _STOP_REQUESTED:
+                    _STOP_REQUESTED.discard(session_id)
+                    break
+        except (GeneratorExit, asyncio.CancelledError):
+            # Client stopped the stream: keep the partial answer (see chat_stream).
+            if full_response.strip() and not self._has_reply(session_id, new_user_message.id):
+                self.message_repo.create(
+                    session_id=session_id,
+                    role="assistant",
+                    content=full_response,
+                    parent_id=new_user_message.id,
+                )
+            raise
 
-        new_assistant_message = await self.create_assistant_message(
-            session_id, full_response, parent_id=new_user_message.id
-        )
+        if self._has_reply(session_id, new_user_message.id):
+            # Stopped by the user: the partial answer is already stored.
+            new_assistant_message = self.message_repo.get_siblings(session_id, new_user_message.id)[-1]
+        else:
+            new_assistant_message = await self.create_assistant_message(
+                session_id, full_response, parent_id=new_user_message.id
+            )
         result["assistant_message_id"] = new_assistant_message.id
         result.update(self.get_version_info(session_id, new_user_message.id))
 
@@ -369,15 +458,28 @@ class MessageService:
         history_dicts = [{"role": m.role, "content": m.content} for m in history]
 
         full_response = ""
-        async for token in self.ai_service.stream_response(
-            history_dicts,
-            collection_name=collection_name,
-            course_ids=course_ids,
-            course_link=course_link,
-            course_links=course_links,
-        ):
-            full_response += token
-            yield token
+        try:
+            async for token in self.ai_service.stream_response(
+                history_dicts,
+                collection_name=collection_name,
+                course_ids=course_ids,
+                course_link=course_link,
+                course_links=course_links,
+            ):
+                full_response += token
+                yield token
+        except (GeneratorExit, asyncio.CancelledError):
+            # Client stopped the stream: keep the partial answer as the new version.
+            if full_response.strip():
+                partial = self.message_repo.create(
+                    session_id=session_id,
+                    role="assistant",
+                    content=full_response,
+                    parent_id=original.parent_id,
+                    is_active=True,
+                )
+                self.message_repo.activate(partial.id)
+            raise
 
         new_assistant_message = self.message_repo.create(
             session_id=session_id,

@@ -1837,12 +1837,32 @@ define([
             const btn = document.querySelector('.ai-chatbot-new-session');
             if (!btn) return;
 
-            btn.addEventListener('click', async () => {
+            btn.addEventListener('click', () => {
                 this.closeArchivePanel();
-                const { title } = await this.createNewSession();
-                document.getElementById('ai-messages-container').innerHTML = '';
-                document.getElementById('ai-chat-title').textContent = title;
+                this.startDraftChat();
             });
+        },
+
+        // "New Chat" only switches to the empty start screen. The chat itself is
+        // created on the backend by ensureSession() when the first message is
+        // sent, so clicking the button without writing anything leaves no empty
+        // chat behind in the sidebar and the database.
+        startDraftChat() {
+            this.state.sessionId = null;
+
+            document.querySelectorAll('.ai-session-item').forEach(e => e.classList.remove('active'));
+            document.getElementById('ai-messages-container').innerHTML = '';
+            document.getElementById('ai-chat-title').textContent = 'SDG-Campus AI Chatbot';
+
+            // An archived chat disables the input; a new chat must be writable again.
+            const input = document.getElementById('ai-message-input');
+            const sendBtn = document.getElementById('ai-send-btn');
+            if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
+            if (sendBtn) sendBtn.disabled = false;
+
+            this.clearPendingImage();
+            this.setActiveLanguage('');
+            this.setCourseLock(false);
         },
     };
 

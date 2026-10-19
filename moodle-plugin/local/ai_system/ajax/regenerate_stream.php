@@ -40,6 +40,11 @@ $headers = array_merge(
 // ==========================
 // CURL STREAM
 // ==========================
+// Release the PHP session lock before the long-running stream. Otherwise every other
+// request of this user (e.g. saving the partial answer after "Stop") has to wait until
+// the whole stream has ended. Reading $USER stays possible afterwards.
+\core\session\manager::write_close();
+
 header('Content-Type: text/plain');
 header('Cache-Control: no-cache');
 header('Connection: keep-alive');

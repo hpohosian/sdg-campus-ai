@@ -18,16 +18,34 @@ DetectorFactory.seed = 0
 _RETRIEVAL_SAFE_LANGUAGES = {"en", "de"}
 
 
+# Below this many characters langdetect is a coin toss -- and it is
+# confidently wrong: "sag mehr" -> "tl" (Tagalog, 0.99999), "explain more"
+# -> "fr". Its probability value says nothing about this, so reliability is
+# decided by length (see _detect_language_code).
+_MIN_CHARS_FOR_RELIABLE_DETECTION = 20
+
+
+def _has_non_latin_letters(text: str) -> bool:
+    """Cyrillic, Greek, Arabic, CJK ... -- the script alone gives the language away, even in a few characters."""
+    return any(ch.isalpha() and ord(ch) > 0x024F for ch in text)
+
+
 def _detect_language_code(text: str) -> str | None:
     """
     ISO 639-1 code (e.g. "en", "de", "ru") of the given text, or None if
-    detection isn't possible/reliable (very short text, e.g. a single
-    word or "hi"). No name lookup here on purpose — passing the raw code
-    to the LLM (see _language_directive_block) works for any of the ~55
-    languages langdetect supports, not just ones we've bothered to name.
+    the detection would not be reliable: short Latin-script text such as
+    "sag mehr" or "warum?" (langdetect returns random languages for it,
+    with very high "confidence"). Callers then fall back to the language
+    of earlier messages (_detect_conversation_language).
+
+    No name lookup here on purpose — passing the raw code to the LLM (see
+    _language_directive_block) works for any of the ~55 languages
+    langdetect supports, not just ones we've bothered to name.
     """
     text = (text or "").strip()
     if len(text) < 3:
+        return None
+    if len(text) < _MIN_CHARS_FOR_RELIABLE_DETECTION and not _has_non_latin_letters(text):
         return None
     try:
         return detect(text)
@@ -77,8 +95,9 @@ class AIService:
             retrieval_query_for_search, collection_name, course_ids, course_link, course_links,
             last_message=last_message_for_search,
         )
-        system_prompt += self._language_directive_block(last_user_message)
-        self._inject_inline_language_directive(formatted, last_user_message)
+        language_code = self._detect_conversation_language(messages)
+        system_prompt += self._language_directive_block(language_code)
+        self._inject_inline_language_directive(formatted, language_code)
 
         formatted.insert(0, {
             "role": "system",
@@ -108,8 +127,9 @@ class AIService:
             retrieval_query_for_search, collection_name, course_ids, course_link, course_links,
             last_message=last_message_for_search,
         )
-        system_prompt += self._language_directive_block(last_user_message)
-        self._inject_inline_language_directive(formatted, last_user_message)
+        language_code = self._detect_conversation_language(messages)
+        system_prompt += self._language_directive_block(language_code)
+        self._inject_inline_language_directive(formatted, language_code)
         t_retrieval = time.perf_counter()
 
         formatted.insert(0, {
@@ -161,8 +181,28 @@ class AIService:
             print(f"[retrieval-translate] failed for lang={code!r}, using original query: {e!r}")
             return text
 
+    def _detect_conversation_language(self, messages) -> str | None:
+        """
+        Language of the conversation: that of the newest user message in
+        which it can be detected reliably. A short follow-up ("sag mehr",
+        "warum?", "and the second one?") cannot be detected on its own,
+        so it inherits the language of the previous question instead of
+        being given a random one. None if no message is long enough, in
+        which case no directive is added and the system prompt's own
+        language rule applies.
+        """
+        for msg in reversed(messages):
+            role = msg["role"] if isinstance(msg, dict) else msg.role
+            if role != "user":
+                continue
+            content = msg["content"] if isinstance(msg, dict) else msg.content
+            code = _detect_language_code(self._extract_text(content))
+            if code:
+                return code
+        return None
+
     @staticmethod
-    def _language_directive_block(last_user_message: str) -> str:
+    def _language_directive_block(code: str | None) -> str:
         """
         Appended to the END of the system prompt, i.e. right after the
         (possibly huge, mostly-German) retrieved context — this is a
@@ -176,12 +216,11 @@ class AIService:
         for any language langdetect can detect, not just ones we bothered
         to list.
         """
-        code = _detect_language_code(last_user_message)
         if not code:
             return ""
         return (
             "\n\n===========================================================\n"
-            f"LANGUAGE CHECK: the student's question has been automatically "
+            f"LANGUAGE CHECK: the student's conversation has been automatically "
             f"detected as ISO 639-1 language code \"{code}\". Write your "
             f"entire answer in that language — every sentence, including any "
             f"\"not covered\" statement and the final Source line — no matter "
@@ -190,7 +229,7 @@ class AIService:
         )
 
     @staticmethod
-    def _inject_inline_language_directive(formatted: list[dict], last_user_message: str) -> None:
+    def _inject_inline_language_directive(formatted: list[dict], code: str | None) -> None:
         """
         Appends the same directive directly onto the last user turn (the
         message immediately preceding generation), NOT into the stored
@@ -204,7 +243,6 @@ class AIService:
         if not formatted or formatted[-1]["role"] != "user":
             return
 
-        code = _detect_language_code(last_user_message)
         if not code:
             return
 
