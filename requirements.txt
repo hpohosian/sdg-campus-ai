@@ -1,0 +1,19 @@
+# DRAFT - versions are NOT pinned yet and the list is reconstructed from the
+# files seen so far. Replace with the real, pinned list (see instructions).
+# torch is NOT listed here on purpose: the Dockerfile installs the CPU build first.
+
+fastapi[standard]
+uvicorn[standard]
+pydantic-settings
+sqlalchemy
+pymysql
+cryptography
+chromadb
+sentence-transformers
+numpy
+mistralai
+httpx
+langdetect
+pymupdf
+beautifulsoup4
+python-multipart

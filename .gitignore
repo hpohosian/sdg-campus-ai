@@ -16,3 +16,5 @@ work_plan_global.md
 
 files.py
 check_indexed_sources.py
+
+.env.docker

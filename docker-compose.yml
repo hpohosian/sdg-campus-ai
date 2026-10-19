@@ -1,0 +1,46 @@
+# Local run on Windows (Docker Desktop), from the repository root:
+#
+#   docker compose --env-file .env.docker up --build
+#
+# Stop (data is kept):   docker compose --env-file .env.docker down
+# NEVER use "down -v" - it deletes the volumes (ChromaDB index).
+
+name: sdg-campus-ai
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sdg-campus-ai-backend:dev
+    env_file: .env.docker
+    environment:
+      # Linux paths inside the container. "environment" wins over "env_file".
+      HF_HOME: /opt/hf_cache
+      HF_HUB_OFFLINE: "1"          # model is baked into the image, never go online
+      MOODLEDATA_PATH: /moodledata
+    ports:
+      # Only reachable from this computer (the Moodle plugin runs on the same host).
+      - "127.0.0.1:8001:8001"
+    volumes:
+      # ChromaDB index survives container re-creation.
+      - chroma_data:/app/data/chromadb
+      # TEMPORARY (step 1a): the backend still reads course PDFs from Moodle's
+      # moodledata and stores chat images there (get_image.php may rely on it).
+      # This mount disappears when the backend is decoupled from Moodle.
+      - ${MOODLEDATA_HOST_PATH:?Set MOODLEDATA_HOST_PATH in .env.docker}:/moodledata
+    extra_hosts:
+      # Lets the container reach services on the host (Moodle's MariaDB) as
+      # host.docker.internal. Already built in on Docker Desktop, needed on Linux.
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      # There is no /health endpoint yet, so check that the port accepts connections.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8001), 3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s           # embedding model + vector store warm-up
+
+volumes:
+  chroma_data:
