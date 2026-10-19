@@ -38,31 +38,20 @@ $string['attach_image'] = 'Attach image';
 $string['this_week'] = 'This week';
 $string['this_month'] = 'This month';
 
-// Privacy API
-$string['privacy:metadata:sessions'] = 'Information about your chatbot sessions';
-$string['privacy:metadata:sessions:user_id'] = 'The ID of the user who owns the session';
-$string['privacy:metadata:sessions:course_id'] = 'The course the session was linked to, if any';
-$string['privacy:metadata:sessions:title'] = 'The title of the chat session';
-$string['privacy:metadata:sessions:language'] = 'The display language selected for the session';
-$string['privacy:metadata:sessions:created_at'] = 'The time the session was created';
-$string['privacy:metadata:sessions:updated_at'] = 'The time the session was last updated';
+// Privacy API: the chats are stored by the chatbot backend (see classes/privacy/provider.php)
+$string['privacy:metadata:chatbackend'] = 'Your chats with the AI chatbot are stored by the chatbot backend service that belongs to this Moodle site (not in the Moodle database). Chats older than the configured retention period are deleted automatically.';
+$string['privacy:metadata:chatbackend:userid'] = 'Your Moodle user ID, to assign the chats to you.';
+$string['privacy:metadata:chatbackend:courseid'] = 'The course a chat was linked to, if any.';
+$string['privacy:metadata:chatbackend:title'] = 'The title of the chat.';
+$string['privacy:metadata:chatbackend:content'] = 'The messages you wrote, the answers of the chatbot and their translations.';
+$string['privacy:metadata:chatbackend:images'] = 'Images you attached to messages.';
+$string['privacy:metadata:chatbackend:times'] = 'When the chat was created and last used, and when each message was sent.';
 
-$string['privacy:metadata:messages'] = 'Individual messages exchanged with the chatbot';
-$string['privacy:metadata:messages:role'] = 'Whether the message was sent by the user or the assistant';
-$string['privacy:metadata:messages:content'] = 'The text content of the message';
-$string['privacy:metadata:messages:image_path'] = 'The path to an image attached to the message, if any';
-$string['privacy:metadata:messages:tokens_used'] = 'The number of tokens used to generate the message';
-$string['privacy:metadata:messages:created_at'] = 'The time the message was sent';
-
-$string['privacy:metadata:translations'] = 'Translations of chatbot messages into other languages';
-$string['privacy:metadata:translations:language'] = 'The language of the translation';
-$string['privacy:metadata:translations:content'] = 'The translated text content';
-$string['privacy:metadata:translations:created_at'] = 'The time the translation was created';
-
-$string['privacy:metadata:mistral'] = 'To generate responses, chat content is sent to Mistral AI, a third-party language model provider';
 $string['privacy:metadata:mistral:content'] = 'The message content sent for processing';
-
 $string['privacy:metadata:mistral'] = 'To generate responses, chat content is sent to Mistral AI (hosted in the EU), which retains it for up to 30 days for abuse-monitoring purposes before deletion, unless zero data retention has been configured for this integration';
+
+$string['cleanup_task'] = 'Delete expired AI chatbot chats (retention)';
+$string['apierror'] = 'The AI chatbot service did not answer correctly. Please try again later or contact the administrator.';
 
 $string['apisecret'] = 'API secret';
 $string['apisecret_desc'] = 'Shared HMAC secret used to sign requests between Moodle and the Python API';

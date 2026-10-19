@@ -77,6 +77,10 @@ if [ "$(env_get ENVIRONMENT)" != "production" ]; then
     warn "ENVIRONMENT is not 'production' (API docs /docs stay on, DEBUG may be on). Set ENVIRONMENT=production and DEBUG=false on the VM."
 fi
 
+if [ "$(env_get ENVIRONMENT)" = "production" ] && [ "$(env_get CHAT_RETENTION_DAYS)" = "0" -o -z "$(env_get CHAT_RETENTION_DAYS)" ]; then
+    warn "CHAT_RETENTION_DAYS is 0: chats are kept forever. Agree on a retention period (docs/privacy.md)."
+fi
+
 if [ "$PROD" = 1 ]; then
     COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
     [ -f deploy/certs/fullchain.pem ] && [ -f deploy/certs/privkey.pem ] \

@@ -42,7 +42,7 @@ class api_client {
         return (int)($body['user_id'] ?? $body['userid'] ?? 0);
     }
 
-    private function request(string $method, string $path, array $body = [], int $user_id = 0, bool $internal = false): array {
+    private function request(string $method, string $path, array $body = [], int $user_id = 0, bool $internal = false, bool $strict = false): array {
 
         $method  = strtoupper($method);
         $url     = request_signer::base_url() . $path;
@@ -96,6 +96,15 @@ class api_client {
             throw new \moodle_exception('apierror', 'local_ai_system');
         }
 
+        // $strict: any answer other than 2xx is an error (privacy requests must never "succeed" silently).
+        if ($strict) {
+            $info = $curl->get_info();
+            $code = (int) ($info['http_code'] ?? 0);
+            if ($code < 200 || $code >= 300) {
+                throw new \moodle_exception('apierror', 'local_ai_system', '', null, 'HTTP ' . $code);
+            }
+        }
+
         $decoded = json_decode($response, true);
 
         $this->log("DECODED: " . print_r($decoded, true));
@@ -121,5 +130,10 @@ class api_client {
 
     public function post_internal(string $path, array $body = [], int $user_id = 0): array {
         return $this->request('POST', $path, $body, $user_id, true);
+    }
+
+    /** Like post_internal(), but throws unless the backend answers 2xx. Used by the privacy provider and cleanup. */
+    public function post_internal_strict(string $path, array $body = [], int $user_id = 0): array {
+        return $this->request('POST', $path, $body, $user_id, true, true);
     }
 }

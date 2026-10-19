@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MIN: int = 120
     RATE_LIMIT_LLM_PER_MIN: int = 12
 
+    # Data retention: chats whose last activity is older than this many days are
+    # deleted by the daily cleanup (POST /privacy/maintenance, started by the
+    # Moodle cron task). 0 = keep everything (retention OFF). The value is a
+    # data-protection decision, not a technical one.
+    CHAT_RETENTION_DAYS: int = 0
+
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
