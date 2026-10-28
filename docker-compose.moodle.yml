@@ -1,0 +1,78 @@
+# Own TEST Moodle for the chatbot on the VM (separate from the Lernpfadgenerator stack,
+# whose Moodle already has its own plugin called local_ai_system).
+#
+# Start together with the backend:
+#   docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.moodle.yml up -d
+#
+# Moodle listens only on 127.0.0.1:8081 -> open it through an SSH tunnel:
+#   ssh -L 8081:127.0.0.1:8081 pda-hpo@137.226.165.196   ->  http://localhost:8081
+#
+# The Moodle plugin reaches the backend inside the docker network at http://backend:8001
+# (plugin setting "api_base_url").
+#
+# NEVER use "down -v" - it deletes the volumes (Moodle database, moodledata, chats).
+
+services:
+  # --- Moodle's database (MariaDB) ------------------------------------------
+  moodle-db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_USER: moodleuser
+      MARIADB_PASSWORD: ${MOODLE_DB_PASSWORD:?Set MOODLE_DB_PASSWORD in .env.docker}
+      MARIADB_DATABASE: moodle
+      MARIADB_ROOT_PASSWORD: ${MOODLE_DB_ROOT_PASSWORD:?Set MOODLE_DB_ROOT_PASSWORD in .env.docker}
+      MARIADB_AUTO_UPGRADE: "1"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - moodle_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # --- Moodle (Apache + PHP 8.3) --------------------------------------------
+  # Image = copy of the Lernpfadgenerator Moodle image already on the VM:
+  #   docker tag cc-lernpfadgenerator-moodle:local sdg-moodle:test
+  moodle:
+    image: sdg-moodle:test
+    depends_on:
+      moodle-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes: &moodle_volumes
+      - moodle_html:/var/www/html
+      - moodle_data:/var/www/moodledata
+      # Our plugin straight from this repository (read-only).
+      - ./moodle-plugin/local/ai_system:/var/www/html/local/ai_system:ro
+    restart: unless-stopped
+
+  # --- Moodle cron (every 60 s, as in the Lernpfadgenerator stack) ----------
+  moodle-cron:
+    image: sdg-moodle:test
+    user: www-data
+    init: true
+    depends_on: [moodle]
+    volumes: *moodle_volumes
+    command: [sh, -c, 'while true; do if [ -f /var/www/html/config.php ]; then php /var/www/html/admin/cli/cron.php; fi; sleep 60; done']
+    restart: unless-stopped
+
+  # --- Backend: additions to docker-compose.yml ------------------------------
+  # Reads course texts / enrolments from THIS Moodle's database and course PDFs
+  # from THIS Moodle's moodledata (replaces the MOODLEDATA_HOST_PATH mount).
+  backend:
+    environment:
+      DATABASE_URL: mysql+pymysql://moodleuser:${MOODLE_DB_PASSWORD}@moodle-db:3306/moodle
+      MOODLE_BASE_URL: http://localhost:8081
+    volumes:
+      - moodle_data:/moodledata:ro
+    depends_on:
+      moodle-db:
+        condition: service_healthy
+
+volumes:
+  moodle_db_data:
+  moodle_html:
+  moodle_data:
