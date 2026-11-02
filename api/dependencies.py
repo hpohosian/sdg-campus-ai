@@ -60,17 +60,20 @@ def get_retriever(
     return Retriever(vector_store=vector_store)
 
 
-def get_ai_service(
-    llm: BaseLLM = Depends(get_llm),
-    retriever: Retriever = Depends(get_retriever),
-):
-    return AIService(llm=llm, retriever=retriever)
-
-
 def get_translator(
     llm: BaseLLM = Depends(get_llm),
 ) -> Translator:
     return Translator(llm=llm)
+
+
+def get_ai_service(
+    llm: BaseLLM = Depends(get_llm),
+    retriever: Retriever = Depends(get_retriever),
+    translator: Translator = Depends(get_translator),
+):
+    # The translator MUST be passed: without it AIService skips translating
+    # non-EN/DE questions (e.g. Russian) before the vector search.
+    return AIService(llm=llm, retriever=retriever, translator=translator)
 
 
 def get_session_repository(db: DBSession = Depends(get_db)) -> SessionRepository:

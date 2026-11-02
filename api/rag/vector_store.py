@@ -1,9 +1,11 @@
 import os
 import uuid
 import chromadb
+import numpy as np
 from chromadb.config import Settings as ChromaSettings
 
 from .embeddings import EmbeddingModel
+from .bm25 import BM25Index
 
 
 # Where ChromaDB stores its data on disk
@@ -32,6 +34,8 @@ class VectorStore:
             settings=ChromaSettings(anonymized_telemetry=False),
         )
         self.embedding_model = embedding_model or EmbeddingModel()
+        # collection name -> (chunk count when built, ids, texts, metadatas, BM25Index)
+        self._bm25_cache: dict[str, tuple] = {}
 
     # ─────────────────────────────────────────
     # Collection management
@@ -105,6 +109,7 @@ class VectorStore:
         query: str,
         n_results: int = 5,
         where: dict = None,
+        query_embedding: list[float] = None,
     ) -> list[dict]:
         """
         Search for most relevant chunks by query string.
@@ -130,7 +135,8 @@ class VectorStore:
         if collection.count() == 0:
             return []
 
-        query_embedding = self.embedding_model.embed_text(query)
+        if query_embedding is None:
+            query_embedding = self.embedding_model.embed_text(query)
 
         kwargs = {
             "query_embeddings": [query_embedding],
@@ -144,12 +150,14 @@ class VectorStore:
 
         # Flatten ChromaDB's nested result format into clean list
         output = []
-        for text, metadata, distance in zip(
+        for chunk_id, text, metadata, distance in zip(
+            results["ids"][0],
             results["documents"][0],
             results["metadatas"][0],
             results["distances"][0],
         ):
             output.append({
+                "id": chunk_id,
                 "text": text,
                 "metadata": metadata,
                 "distance": distance,
@@ -160,8 +168,55 @@ class VectorStore:
         output.sort(key=lambda x: x["score"], reverse=True)
         return output
 
+    # ─────────────────────────────────────────
+    # Keyword search (BM25) — used by Retriever for hybrid search
+    # ─────────────────────────────────────────
+
+    def _bm25(self, collection_name: str):
+        """
+        BM25 index of a collection, built from the stored chunks on first use
+        and rebuilt automatically when the chunk count changes (reindex).
+        Building takes well under a second for a course.
+        """
+        collection = self.get_or_create_collection(collection_name)
+        count = collection.count()
+        cached = self._bm25_cache.get(collection_name)
+        if cached and cached[0] == count:
+            return cached
+        got = collection.get(include=["documents", "metadatas"])
+        ids, texts, metas = got["ids"], got["documents"] or [], got["metadatas"] or []
+        entry = (count, ids, texts, metas, BM25Index(texts))
+        self._bm25_cache[collection_name] = entry
+        return entry
+
+    def keyword_search(self, collection_name: str, query: str, n_results: int = 30) -> list[dict]:
+        """Top chunks by BM25: [{"id", "text", "metadata", "bm25"}], best first."""
+        if not self.collection_exists(collection_name):
+            return []
+        _, ids, texts, metas, index = self._bm25(collection_name)
+        return [
+            {"id": ids[i], "text": texts[i], "metadata": metas[i] or {}, "bm25": score}
+            for i, score in index.search(query, n_results)
+        ]
+
+    def similarity_for_ids(
+        self, collection_name: str, query_embedding: list[float], ids: list[str]
+    ) -> dict[str, float]:
+        """Cosine similarity (same scale as search()["score"]) for given chunk ids."""
+        if not ids:
+            return {}
+        got = self.get_or_create_collection(collection_name).get(ids=ids, include=["embeddings"])
+        q = np.asarray(query_embedding, dtype=float)
+        q_norm = np.linalg.norm(q) or 1.0
+        out = {}
+        for chunk_id, emb in zip(got["ids"], got["embeddings"]):
+            v = np.asarray(emb, dtype=float)
+            out[chunk_id] = round(float(q @ v / (q_norm * (np.linalg.norm(v) or 1.0))), 4)
+        return out
+
     def count(self, collection_name: str) -> int:
         """Return number of chunks in a collection."""
         if not self.collection_exists(collection_name):
             return 0
         return self.get_or_create_collection(collection_name).count()
+    

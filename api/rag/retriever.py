@@ -12,15 +12,107 @@ class Retriever:
     - Optionally filters by course/source
     """
 
+    # Reciprocal Rank Fusion constant (standard value from the RRF paper).
+    _RRF_K = 60
+
     def __init__(
         self,
         vector_store: VectorStore,
         min_score: float = 0.3,
         n_results: int = 5,
+        hybrid: bool = True,
+        candidates: int = 40,
+        keyword_reserved: int = 3,
     ):
+        """
+        hybrid: combine vector search with keyword search (BM25). See
+            _hybrid_search. False = the old vector-only behaviour.
+        candidates: how many chunks EACH method contributes before fusion.
+        keyword_reserved: the best N keyword hits always get a place in the
+            result (if they pass min_score), see _hybrid_search.
+        """
         self.vector_store = vector_store
         self.min_score = min_score
         self.n_results = n_results
+        self.hybrid = hybrid
+        self.candidates = candidates
+        self.keyword_reserved = keyword_reserved
+
+    def _hybrid_search(self, query: str, collections: dict[str, int | None], n: int, where: dict = None) -> list[dict]:
+        """
+        Candidates from several collections, best first.
+
+        collections: {collection_name: course_id or None}. The course_id is
+            attached to each chunk's metadata (global mode needs it).
+
+        Vector search finds chunks with the same MEANING, keyword search
+        (BM25) chunks with the same WORDS (names, numbers, compound terms,
+        table rows — what vector search misses). The two rankings are merged
+        with Reciprocal Rank Fusion: score = sum of 1/(60 + rank) over both
+        lists, so a chunk ranked high by either method comes up.
+
+        RRF alone does not lift a chunk that ONLY keyword search finds:
+        chunks ranked moderately in both lists beat it (1/61 < 1/70 + 1/75).
+        That is exactly the "exact term" case hybrid search is for, so the
+        best `keyword_reserved` keyword hits are moved to the front.
+
+        Every chunk keeps its cosine "score" (also chunks found only by BM25
+        get one), and min_score still applies to it in retrieve() — keyword
+        search can promote a relevant chunk, but cannot drag in a chunk
+        whose meaning is unrelated to the question.
+        """
+        store = self.vector_store
+        pool = max(n, self.candidates) if self.hybrid else n
+        query_embedding = store.embedding_model.embed_text(query)
+
+        vector_hits, keyword_hits = [], []
+        for name, course_id in collections.items():
+            for r in store.search(collection_name=name, query=query, n_results=pool,
+                                  where=where, query_embedding=query_embedding):
+                r["collection"] = name
+                if course_id is not None:
+                    r["metadata"] = {**r["metadata"], "course_id": course_id}
+                vector_hits.append(r)
+            # Keyword search ignores `where` filters, so only without them.
+            if self.hybrid and not where:
+                for r in store.keyword_search(name, query, n_results=pool):
+                    r["collection"] = name
+                    if course_id is not None:
+                        r["metadata"] = {**r["metadata"], "course_id": course_id}
+                    keyword_hits.append(r)
+
+        vector_hits.sort(key=lambda r: r["score"], reverse=True)
+        if not keyword_hits:
+            return vector_hits[:n] if not self.hybrid else vector_hits
+
+        keyword_hits.sort(key=lambda r: r["bm25"], reverse=True)
+        keyword_hits = keyword_hits[:pool]
+
+        merged: dict[str, dict] = {}
+        for rank, r in enumerate(vector_hits, 1):
+            merged[r["id"]] = {**r, "rrf": 1 / (self._RRF_K + rank), "vector_rank": rank}
+        missing_scores: dict[str, list[str]] = {}
+        for rank, r in enumerate(keyword_hits, 1):
+            entry = merged.get(r["id"])
+            if entry is None:
+                entry = merged[r["id"]] = {**r, "score": None, "rrf": 0.0, "vector_rank": None}
+                missing_scores.setdefault(r["collection"], []).append(r["id"])
+            entry["rrf"] += 1 / (self._RRF_K + rank)
+            entry["keyword_rank"] = rank
+
+        for name, ids in missing_scores.items():
+            scores = store.similarity_for_ids(name, query_embedding, ids)
+            for chunk_id in ids:
+                merged[chunk_id]["score"] = scores.get(chunk_id, 0.0)
+
+        fused = sorted(merged.values(), key=lambda r: r["rrf"], reverse=True)
+        reserved_ids = {r["id"] for r in keyword_hits[: self.keyword_reserved]}
+        reserved = [r for r in fused if r["id"] in reserved_ids]
+        rest = [r for r in fused if r["id"] not in reserved_ids]
+        # Reserved hits first, then the rest by fused rank. Overall order
+        # inside the context does not matter much to the LLM; what matters
+        # is that these chunks are not cut off by the top-n limit.
+        return reserved + rest
 
     @staticmethod
     def _format_source_label(chunk_metadata: dict) -> str:
@@ -58,17 +150,14 @@ class Retriever:
         n = n_results or self.n_results
         threshold = min_score if min_score is not None else self.min_score
 
-        results = self.vector_store.search(
-            collection_name=collection_name,
-            query=query,
-            n_results=n,
-            where=where,
-        )
+        if not self.vector_store.collection_exists(collection_name):
+            return []
+        results = self._hybrid_search(query, {collection_name: None}, n, where)
 
-        # Filter by minimum relevance score
+        # Filter by minimum relevance score, then keep the best n
         filtered = [r for r in results if r["score"] >= threshold]
 
-        return filtered
+        return filtered[:n]
 
     def retrieve_as_context(
         self,
@@ -159,20 +248,13 @@ class Retriever:
         n = n_results or self.n_results
         threshold = min_score if min_score is not None else self.min_score
 
-        all_results = []
-        for course_id in course_ids:
-            collection_name = f"course_{course_id}"
-            results = self.vector_store.search(
-                collection_name=collection_name,
-                query=query,
-                n_results=n,
-                where=where,
-            )
-            for r in results:
-                r["metadata"] = {**r["metadata"], "course_id": course_id}
-            all_results.extend(results)
-
-        all_results.sort(key=lambda x: x["score"], reverse=True)
+        collections = {
+            f"course_{cid}": cid for cid in course_ids
+            if self.vector_store.collection_exists(f"course_{cid}")
+        }
+        if not collections:
+            return []
+        all_results = self._hybrid_search(query, collections, n, where)
 
         if debug:
             print(f"\n[retriever debug] query={query!r}  threshold={threshold}  n_results={n}")
@@ -351,3 +433,4 @@ class Retriever:
                 parts.append(f"[Source: {source_label}]\n{chunk['text']}")
 
         return "\n\n".join(parts)
+    

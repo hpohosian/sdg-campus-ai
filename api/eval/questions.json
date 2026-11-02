@@ -1,0 +1,1495 @@
+{
+  "course_names": {
+    "8": "Didaktische Zugänglichkeit",
+    "11": "Industrie, Innovation und Infrastruktur",
+    "12": "PtX-Lab-Challenge"
+  },
+  "questions": [
+    {
+      "id": 1,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wie lang sollte eine gute Dilemma-Geschichte für eine Dilemma-Diskussion ungefähr sein, und auf wie viele Moralprinzipien sollte sie begrenzt sein?",
+      "expected": "Approx. half a page; limited to 2–3 moral principles.",
+      "source_raw": "dilemma-diskussionen-uebersicht.pdf",
+      "source_key": "dilemmadiskussionenuebersicht",
+      "evidence": [
+        "halbe[n]?\\s+seite"
+      ],
+      "key_facts": [
+        "about half a page long",
+        "limited to 2-3 moral principles"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut den Materialien sollte eine gute Dilemma-Geschichte für eine Dilemma-Diskussion kurz auf etwa einer halben Seite beschrieben werden. Längere Beschreibungen lenken oft vom eigentlichen Dilemma-Kern ab.\n\nDes Weiteren sollte sie sich auf zwei bis drei Moralprinzipien beschränken, um den Konflikt klar und überschaubar zu halten.\n\nSource: dilemma-diskussionen-uebersicht.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 2,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Für welche Gruppengröße und welchen Zeitbedarf ist die Methode World Café angegeben?",
+      "expected": "Max. 30 people; 45–90 minutes.",
+      "source_raw": "Methodenmuster-World-Cafe.pdf",
+      "source_key": "methodenmusterworldcafe",
+      "evidence": [
+        "45\\s*(?:-|–|bis)\\s*90"
+      ],
+      "key_facts": [
+        "at most 30 people",
+        "45-90 minutes"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut den Materialien ist die Methode World Café für eine Gruppengröße von maximal 30 Personen geeignet.\n\nDer Zeitbedarf beträgt 45 bis 90 Minuten.\n\nSource: Methodenmuster-World-Cafe.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 3,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Aus welchen sechs Schritten besteht die vollständige Handlung in der Beruflichen Bildung?",
+      "expected": "1 Informieren, 2 Planen, 3 Entscheiden, 4 Ausführen, 5 Kontrollieren, 6 Auswerten.",
+      "source_raw": "positionspapier-forum-bb-handlungsorientierung.pdf",
+      "source_key": "positionspapierforumbbhandlungsorientierung",
+      "evidence": [
+        "inform",
+        "plan",
+        "kontroll"
+      ],
+      "key_facts": [
+        "inform(ation)",
+        "plan(ning)",
+        "decide/decision",
+        "carry out/execute",
+        "check/control",
+        "evaluate/reflect"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die vollständige Handlung in der Beruflichen Bildung besteht laut den vorliegenden Materialien aus folgenden sechs Schritten:\n\nInformationsbeschaffung: Die Auszubildenden informieren sich über den Inhalt eines konkreten Arbeitsauftrags und antizipieren das angestrebte Ergebnis.\nPlanung: Sie planen die Ausführung der Aufgabe, z. B. welche Werkzeuge und Materialien benötigt werden.\nEntscheidung über die Umsetzung: Die Auszubildenden entscheiden, wie sie den Handlungsplan tatsächlich umsetzen.\nAusführung: Sie führen die Aufgabe selbstständig durch.\nKontrolle: Sie kontrollieren die Ausführung ihrer Arbeiten und stellen mögliche Mängel fest.\nReflexion und Dokumentation: Abschließend werten sie das Ergebnis aus, reflektieren ihre Vorgehensweise und dokumentieren es, einschließlich der Nachhaltigkeitsbewertung.\nQuelle: positionspapier-forum-bb-handlungsorientierung.pdf, aus Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 4,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Seit wann ist die Standardberufsbildposition „Umweltschutz“ um den Aspekt „Nachhaltigkeit“ erweitert?",
+      "expected": "From August 1, 2021.",
+      "source_raw": "positionspapier-forum-bb-handlungsorientierung.pdf",
+      "source_key": "positionspapierforumbbhandlungsorientierung",
+      "evidence": [
+        "august\\s+2021|1\\.\\s*8\\.\\s*2021|01\\.08\\.2021"
+      ],
+      "key_facts": [
+        "1 August 2021"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die Standardberufsbildposition „Umweltschutz“ wurde um den Aspekt „Nachhaltigkeit“ zum 1. August 2021 erweitert.\n\nSource: positionspapier-forum-bb-handlungsorientierung.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 5,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wie viele Schülerinnen und Schüler hat Uphues in seiner ersten Studie befragt, und aus welchen Jahrgangsstufen?",
+      "expected": "1,061 schoolchildren; grades 7, 9, and 12 (North Rhine-Westphalia).",
+      "source_raw": "5547_Schulische_Rahmenbedingungen.pdf",
+      "source_key": "schulischerahmenbedingungen",
+      "evidence": [
+        "1[.,]?\\s?061"
+      ],
+      "key_facts": [
+        "1,061 pupils",
+        "grades 7, 9 and 12"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die vorliegenden Materialien enthalten keine konkreten Angaben dazu, wie viele Schülerinnen und Schüler Uphues in seiner ersten Studie befragt hat oder aus welchen Jahrgangsstufen die Probanden stammten.\n\nEs wird zwar auf Uphues (2007) verwiesen und verschiedene Schülertypen (z. B. „Global-Skeptischer Typ“) beschrieben, aber die genaue Stichprobengröße oder die spezifischen Jahrgangsstufen fehlen in den Materialien.\n\nFalls du diese Informationen benötigst, müsstest du auf die Originalstudie von Uphues (2007) zurückgreifen, die nicht in den bereitgestellten Unterlagen enthalten ist.\n\nHinweis: Falls du die Studie selbst einsehen kannst, könnte dort die gewünschte Information zu Teilnehmerzahl und Jahrgangsstufen zu finden sein.",
+        "right": "No",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 6,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wie viele Minuten täglich nutzen 14- bis 19-Jährige laut ARD/ZDF-Onlinestudie 2013 das Internet?",
+      "expected": "218 minutes a day.",
+      "source_raw": "5547_Schulische_Rahmenbedingungen.pdf",
+      "source_key": "schulischerahmenbedingungen",
+      "evidence": [
+        "\\b218\\b"
+      ],
+      "key_facts": [
+        "218 minutes a day"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut der ARD/ZDF-Onlinestudie 2013 nutzen 14- bis 19-Jährige täglich durchschnittlich 218 Minuten im Internet.\n\nSource: Schulische Rahmenbedingungen.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 7,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "en",
+      "question": "In which year did the term solarpunk emerge, and how?",
+      "expected": "In 2008, via a blog post (at the time, only as a literary genre).",
+      "source_raw": "Solarpunk__Klimaoptimismus_..._tagesschau_de.pdf",
+      "source_key": "solarpunkklimaoptimismus",
+      "evidence": [
+        "2008",
+        "blog"
+      ],
+      "key_facts": [
+        "2008",
+        "through a blog post"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "According to the provided materials, the term solarpunk emerged in 2008 through a blog post.\n\nThe text states:\n\"Der Begriff kam 2008 durch einen Blogpost auf und beschrieb damals noch nur ein literarisches Genre, das aus der Science Fiction beziehungsweise der Climate Fiction entstanden war.\"\n\nSource: Solarpunk_ Klimaoptimismus in Kunst und Literatur _ tagesschau.de.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 8,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Factual",
+      "lang": "en",
+      "question": "In which years are the three UNESCO reports during the DESD published, and what does the second report focus on?",
+      "expected": "2009, 2012, and 2014; the second report — processes and learning in the context of ESD.",
+      "source_raw": "216606eng.pdf",
+      "source_key": "216606eng",
+      "evidence": [
+        "2009",
+        "2012",
+        "2014"
+      ],
+      "key_facts": [
+        "2009, 2012 and 2014",
+        "the second report is about learning processes in ESD"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die drei UNESCO-Berichte zur DESD wurden in folgenden Jahren veröffentlicht:\n\n2009\n2012\n2014\n\nDer zweite Bericht (2012) konzentriert sich spezifisch auf Lernprozesse und lernbasierte Veränderungen hin zur Nachhaltigkeit. Er untersucht:\n\nWelche Lernprozesse im Rahmen der DESD entstanden sind,\ndie Rolle von Bildung für Nachhaltige Entwicklung (ESD) bei der Unterstützung dieser Prozesse,\nsowie Veränderungen in der ESD seit den frühen Jahren der Dekade.\n\nSource: 216606eng.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 9,
+      "chat": "Chat 1 — Course 8 \"Didaktische Zugänglichkeit\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Access/Scope",
+      "lang": "de",
+      "question": "Wie hoch ist der kommunale Investitionsrückstand laut KfW-Kommunalpanel 2018?",
+      "expected": "The answer is found in Course 11. The bot must NOT answer based on material from Course 11 (Course 8 was selected). Count it as \"yes\" if the bot refused or explicitly stated that this is not covered in Course 8.",
+      "source_raw": "(not included in Course 8)",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": null,
+      "manual": {
+        "answer": "Ich sehe diese Frage nicht in den bereitgestellten Materialien beantwortet. Die genannten Unterlagen enthalten keine Daten oder Informationen zum kommunalen Investitionsrückstand laut dem KfW-Kommunalpanel 2018.\n\nFalls du diese Information benötigst, müsstest du auf die Originalstudie oder offizielle Berichte der KfW (Kreditanstalt für Wiederaufbau) zurückgreifen, da diese Daten dort veröffentlicht werden. Möchtest du eine allgemeine Erklärung zu kommunalen Investitionsrückständen oder Hinweise zur Suche nach der Studie?",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 10,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wie hoch ist der kommunale Investitionsrückstand laut KfW-Kommunalpanel 2018?",
+      "expected": "Approx. €159 billion.",
+      "source_raw": "KfW_Fokus-Nr_-245-Maerz-2019-Green-Bonds.pdf",
+      "source_key": "kfwfokusnr245maerz2019greenbonds",
+      "evidence": [
+        "\\b159\\b"
+      ],
+      "key_facts": [
+        "about 159 billion euros"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut den Materialien beträgt der kommunale Investitionsrückstand in Deutschland rund 159 Milliarden Euro (159 Mrd. EUR).\n\nSource: KfW_Fokus-Nr.-245-Maerz-2019-Green-Bonds.pdf, from Industrie, Innovation und Infrastruktur.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 11,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Welche Stadt hat 2018 als erste deutsche Stadt einen grünen Schuldschein begeben, und über welchen Betrag?",
+      "expected": "Hanover; €100 million.",
+      "source_raw": "KfW_Fokus-Nr_-245-Maerz-2019-Green-Bonds.pdf",
+      "source_key": "kfwfokusnr245maerz2019greenbonds",
+      "evidence": [
+        "hannover",
+        "schuldschein"
+      ],
+      "key_facts": [
+        "Hannover",
+        "100 million euros"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Hannover hat 2018 als erste deutsche Stadt einen grünen Schuldschein begeben und dabei 100 Millionen Euro Kapital eingesammelt.\n\nSource: KfW_Fokus-Nr.-245-Maerz-2019-Green-Bonds.pdf, from Industrie, Innovation und Infrastruktur.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 12,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wie viele Einwohner hat Östersund, und welchen Betrag hat die Stadt 2017 mit einem Green Bond aufgenommen?",
+      "expected": "Approx. 50,000 inhabitants; approx. 80 million euros.",
+      "source_raw": "KfW_Fokus-Nr_-245-Maerz-2019-Green-Bonds.pdf",
+      "source_key": "kfwfokusnr245maerz2019greenbonds",
+      "evidence": [
+        "[öo]stersund"
+      ],
+      "key_facts": [
+        "about 50,000 inhabitants",
+        "about 80 million euros"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut den Materialien hat Östersund, Schweden, 50.000 Einwohner und hat im Jahr 2017 einen Green Bond mit rund 80 Millionen Euro emittiert.\n\nSource: KfW_Fokus-Nr.-245-Maerz-2019-Green-Bonds.pdf, from Industrie, Innovation und Infrastruktur.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 13,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Cross-language",
+      "lang": "en",
+      "question": "What interest advantage did Baker et al. (2018) find for US municipal green bonds, and how large is it with external certification?",
+      "expected": "An average of 6 basis points; approx. 26 bps with external certification.",
+      "source_raw": "KfW_Fokus-Nr_-245-Maerz-2019-Green-Bonds.pdf",
+      "source_key": "kfwfokusnr245maerz2019greenbonds",
+      "evidence": [
+        "baker"
+      ],
+      "key_facts": [
+        "about 6 basis points on average",
+        "about 26 basis points with external certification"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "I don't see this covered in your course materials.\n\nThe provided text does not mention Baker et al. (2018), their findings on interest advantages for US municipal green bonds, or the specific impact of external certification on yields. The materials only reference studies like Eisinger et al. (2017) and S&P (2018) regarding external reviews and investor challenges, but no explicit interest rate comparisons or certification effects.\n\nIf you are referring to a different source or study, please clarify, as I can only answer based on the provided materials.",
+        "right": "No",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 14,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wofür steht die Abkürzung VUCA?",
+      "expected": "Volatilität, Unsicherheit, Komplexität, Mehrdeutigkeit (Ambiguität).",
+      "source_raw": "Springer_Lieferketten_978-3-658-34337-8.pdf",
+      "source_key": "springerlieferketten9783658343378",
+      "evidence": [
+        "vuca"
+      ],
+      "key_facts": [
+        "volatility",
+        "uncertainty",
+        "complexity",
+        "ambiguity"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die Abkürzung VUCA steht für:\n\nVolatilität\nUnsicherheit\nComplexität (engl. für Komplexität)\nAmbiguität (Mehrdeutigkeit)\n\nDiese Begriffe beschreiben die Herausforderungen und Unsicherheiten in einer dynamischen und unvorhersehbaren Umwelt, insbesondere für Unternehmen und Lieferketten.\n\nQuelle:\nIndustrie, Innovation und Infrastruktur – Quelle: Springer_Lieferketten_978-3-658-34337-8.pdf.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 15,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Welche drei Perspektiven auf Netzwerke und Innovation stellt Häußling in seinem Beitrag vor?",
+      "expected": "1) sociological approaches: networks as a third form of coordination alongside markets and hierarchies; 2) Science and Technology Studies (heterogeneous/sociotechnical networks); 3) formal network analysis.",
+      "source_raw": "Häußling_InnovationNetzwerke...pdf",
+      "source_key": "hausslinginnovationnetzwerke",
+      "evidence": [
+        "markt",
+        "hierarchie"
+      ],
+      "key_facts": [
+        "sociological view: networks as a third coordination form beside market and hierarchy",
+        "Science and Technology Studies / socio-technical (heterogeneous) networks",
+        "formal network analysis"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut dem Beitrag von Häußling werden drei zentrale Perspektiven auf Netzwerke und Innovation vorgestellt:\n\nNetzwerke als Koordinationsmechanismus\nHier werden Netzwerke neben Markt und Hierarchie als eine dritte bedeutende Form der Koordination für Innovationen betrachtet.\n\nInnovationen als Prozesse des Netzwerkbildens\nInnovationen werden hier als dynamische Prozesse verstanden, die durch das Entstehen und Wandeln von Netzwerken geprägt sind.\n\nAnalyse von Innovationsphänomenen mittels formaler Netzwerkanalyse\nInnovationsdynamiken und sich bildende Strukturen werden mit Methoden der formalen Netzwerkanalyse untersucht, um Netzwerke und ihre Auswirkungen auf Innovationen zu erfassen.\n\nSource: Häußling_InnovationNetzwerke_978-3-658-17671-6_31-1.pdf, from Industrie, Innovation und Infrastruktur.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 16,
+      "chat": "Chat 2 — Course 11 \"Industrie, Innovation und Infrastruktur\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "An welcher Universität und an welchem Institut arbeitet der Autor des Beitrags „Innovation und Netzwerke“?",
+      "expected": "Häußling — Institut für Soziologie, RWTH Aachen University.",
+      "source_raw": "Häußling_InnovationNetzwerke...pdf",
+      "source_key": "hausslinginnovationnetzwerke",
+      "evidence": [
+        "institut f[üu]r soziologie"
+      ],
+      "key_facts": [
+        "Institute of Sociology (Institut für Soziologie)",
+        "RWTH Aachen University"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Der Autor des Beitrags \"Innovation und Netzwerke\" arbeitet am Institut für Soziologie der RWTH Aachen University in Aachen, Deutschland.\n\nSource: Häußling_InnovationNetzwerke_978-3-658-17671-6_31-1.pdf, from Industrie, Innovation und Infrastruktur.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 17,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wann und von wem wurde das PtX Lab Lausitz gegründet, und wo sitzt es?",
+      "expected": "In March 2021, by the organization ZUG gGmbH, Cottbus (based on the 2020 Coal Regions Structural Strengthening Act).",
+      "source_raw": "PtX_Lab_Lausitz__Factsheet.pdf",
+      "source_key": "ptxlablausitzfactsheet",
+      "evidence": [
+        "2021",
+        "gegr[üu]nd|gr[üu]ndung"
+      ],
+      "key_facts": [
+        "March 2021",
+        "founded by ZUG gGmbH",
+        "located in Cottbus"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Das PtX Lab Lausitz wurde im März 2021 von der Zukunft – Umwelt – Gesellschaft (ZUG) gGmbH gegründet.\n\nEs sitzt in Cottbus an der Calauer Straße 70.\n\nSource: PtX_Lab_Lausitz__Factsheet.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 18,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Welche PtL-Anlagen haben laut der Übersicht (Stand Juli 2023) die größte vorgesehene Kapazität?",
+      "expected": "Green Fuels Lausitz (Schwarze Pumpe) and Green MeOH (Stade) — 200,000 tonnes/year each.",
+      "source_raw": "PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf",
+      "source_key": "ptlanlagenindeutschlandstandjuli2023",
+      "evidence": [
+        "schwarze\\s+pumpe|green\\s+fuels"
+      ],
+      "key_facts": [
+        "Green Fuels Lausitz (Schwarze Pumpe)",
+        "Green MeOH (Stade)",
+        "200,000 t/year each"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut der Übersicht \"PtL-Anlagen in Deutschland (Stand Juli 2023)\" hat die Anlage von Shell Rheinland Raffinerie in Köln die größte vorgesehene Kapazität.\n\nDie Anlage soll 100.000 Tonnen Kerosin pro Jahr produzieren.\n\nQuelle:\nPtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf, aus PtX-Lab-Challenge.",
+        "right": "No",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 19,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Welche Kapazität hat die Anlage Solarbelt in Werlte, und seit wann ist sie in Betrieb?",
+      "expected": "360 t/year; from 2021 (Fischer–Tropsch, kerosene).",
+      "source_raw": "PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf",
+      "source_key": "ptlanlagenindeutschlandstandjuli2023",
+      "evidence": [
+        "werlte"
+      ],
+      "key_facts": [
+        "360 t/year",
+        "in operation since 2021"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die Solarbelt-Anlage in Werlte hat eine Kapazität von 360 Tonnen pro Jahr (t/a) und ist seit 2021 in Betrieb.\n\nSource: PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 20,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Für welche Anlage steht der finale Investitionsentscheid noch aus?",
+      "expected": "Shell Rheinland Refinery (Cologne), 100,000 t/y of kerosene, startup in 2025.",
+      "source_raw": "PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf",
+      "source_key": "ptlanlagenindeutschlandstandjuli2023",
+      "evidence": [
+        "investitionsentscheid"
+      ],
+      "key_facts": [
+        "Shell Rheinland Raffinerie (Cologne)"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut den Materialien steht der finale Investitionsentscheid für die Anlage \"Shell Rheinland Raffinerie\" (Kapazität: 100.000 t/a) noch aus.\n\nDie Inbetriebnahme ist für 2025 geplant, aber die genaue Produktionstechnologie ist nicht bekannt.\n\nSource: PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 21,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Welche zwei Standards unterscheidet die PtX-Nachhaltigkeitsstudie, und welche Dimensionen sind im ambitionierten Standard nicht enthalten?",
+      "expected": "\"Long-term\" (ambitious) and \"short-term\" (compromise with a quick route to market); economic and political dimensions are not included.",
+      "source_raw": "Studie_PtL_Nachhaltigkeitsstandard.pdf",
+      "source_key": "studieptlnachhaltigkeitsstandard",
+      "evidence": [
+        "[öo]konomisch|wirtschaftlich",
+        "politisch"
+      ],
+      "key_facts": [
+        "a long-term (ambitious) and a short-term standard",
+        "economic and political dimensions are not included"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die PtX-Nachhaltigkeitsstudie unterscheidet zwischen einem kurzfristigen Standard und einem langfristigen Standard (auch als \"Gold-Standard\" erwähnt).\n\nIm langfristigen Standard sind folgende zusätzliche Dimensionen enthalten, die im kurzfristigen Standard nicht berücksichtigt werden:\n\nVariablen Kriterien, die weitere positive Effekte eines PtL-Projekts beschreiben, wie z. B.:\nDer Anteil der Investition und Wertschöpfung in Low-Income Countries\nDer Anteil an qualifizierten Arbeitsplätzen mit Frauenbesetzung\nDie Anzahl an Trainings für die lokale Bevölkerung\nBeiträge zum Nutzen der lokalen Gemeinschaft (z. B. Infrastruktur, Bildung).\n\nDiese variablen Kriterien können z. B. durch eine Mindestpunktzahl integriert werden, die insgesamt erfüllt werden muss.\n\nSource: Studie_PtL_Nachhaltigkeitsstandard.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 22,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Cross-language",
+      "lang": "en",
+      "question": "Where does the PtL sustainability study recommend testing the proposed standard first?",
+      "expected": "For pilot certification—such as at the planned PtX Lab Lausitz demonstration facility—collaboration with atmosfair’s \"fairfuel\" standard is also worth considering.",
+      "source_raw": "Studie_PtL_Nachhaltigkeitsstandard.pdf",
+      "source_key": "studieptlnachhaltigkeitsstandard",
+      "evidence": [
+        "pilot"
+      ],
+      "key_facts": [
+        "first in a pilot certification"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "The study recommends starting with a pilot certification to test the proposed standard.\n\nIt suggests selecting a qualified certification body to implement the pilot certification and gather experience for further adjustments or improvements of the standard.\n\nSource: Studie_PtL_Nachhaltigkeitsstandard.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 23,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "en",
+      "question": "How does service learning differ from an internship according to Salam et al. (2019)?",
+      "expected": "Service learning focuses more on deepening the understanding of theory through community service and reflection, whereas an internship focuses on acquiring specific career skills; the primary beneficiary is the person providing the service.",
+      "source_raw": "Salam2019_ServiceLearningInHigherEducation.pdf",
+      "source_key": "salam2019servicelearninginhighereducation",
+      "evidence": [
+        "internship"
+      ],
+      "key_facts": [
+        "service learning: deepen understanding of theory through community service and reflection",
+        "internship: acquire specific career skills"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "According to Salam et al. (2019), service learning differs from an internship in several key ways:\n\nFocus and Purpose: Service learning emphasizes enhancing students' understanding of theoretical knowledge through practical community service and reflection on that experience. In contrast, internships primarily focus on acquiring specific career-oriented skills, with the main beneficiaries being the service providers (e.g., companies or organizations).\n\nReciprocity and Community Impact: Service learning is designed to create a reciprocal relationship where students contribute to the community while also gaining new knowledge and a sense of social responsibility. Internships, however, are typically one-sided, with the primary goal being skill development for the student and direct benefits for the employer.\n\nAcademic Integration: Service learning is often integrated into coursework and earns academic credit based on learning outcomes rather than just the hours spent serving. Internships, while they may offer academic credit in some cases, are generally more focused on professional experience and skill-building rather than academic reflection.\n\nSource: Salam2019_ServiceLearningInHigherEducation.pdf, from PtX-Lab-Challenge.",
+        "right": "Not sure",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 24,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "en",
+      "question": "Which four perspectives on service-learning does Butin distinguish?",
+      "expected": "Technical, cultural, political and antifoundational.",
+      "source_raw": "Butin2010_Service-LearninginTheoryandPractice_chapter1_3.pdf",
+      "source_key": "butin2010servicelearningintheoryandpracticechapter13",
+      "evidence": [
+        "antifoundational"
+      ],
+      "key_facts": [
+        "technical",
+        "cultural",
+        "political",
+        "antifoundational"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "According to the materials, Butin (2010) distinguishes four perspectives on service-learning:\n\nTechnical Perspective\nCultural Perspective\nPolitical Perspective\nAntifoundational Perspective\n\nThese perspectives help clarify the divergent goals and underlying assumptions of service-learning practices.\n\nSource: Butin2010_Service-LearninginTheoryandPractice_chapter1_3.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 25,
+      "chat": "Chat 3 — Course 12 \"PtX-Lab-Challenge\" (selected from the course list)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Factual",
+      "lang": "en",
+      "question": "How long does service learning in higher education typically last, according to Helicke (2014)?",
+      "expected": "At least half a semester; usually 10–40 hours.",
+      "source_raw": "Helicke2014_LearningAndPromotingUrbanSustainability.pdf",
+      "source_key": "helicke2014learningandpromotingurbansustainability",
+      "evidence": [
+        "10\\s*(?:-|–|to)\\s*40"
+      ],
+      "key_facts": [
+        "at least half a semester",
+        "about 10-40 hours"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "According to Helicke (2014), service learning in higher education typically lasts for at least half a semester, ranging from 10 to 40 hours of community engagement.\n\nThe duration is structured to align with academic goals and course requirements, ensuring that students can reflect on their experiences while earning academic credit for the learning gained—not just the service itself.\n\nSource: Helicke2014_LearningAndPromotingUrbanSustainability.pdf, from PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 26,
+      "chat": "Chat 4 — No course selection (global mode); user enrolled in 8, 11, 12.",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "Cross-language",
+      "lang": "en",
+      "question": "When and by whom was the first green bond issued?",
+      "expected": "In 2007, by the European Investment Bank (EIB).",
+      "source_raw": "KfW_Fokus-...Green-Bonds.pdf (course 11)",
+      "source_key": "kfwfokus",
+      "evidence": [
+        "2007",
+        "\\beib\\b|europ[äa]ische\\s+investitionsbank|european\\s+investment\\s+bank"
+      ],
+      "key_facts": [
+        "2007",
+        "European Investment Bank (EIB)"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "According to the course materials, the first Green Bond was issued in 2007 by the Europäische Investitionsbank (EIB).\n\nSource: KfW_Fokus-Nr.-245-Maerz-2019-Green-Bonds.pdf, from Industrie, Innovation und Infrastruktur.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 27,
+      "chat": "Chat 4 — No course selection (global mode); user enrolled in 8, 11, 12.",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Какова мощность установки Solarbelt в Werlte?",
+      "expected": "360 t/year (document in German).",
+      "source_raw": "PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf (course 12)",
+      "source_key": "ptlanlagenindeutschlandstandjuli2023",
+      "evidence": [
+        "werlte"
+      ],
+      "key_facts": [
+        "360 t/year"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Согласно предоставленным материалам, мощность установки Solarbelt в Werlte составляет 360 тонн в год (t/a).\n\nSource: PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf, от PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 28,
+      "chat": "Chat 4 — No course selection (global mode); user enrolled in 8, 11, 12.",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Как Europe Engage определяет service-learning?",
+      "expected": "An innovative pedagogical approach that integrates meaningful community service into the curriculum; students earn academic credit for learning through participation and work on a real-world problem; the model is grounded in reflection and experiential learning, linking service to the academic discipline.",
+      "source_raw": "EASLHE2020_Practicalguideone-Service-Learning.pdf (course 12)",
+      "source_key": "easlhe2020practicalguideoneservicelearning",
+      "evidence": [
+        "europe\\s+engage"
+      ],
+      "key_facts": [
+        "pedagogical approach integrating community service into the curriculum",
+        "students earn academic credit for the learning",
+        "based on reflection / experiential learning"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Materiaalides ei ole Europe Engage'i defineerimist service-learningist.\n\nKui soovite täpsemat andmeid, võiksid vaadata teisi allikaid, näiteks:\n\n\"Developing a Culture of Civic Engagement through Service-Learning within Higher Education in Europe\" (Europe Engage, 2017) on kasutusel, kuid see dokument ei sisalda otset defineerimist.\nKui teie küsimus puudutab Europe Engage'i rolli või mõju, siis see dokument räägib selle mõju kohta kõrgkoolis, kuid ei andke kindlat defineerimist.\n\nKui soovite, et ma vaataksin teisi materjale, et leida vastust, palun kinnita, kas teie küsimus puudutab mõiste defineerimist või mõne teise aspekti.",
+        "right": "Not sure",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 29,
+      "chat": "Chat 4 — No course selection (global mode); user enrolled in 8, 11, 12.",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "Cross-language",
+      "lang": "de",
+      "question": "Wer hat das Buch „Learning to Serve: Promoting Civil Society Through Service Learning“ herausgegeben?",
+      "expected": "Maureen E. Kenny (together with Lou Anna K. Simon, Karen Kiley-Brabeck and others).",
+      "source_raw": "Kenny2002_LearningtoServe.pdf (course 12)",
+      "source_key": "kenny2002learningtoserve",
+      "evidence": [
+        "learning\\s+to\\s+serve"
+      ],
+      "key_facts": [
+        "Maureen E. Kenny"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Das Buch \"Learning to Serve: Promoting Civil Society Through Service Learning\" wurde von James E. Kenny herausgegeben.\n\nSource: Kenny2002_LearningtoServe.pdf, from PtX-Lab-Challenge.",
+        "right": "Not sure",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 30,
+      "chat": "Chat 4 — No course selection (global mode); user enrolled in 8, 11, 12.",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "Factual",
+      "lang": "de",
+      "question": "Wie viele Mitarbeiter*innen waren Ende 2022 im PtX Lab Lausitz im Einsatz?",
+      "expected": "About 20.",
+      "source_raw": "PtX_Lab_Lausitz__Factsheet.pdf (course 12)",
+      "source_key": "ptxlablausitzfactsheet",
+      "evidence": [
+        "mitarbeiter",
+        "\\b20\\b"
+      ],
+      "key_facts": [
+        "about 20 employees"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Laut den Materialien waren Ende 2022 etwa 20 Mitarbeiter*innen im PtX Lab Lausitz in Cottbus im Einsatz.\n\nSource: PtX_Lab_Lausitz__Factsheet.pdf, von PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 31,
+      "chat": "Chat 4 — No course selection (global mode); user enrolled in 8, 11, 12.",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "Cross-language",
+      "lang": "en",
+      "question": "What are the three basic principles of vocational education in Germany according to the Forum Berufliche Bildung position paper?",
+      "expected": "Dual principle, occupational principle (Berufsprinzip), consensus principle (Konsensprinzip).",
+      "source_raw": "positionspapier-forum-bb-handlungsorientierung.pdf (course 8)",
+      "source_key": "positionspapierforumbbhandlungsorientierung",
+      "evidence": [
+        "konsensprinzip"
+      ],
+      "key_facts": [
+        "dual principle",
+        "occupational principle (Berufsprinzip)",
+        "consensus principle (Konsensprinzip)"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "According to the provided materials from the Didaktische Zugänglichkeit course, the Forum Berufliche Bildung position paper outlines three key principles of vocational education in Germany:\n\nDuales Prinzip (Dual System):\nVocational education occurs through coordinated, handlungsorientierte (action-oriented) learning processes at two locations: the training company (Ausbildungsbetrieb) and the vocational school (Berufsschule). Learning takes place both theory-based and experience-based at both sites.\n\nBerufsprinzip (Professional Principle):\nWork is primarily organized within the framework of professions. This means vocational education is structured around professional roles and tasks, ensuring practical relevance.\n\nNote: The third principle is not explicitly named in the provided excerpt, but the dual system and the professional principle are the two core principles mentioned. The text also highlights that vocational education integrates education and employment systems, linking learning directly to sustainable professional and societal practice.\n\nSource: positionspapier-forum-bb-handlungsorientierung.pdf, from Didaktische Zugänglichkeit.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 32,
+      "chat": "Chat 5 — No course selection (global mode), unanswered questions regarding the materials",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "No answer",
+      "lang": "de",
+      "question": "Wie hoch war der Umsatz von Ineratec im Jahr 2022?",
+      "expected": "It is not in the materials. There is only: 3,500 t/year, Industriepark Hoechst, launch in 2024. \"Yes\" = the bot honestly states that there is no data and does not make anything up.",
+      "source_raw": "—",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": null,
+      "manual": {
+        "answer": "Ich sehe diese Frage nicht in den bereitgestellten Kursmaterialien beantwortet. Es gibt keine Informationen zu Ineratec oder dessen Umsatz im Jahr 2022 in den vorliegenden Dokumenten.\n\nFalls Sie spezifische Daten zu Ineratec benötigen, könnte es sich lohnen, offizielle Unternehmensberichte, Finanzdatenbanken oder aktuelle Medienquellen zu konsultieren. Diese Informationen sind jedoch nicht Teil der hier verfügbaren Kursmaterialien.",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 33,
+      "chat": "Chat 5 — No course selection (global mode), unanswered questions regarding the materials",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "No answer",
+      "lang": "de",
+      "question": "Was sagen die Kursmaterialien über die PISA-Ergebnisse 2022?",
+      "expected": "The materials contain no information about PISA 2022. Only PISA 2012 is mentioned (Course 8). \"Yes\" = the bot does not attribute 2022 data to the materials.",
+      "source_raw": "—",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": null,
+      "manual": {
+        "answer": "Die bereitgestellten Kursmaterialien enthalten keine Informationen zu den PISA-Ergebnissen 2022. Die genannten Dokumente befassen sich mit Themen wie Bildung für nachhaltige Entwicklung (BNE), didaktischen Ansätzen, globalem Lernen oder UNESCO-Berichten zur Bildung für nachhaltige Entwicklung, aber nicht mit aktuellen PISA-Studien oder deren Ergebnissen.\n\nFalls Sie spezifische PISA-Ergebnisse benötigen, müssten Sie offizielle Quellen wie die OECD-Website oder aktuelle Medienberichte zu PISA 2022 konsultieren. Diese sind hier nicht enthalten.",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 34,
+      "chat": "Chat 5 — No course selection (global mode), unanswered questions regarding the materials",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "No answer",
+      "lang": "en",
+      "question": "What is the current price per liter of e-kerosene?",
+      "expected": "Not in the documents. \"Yes\" = refusal/indication that the price is not in the documents.",
+      "source_raw": "—",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": null,
+      "manual": {
+        "answer": "I don't see the current price per liter of e-kerosene covered in the provided course materials. The documents focus on PtL (Power-to-Liquid) production, sustainability standards, energy consumption, and specific projects in Germany, but they do not include pricing information for e-kerosene.\n\nIf you need current market prices, you would need to refer to external sources such as industry reports, financial news, or specialized databases on sustainable aviation fuels. This information is not available in the materials provided.",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 35,
+      "chat": "Chat 5 — No course selection (global mode), unanswered questions regarding the materials",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "No answer",
+      "lang": "de",
+      "question": "Wie viele Green Bonds hat die Stadt Aachen emittiert?",
+      "expected": "It is not in the materials (Aachen is not mentioned in the KfW document). \"Yes\" = the bot is not making it up.",
+      "source_raw": "—",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": null,
+      "manual": {
+        "answer": "Ich sehe in den bereitgestellten Kursmaterialien keine Informationen dazu, ob oder wie viele Green Bonds die Stadt Aachen emittiert hat.\n\nDie Dokumente behandeln zwar Green Bonds im Allgemeinen und nennen Beispiele wie Göteborg, Ile-de-France oder Östersund, aber keine konkreten Emissionen deutscher Städte wie Aachen. Falls die Stadt Aachen tatsächlich Green Bonds herausgegeben hat, wäre dies nicht in den vorliegenden Unterlagen dokumentiert.\n\nFalls Sie aktuelle oder spezifische Daten benötigen, könnten Sie offizielle Quellen der Stadt Aachen oder Finanzmeldungen zu kommunalen Anleihen prüfen.",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 36,
+      "chat": "Chat 5 — No course selection (global mode), unanswered questions regarding the materials",
+      "scope": {
+        "mode": "global",
+        "course_ids": [
+          8,
+          11,
+          12
+        ]
+      },
+      "group": "No answer",
+      "lang": "de",
+      "question": "Welche Kapazität hat die Anlage Solarbelt in Hamburg?",
+      "expected": "False premise: Solarbelt is in Werlte (360 t/year), NextGate is in Hamburg (200 t/year). \"Yes\" = the bot corrects the premise.",
+      "source_raw": "PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf",
+      "source_key": "ptlanlagenindeutschlandstandjuli2023",
+      "evidence": [
+        "werlte|nextgate"
+      ],
+      "key_facts": [],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": "Die bereitgestellten Kursmaterialien nennen die Anlage Solarbelt, aber nicht in Hamburg.\n\nLaut den Dokumenten befindet sich die Solarbelt-Anlage in Werlte mit einer Kapazität von 360 Tonnen pro Jahr (t/a).\n\nEine Anlage namens NextGate mit einer Kapazität von 200 t/a wird jedoch in Hamburg erwähnt, aber nicht als Solarbelt.\n\nFalls Sie spezifisch nach Solarbelt in Hamburg fragen, ist diese Information in den Kursmaterialien nicht enthalten. Die genannten Daten beziehen sich auf andere Standorte.\n\nQuelle: PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf, aus dem Kurs PtX-Lab-Challenge.",
+        "right": "Yes",
+        "source_ok": "Yes"
+      }
+    },
+    {
+      "id": 37,
+      "chat": "Chat 6 — second test user WITHOUT enrollment in courses 8, 11, 12",
+      "scope": {
+        "mode": "unenrolled"
+      },
+      "group": "Access/Scope",
+      "lang": "de",
+      "question": "Welche Kapazität hat die Anlage Solarbelt in Werlte?",
+      "expected": "The bot must NOT output the content of Course 12 (no entry). \"Yes\" = no answer from the course materials.",
+      "source_raw": "(course 12)",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": "no_context",
+      "manual": {
+        "answer": "Die Solarbelt-Anlage in Werlte (Niedersachsen, Deutschland) ist eine große Solarpark-Projektentwicklung der Firma Solarbelt, die sich auf den Bau und Betrieb von Solarparks spezialisiert hat. Allerdings gibt es keine öffentlich zugänglichen, aktuellen Daten zur genauen Kapazität der Anlage in Werlte selbst – die genauen Angaben variieren je nach Projektphase oder veröffentlichten Unterlagen.\n\nWas ist bekannt?\n\nSolarbelt als Projektentwickler:\nSolarbelt plant und baut Solarparks in Deutschland und Europa. Ein bekanntes Projekt in Werlte (Teil des „Solarpark Werlte“) hatte ursprünglich eine Nennleistung von etwa 100 MWp (Megawatt Peak) geplant, aber die genaue Kapazität kann sich ändern.\n\nAktueller Status (Stand 2024):\n\nDie Anlage ist teilweise in Betrieb, aber nicht alle Module sind möglicherweise fertiggestellt.\nÄhnliche Projekte von Solarbelt in anderen Regionen (z. B. Solarpark „Borkum“) erreichen Kapazitäten von 50–150 MWp.\nOffizielle Quellen wie die Niedersächsische Landesregierung oder Solarbelt selbst müssten für präzise Daten kontaktiert werden.\n\nVergleich mit anderen Solarparks in der Region:\n\nDer „Solarpark Emsland“ (nahe Werlte) hat z. B. eine Kapazität von über 100 MWp.\nWerlte liegt in einer Region mit hohem Solarpotenzial (viel Sonne, große Flächen), daher sind 100–150 MWp realistisch.\nWie kann man die genaue Kapazität herausfinden?\n\nFalls du die exakte Leistung brauchst, könntest du folgende Quellen prüfen:\n✅ Offizielle Website von Solarbelt (www.solarbelt.com) – dort werden oft aktuelle Projekte aufgelistet.\n✅ Niedersächsisches Ministerium für Umwelt (um.niedersachsen.de) – es gibt Register für erneuerbare Energien.\n✅ Google Maps/Earth – manchmal sind große Solarparks auf Satellitenbildern sichtbar (Fläche × Modulleistung pro m² ≈ Kapazität).\n✅ Lokale Presse (z. B. Niedersächsische Neue Presse) – oft werden solche Projekte vor Inbetriebnahme angekündigt.\n\nWarum ist die Kapazität wichtig?\nStromerzeugung: 1 MWp erzeugt bei guter Sonne ca. 1–1,2 Mio. kWh/Jahr (ausreichend für ~300 Haushalte).\nSDG-Bezug (Ziel 7: Bezahlbare & saubere Energie):\nSolarparks wie dieser tragen zur Dekarbonisierung bei und reduzieren CO₂-Emissionen (ca. 100–150 t CO₂/Jahr pro MWp weniger).\nFrage an dich:\n\nBrauchst du die Kapazität für eine Schulaufgabe, eine Analyse oder eine andere Verwendung? Dann könnte ich dir helfen, die Daten genauer zu recherchieren oder Alternativen aufzuzeigen! 😊\n\n(Hinweis: Falls du auf spezifische Daten aus dem SDG Campus angewiesen bist, könnte es sein, dass diese in einem Kursmaterial versteckt sind – dann wäre ein Blick in die Kursinhalte sinnvoll.)",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 38,
+      "chat": "Chat 6 — second test user WITHOUT enrollment in courses 8, 11, 12",
+      "scope": {
+        "mode": "unenrolled"
+      },
+      "group": "Access/Scope",
+      "lang": "de",
+      "question": "Wie hoch ist der kommunale Investitionsrückstand laut KfW-Kommunalpanel 2018?",
+      "expected": "The bot must NOT provide the content of Course 11.",
+      "source_raw": "(course 11)",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": "no_context",
+      "manual": {
+        "answer": "Laut dem KfW-Kommunalpanel 2018 (eine repräsentative Umfrage der Kreditanstalt für Wiederaufbau (KfW) zu den Finanzsituationen und Investitionsbedarfen deutscher Kommunen) gab es einen deutlichen kommunalen Investitionsrückstand.\n\nWichtige Ergebnisse zum Investitionsrückstand (2018):\n\nGesamtinvestitionsrückstand:\n\nDie Kommunen schätzten ihren gesamten Investitionsbedarf (inkl. bereits geplanter Projekte) auf rund 130 Milliarden Euro.\nDavon waren ca. 60–70 Milliarden Euro (also etwa 46–54 %) nicht oder nur unzureichend finanziert – das entspricht einem Rückstand von etwa 60–70 Mrd. Euro.\n\nPriorisierte Bereiche mit Rückstand:\n\nVerkehrsinfrastruktur (Straßen, Brücken, ÖPNV) hatte den größten Rückstand.\nWasser- und Abwasserwirtschaft sowie Schulen und Kitas waren ebenfalls stark betroffen.\nKlimaschutz und Energie (z. B. Wärmeversorgung, erneuerbare Energien) wurden zwar als wichtig eingestuft, aber oft weniger priorisiert.\n\nUrsachen:\n\nFinanzierungsengpässe durch sinkende kommunale Steuereinnahmen.\nStrukturelle Unterfinanzierung durch Bundes- und Landesregierungen.\nKomplexe Planungs- und Genehmigungsverfahren, die Investitionen verzögern.\nZusammenfassung der Kernzahlen (2018):\nKategorie\tInvestitionsbedarf (gesamt)\tRückstand (nicht gedeckt)\nGesamt\t~130 Mrd. €\t~60–70 Mrd. €\nVerkehr\t~30 Mrd. €\tHoher Rückstand\nWasser/Abwasser\t~20 Mrd. €\tTeilweise nicht finanziert\nSchulen/Kitas\t~15 Mrd. €\tRückstand, aber langsame Umsetzung\nKlimaschutz/Energie\t~10 Mrd. €\tGeringere Priorität im Vergleich\nBezug zu den SDGs (Sustainable Development Goals):\n\nDer Investitionsrückstand betrifft vor allem Ziele wie:\n\nSDG 9 (Industrie, Innovation & Infrastruktur): Ausgefallene Straßen, Brücken oder digitale Infrastruktur behindern wirtschaftliche Entwicklung.\nSDG 11 (Nachhaltige Städte und Gemeinden): Fehlende Investitionen in ÖPNV oder Wohnraum verschärfen soziale Ungleichheit.\nSDG 13 (Maßnahmen zum Klimaschutz): Verzögerte Sanierungen von Gebäuden oder Energieprojekte bremsen die Energiewende.\nSDG 4 (Bildung): Marode Schulen beeinträchtigen die Qualität der Bildung (SDG 4.1).\nAktuelle Entwicklung (nach 2018):\nSeit 2018 hat sich die Situation nicht dramatisch verbessert, da viele Kommunen weiterhin unter Finanzierungslücken leiden.\nDie Corona-Pandemie (2020–2022) verschärfte die Probleme zusätzlich, da Investitionen gestrichen oder verschoben wurden.\nNeue Förderprogramme (z. B. vom Bund für Klimaschutz oder Digitalisierung) helfen teilweise, aber der Rückstand bleibt ein strukturelles Problem.\nFrage an dich:\n\nBrauchst du diese Daten für eine Analyse, eine Hausarbeit oder eine Präsentation? Falls ja, könnte ich dir helfen, den Kontext noch weiter auszubauen – z. B. mit:\n\nLösungsansätzen (wie Kommunen den Rückstand angehen, z. B. durch PPP-Modelle oder Bundesförderungen).\nVergleich mit späteren KfW-Panels (z. B. 2020 oder 2023).\nBeispielen aus einer bestimmten Kommune (falls du eine Region im Blick hast).\n\nOder hast du eine spezifischere Frage dazu? 😊",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 39,
+      "chat": "Chat 6 — second test user WITHOUT enrollment in courses 8, 11, 12",
+      "scope": {
+        "mode": "unenrolled"
+      },
+      "group": "Access/Scope",
+      "lang": "en",
+      "question": "Which four perspectives on service-learning does Butin distinguish?",
+      "expected": "The bot must NOT provide or quote the content of Course 12 (an answer based on general knowledge, without referencing the course document, is permissible).",
+      "source_raw": "(course 12)",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": "no_context",
+      "manual": {
+        "answer": "In his work on service-learning, David Butin (a prominent scholar in the field) distinguishes four key perspectives that shape how service-learning is understood, implemented, and evaluated. These perspectives are outlined in his book \"Service-Learning: Concepts and Practices\" (2003) and other writings. Here are the four perspectives, explained simply with examples:\n\n1. The Service Perspective\n\nFocus: The direct impact of service on communities and the learning that happens through doing service.\nKey Idea: Service-learning is primarily about solving real-world problems while students gain practical experience.\nExample:\n\nA group of students helps rebuild a community garden after a storm. They learn about teamwork, environmental sustainability, and the needs of local residents—while contributing to the community.\nSDG Connection: Aligns with SDG 11 (Sustainable Cities and Communities) or SDG 15 (Life on Land) by addressing tangible community needs.\n\nCritique:\n\nRisk of tokenism (superficial or poorly planned service) if not integrated with learning goals.\n2. The Learning Perspective\n\nFocus: The educational value of service-learning for students, emphasizing critical reflection and academic connections.\nKey Idea: Service-learning is a pedagogical method designed to deepen student learning by linking classroom content to real-world application.\nExample:\n\nA history class researches local civil rights movements and then interviews elderly community members who were part of the movement. The project reinforces historical concepts while fostering empathy and research skills.\nSDG Connection: Supports SDG 4 (Quality Education) by making learning relevant, experiential, and community-engaged.\n\nCritique:\n\nCan become academicized if the \"service\" part is secondary to the learning objectives.\n3. The Civic Perspective\n\nFocus: The development of civic responsibility and social justice in students, emphasizing democratic engagement and community partnerships.\nKey Idea: Service-learning is a way to cultivate active citizenship, helping students understand systemic issues (e.g., inequality, environmental justice) and their role in addressing them.\nExample:\n\nStudents advocate for affordable housing in their city by conducting surveys, organizing town halls, and proposing policy changes to local officials. They learn about civic action, power dynamics, and community organizing.\nSDG Connection: Links to SDG 16 (Peace, Justice, and Strong Institutions) and SDG 10 (Reduced Inequalities) by fostering social awareness and action.\n\nCritique:\n\nRisk of idealism without action if students don’t feel empowered to effect real change.\n4. The Institutional Perspective\n\nFocus: The structural and organizational dimensions of service-learning, including how it is scaled, funded, and institutionalized within schools, universities, or communities.\nKey Idea: Service-learning requires systemic support—such as policies, faculty training, community partnerships, and funding—to be sustainable and effective.\nExample:\n\nA university creates a dedicated service-learning office that coordinates projects, provides training for faculty, and ensures students earn academic credit for their service hours. This institutional structure ensures consistency and quality across programs.\nSDG Connection: Aligns with SDG 17 (Partnerships for the Goals), as it requires collaboration between educators, policymakers, and community organizations.\n\nCritique:\n\nWithout institutional buy-in, service-learning can be disconnected or inconsistent.\nHow These Perspectives Interconnect\n\nButin argues that effective service-learning integrates all four perspectives:\n\nService provides the real-world context.\nLearning ensures academic rigor.\nCivic engagement fosters social responsibility.\nInstitutional support guarantees sustainability.\n\nExample of Integration:\nA university course on urban sustainability (SDG 11) pairs students with a local nonprofit to:\n\nService: Help the nonprofit organize a community clean-up.\nLearning: Research urban waste management in class and present findings to the nonprofit.\nCivic: Lead a town hall discussion on plastic pollution with city officials.\nInstitutional: The university offers credit for the project and funds transportation for students.\nWhy This Matters for SDGs\n\nButin’s four perspectives help align service-learning with the SDGs by:\n\nSDG 4 & 17: Making education community-engaged and collaborative.\nSDG 5, 10, 16: Addressing social justice and inequality through civic action.\nSDG 11, 13, 15: Tackling environmental and urban challenges hands-on.\nFollow-Up Questions for Clarity\nAre you focusing on service-learning in schools, universities, or another context? (The application of these perspectives can vary slightly by setting.)\nDo you need examples from a specific SDG (e.g., how the civic perspective might support SDG 13 on climate action)?\nWould you like to explore how to balance these perspectives in a project design?",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 40,
+      "chat": "Chat 6 — second test user WITHOUT enrollment in courses 8, 11, 12",
+      "scope": {
+        "mode": "unenrolled"
+      },
+      "group": "Access/Scope",
+      "lang": "de",
+      "question": "Wie lang sollte eine gute Dilemma-Geschichte für eine Dilemma-Diskussion ungefähr sein?",
+      "expected": "The bot must NOT provide or quote the content of Course 8 (an answer based on general knowledge, without referencing the course document, is permissible).",
+      "source_raw": "(course 8)",
+      "source_key": null,
+      "evidence": [],
+      "key_facts": [],
+      "retrieval_check": "no_context",
+      "manual": {
+        "answer": "Eine gute Dilemma-Geschichte für eine Dilemma-Diskussion sollte kurz, prägnant und emotional ansprechend sein, aber gleichzeitig genug Konflikt, Ambivalenz und Relevanz enthalten, um eine tiefgehende Diskussion anzuregen. Hier sind die wichtigsten Empfehlungen zur Länge und Struktur, basierend auf pädagogischen Erfahrungen und Best Practices:\n\n1. Optimale Länge: 1–3 Seiten (ca. 300–800 Wörter)\n\nKurzform (1 Seite, ~300–500 Wörter):\nIdeal für schnelle Diskussionen (z. B. in Schulstunden, Workshops oder kurzen Seminaren).\nBeispiel: Die Geschichte \"Der Arzt und die zwei Patienten\" (klassisches Dilemma mit begrenztem Sauerstoff für zwei Schwerverletzte).\n→ Vorteil: Einfach zu vermitteln, hohe Konzentration auf das Kernproblem.\n\nMittelform (2–3 Seiten, ~500–800 Wörter):\nBesser für komplexere Themen (z. B. ethische, soziale oder ökologische Konflikte mit mehreren Perspektiven).\nBeispiel: Eine Geschichte über Klimaopfer vs. wirtschaftliche Interessen (z. B. \"Soll eine Stadt evakuiert werden, obwohl das teuer ist?\").\n→ Vorteil: Mehr Kontext ermöglicht eine tiefergehende Analyse der Hintergründe.\n\nLänge vermeiden:\n\nZu kurz (<200 Wörter): Risiko, dass das Dilemma nicht verständlich oder emotional wirksam ist.\nZu lang (>1 Seite ohne Struktur): Die Teilnehmer:innen verlieren den Fokus auf das zentrale Konfliktfeld.\n2. Wichtige Merkmale einer guten Dilemma-Geschichte\n\nDamit die Geschichte wirksam ist, sollte sie folgende Elemente enthalten:\n\nA. Ein klarer Konflikt (mit zwei oder mehr unakzeptablen Optionen)\nBeispiel: \"Ein Kind braucht dringend ein Organ, aber die Familie kann es sich nicht leisten. Soll das Gesundheitssystem die Kosten übernehmen – oder gibt es andere Patienten, die dringender Hilfe brauchen?\"\nSDG-Bezug: Z. B. SDG 3 (Gesundheit) vs. SDG 10 (Ungleichheit).\nB. Emotionale Ansprache (Identifikation mit Figuren oder Themen)\nTipp: Nutze konkrete Charaktere mit Namen, Alltagssituationen oder persönlichen Motiven.\nBeispiel: \"Anna, eine alleinerziehende Mutter, muss entscheiden: Soll sie ihr Kind in eine teure Nachhilfe schicken – oder selbst eine Ausbildung machen, um später genug Geld zu verdienen?\"\n→ SDG 1 (Keine Armut) vs. SDG 4 (Bildung).\nC. Relevanz für die Zielgruppe\nSchüler:innen: Alltagsnahe Themen wie Mobbing, Umweltverschmutzung oder soziale Medien.\nErwachsene/Studierende: Komplexere Themen wie Künstliche Intelligenz, Klimapolitik oder globale Gerechtigkeit.\nBeispiel für SDG 13 (Klimaschutz):\n\"Ein Unternehmen weiß, dass sein Produkt die Umwelt stark belastet. Soll es die Produktion stoppen – und damit Arbeitsplätze riskieren – oder weiter produzieren und später in 'grüne' Technologie investieren?\"\nD. Offene Fragen ohne einfache Lösung\nFrage dich:\nGibt es keine perfekte Lösung?\nWerden verschiedene Werte (z. B. Gerechtigkeit vs. Effizienz) aufeinanderprallen?\nSDG-Beispiel: \"Soll ein Land seine CO₂-Emissionen stark reduzieren – und damit die Wirtschaft schwächen – oder weiter wachsen und später 'entschädigen'?\" (SDG 13 vs. SDG 8).\n3. Praktische Tipps für die Umsetzung\nFür Lehrende/Trainer:innen:\nVorab-Test: Probiere die Geschichte vorab mit einer kleinen Gruppe aus, um sicherzustellen, dass sie verstanden und emotional berührt wird.\nStrukturierte Einführung:\nVorgeschichte kurz skizzieren (1–2 Sätze).\nDie zentrale Frage stellen (z. B.: \"Was würde Sie in dieser Situation tun?\").\nDiskussionsfragen vorbereiten (z. B.:\n\"Welche Werte spielen hier eine Rolle?\"\n\"Wer trifft eigentlich die Entscheidung – und warum?\"\n\"Wie würde sich die Lösung auf die SDGs auswirken?\").\nZeitmanagement:\n10–15 Minuten für das Vorlesen/Hören + 20–30 Minuten für die Diskussion.\nFür SDG-bezogene Dilemmas:\nKombiniere globale mit lokalen Bezügen, um die Relevanz zu erhöhen.\nBeispiel (SDG 16 – Frieden & Gerechtigkeit):\n\"In einem Dorf gibt es zwei Gruppen: Eine will ein neues Stadion bauen, die andere fordert stattdessen Schulen. Der Bürgermeister muss sich entscheiden – aber beide Gruppen drohen mit Protesten. Wie reagieren?\"\n4. Beispiele für Dilemma-Geschichten nach Länge\nLänge\tBeispiel-Thema\tSDG-Bezug\tZielgruppe\nKurz (1 Seite)\t\"Der letzte Bus: Soll man eine ältere Person oder ein Kind mitnehmen?\"\tSDG 10 (Ungleichheit)\tSchüler:innen (10–14 J.)\nMittel (2 Seiten)\t\"Soll ein Land seine Grenzen für Klimaflüchtlinge öffnen – obwohl das die Wirtschaft belastet?\"\tSDG 13 & SDG 10\tStudierende/Erwachsene\nKomplex (3 Seiten)\t\"Eine Stadt muss entscheiden: Soll sie ein neues Krankenhaus bauen – oder eine U-Bahnlinie, die Arbeitsplätze schafft?\"\tSDG 3 & SDG 8\tFortgeschrittene Diskussion\n5. Häufige Fehler vermeiden\n❌ Zu abstrakt: Vermeide zu allgemeine Themen wie \"Was ist gut und böse?\" – lieber konkrete Situationen.\n❌ Einseitige Lösungen: Keine Geschichte sollte nur eine \"richtige\" Antwort haben (sonst wird es keine Diskussion).\n❌ Überladung mit Details: Bleibe beim Kernkonflikt – alles andere lenkt ab.\nFrage an dich:\nFür welchen Kontext brauchst du die Dilemma-Geschichte? (Schule, Uni, Workshop, SDG-Kurs?)\nSoll das Dilemma ein bestimmtes SDG besonders betonen (z. B. SDG 14 – Leben unter Wasser)?\nMöchtest du ein Beispiel für ein konkretes Thema (z. B. KI-Ethik, Artensterben, digitale Spaltung)?\n\nIch kann dir gerne passende Dilemma-Geschichten ausarbeiten oder dir helfen, eine eigene zu strukturieren! 😊",
+        "right": "Yes",
+        "source_ok": "—"
+      }
+    },
+    {
+      "id": 41,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Для какого размера группы и какой продолжительности рассчитан метод World Café?",
+      "expected": "Max. 30 people; 45–90 minutes.",
+      "source_raw": "Methodenmuster-World-Cafe.pdf",
+      "source_key": "methodenmusterworldcafe",
+      "evidence": [
+        "45\\s*(?:-|–|bis)\\s*90"
+      ],
+      "key_facts": [
+        "at most 30 people",
+        "45-90 minutes"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 2
+    },
+    {
+      "id": 42,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "Для якого розміру групи та якої тривалості розрахований метод World Café?",
+      "expected": "Max. 30 people; 45–90 minutes.",
+      "source_raw": "Methodenmuster-World-Cafe.pdf",
+      "source_key": "methodenmusterworldcafe",
+      "evidence": [
+        "45\\s*(?:-|–|bis)\\s*90"
+      ],
+      "key_facts": [
+        "at most 30 people",
+        "45-90 minutes"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 2
+    },
+    {
+      "id": 43,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "С какого момента стандартная позиция профессионального обучения «Охрана окружающей среды» дополнена аспектом «Устойчивое развитие»?",
+      "expected": "From August 1, 2021.",
+      "source_raw": "positionspapier-forum-bb-handlungsorientierung.pdf",
+      "source_key": "positionspapierforumbbhandlungsorientierung",
+      "evidence": [
+        "august\\s+2021|1\\.\\s*8\\.\\s*2021|01\\.08\\.2021"
+      ],
+      "key_facts": [
+        "1 August 2021"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 4
+    },
+    {
+      "id": 44,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "З якого часу стандартну позицію професійного навчання «Охорона довкілля» доповнено аспектом «Сталий розвиток»?",
+      "expected": "From August 1, 2021.",
+      "source_raw": "positionspapier-forum-bb-handlungsorientierung.pdf",
+      "source_key": "positionspapierforumbbhandlungsorientierung",
+      "evidence": [
+        "august\\s+2021|1\\.\\s*8\\.\\s*2021|01\\.08\\.2021"
+      ],
+      "key_facts": [
+        "1 August 2021"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 4
+    },
+    {
+      "id": 45,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Сколько минут в день 14–19-летние пользуются интернетом согласно онлайн-исследованию ARD/ZDF 2013 года?",
+      "expected": "218 minutes a day.",
+      "source_raw": "5547_Schulische_Rahmenbedingungen.pdf",
+      "source_key": "schulischerahmenbedingungen",
+      "evidence": [
+        "\\b218\\b"
+      ],
+      "key_facts": [
+        "218 minutes a day"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 6
+    },
+    {
+      "id": 46,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 8
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "Скільки хвилин на день 14–19-річні користуються інтернетом за онлайн-дослідженням ARD/ZDF 2013 року?",
+      "expected": "218 minutes a day.",
+      "source_raw": "5547_Schulische_Rahmenbedingungen.pdf",
+      "source_key": "schulischerahmenbedingungen",
+      "evidence": [
+        "\\b218\\b"
+      ],
+      "key_facts": [
+        "218 minutes a day"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 6
+    },
+    {
+      "id": 47,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Каков объём отставания муниципальных инвестиций по данным KfW-Kommunalpanel 2018?",
+      "expected": "Approx. €159 billion.",
+      "source_raw": "KfW_Fokus-Nr_-245-Maerz-2019-Green-Bonds.pdf",
+      "source_key": "kfwfokusnr245maerz2019greenbonds",
+      "evidence": [
+        "\\b159\\b"
+      ],
+      "key_facts": [
+        "about 159 billion euros"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 10
+    },
+    {
+      "id": 48,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "Яким є обсяг відставання муніципальних інвестицій за даними KfW-Kommunalpanel 2018?",
+      "expected": "Approx. €159 billion.",
+      "source_raw": "KfW_Fokus-Nr_-245-Maerz-2019-Green-Bonds.pdf",
+      "source_key": "kfwfokusnr245maerz2019greenbonds",
+      "evidence": [
+        "\\b159\\b"
+      ],
+      "key_facts": [
+        "about 159 billion euros"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 10
+    },
+    {
+      "id": 49,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Что означает аббревиатура VUCA?",
+      "expected": "Volatilität, Unsicherheit, Komplexität, Mehrdeutigkeit (Ambiguität).",
+      "source_raw": "Springer_Lieferketten_978-3-658-34337-8.pdf",
+      "source_key": "springerlieferketten9783658343378",
+      "evidence": [
+        "vuca"
+      ],
+      "key_facts": [
+        "volatility",
+        "uncertainty",
+        "complexity",
+        "ambiguity"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 14
+    },
+    {
+      "id": 50,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 11
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "Що означає абревіатура VUCA?",
+      "expected": "Volatilität, Unsicherheit, Komplexität, Mehrdeutigkeit (Ambiguität).",
+      "source_raw": "Springer_Lieferketten_978-3-658-34337-8.pdf",
+      "source_key": "springerlieferketten9783658343378",
+      "evidence": [
+        "vuca"
+      ],
+      "key_facts": [
+        "volatility",
+        "uncertainty",
+        "complexity",
+        "ambiguity"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 14
+    },
+    {
+      "id": 51,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Когда и кем была основана PtX Lab Lausitz и где она находится?",
+      "expected": "In March 2021, by the organization ZUG gGmbH, Cottbus (based on the 2020 Coal Regions Structural Strengthening Act).",
+      "source_raw": "PtX_Lab_Lausitz__Factsheet.pdf",
+      "source_key": "ptxlablausitzfactsheet",
+      "evidence": [
+        "2021",
+        "gegr[üu]nd|gr[üu]ndung"
+      ],
+      "key_facts": [
+        "March 2021",
+        "founded by ZUG gGmbH",
+        "located in Cottbus"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 17
+    },
+    {
+      "id": 52,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "Коли і ким було засновано PtX Lab Lausitz і де вона розташована?",
+      "expected": "In March 2021, by the organization ZUG gGmbH, Cottbus (based on the 2020 Coal Regions Structural Strengthening Act).",
+      "source_raw": "PtX_Lab_Lausitz__Factsheet.pdf",
+      "source_key": "ptxlablausitzfactsheet",
+      "evidence": [
+        "2021",
+        "gegr[üu]nd|gr[üu]ndung"
+      ],
+      "key_facts": [
+        "March 2021",
+        "founded by ZUG gGmbH",
+        "located in Cottbus"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 17
+    },
+    {
+      "id": 53,
+      "chat": "Translated variants (ru)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Cross-language",
+      "lang": "ru",
+      "question": "Какие четыре перспективы на service-learning выделяет Butin?",
+      "expected": "Technical, cultural, political and antifoundational.",
+      "source_raw": "Butin2010_Service-LearninginTheoryandPractice_chapter1_3.pdf",
+      "source_key": "butin2010servicelearningintheoryandpracticechapter13",
+      "evidence": [
+        "antifoundational"
+      ],
+      "key_facts": [
+        "technical",
+        "cultural",
+        "political",
+        "antifoundational"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 24
+    },
+    {
+      "id": 54,
+      "chat": "Translated variants (uk)",
+      "scope": {
+        "mode": "course",
+        "course_id": 12
+      },
+      "group": "Cross-language",
+      "lang": "uk",
+      "question": "Які чотири перспективи на service-learning виокремлює Butin?",
+      "expected": "Technical, cultural, political and antifoundational.",
+      "source_raw": "Butin2010_Service-LearninginTheoryandPractice_chapter1_3.pdf",
+      "source_key": "butin2010servicelearningintheoryandpracticechapter13",
+      "evidence": [
+        "antifoundational"
+      ],
+      "key_facts": [
+        "technical",
+        "cultural",
+        "political",
+        "antifoundational"
+      ],
+      "retrieval_check": "hit",
+      "manual": {
+        "answer": null,
+        "right": null,
+        "source_ok": null
+      },
+      "base_id": 24
+    }
+  ]
+}

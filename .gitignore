@@ -24,3 +24,5 @@ deploy/certs/
 
 backups/
 .restore-empty-moodledata/
+
+api/eval/results/

@@ -1,3 +1,4 @@
+import re
 import time
 
 from langdetect import detect, DetectorFactory
@@ -30,6 +31,34 @@ def _has_non_latin_letters(text: str) -> bool:
     return any(ch.isalpha() and ord(ch) > 0x024F for ch in text)
 
 
+# Quoted titles/terms are usually in the language of the SOURCE, not of the
+# student: „Learning to Serve: Promoting Civil Society …“ made a German
+# question detect as "en".
+_QUOTED = re.compile(r"„[^“”\"]*[“”\"]|“[^”]*”|«[^»]*»|\"[^\"]*\"")
+
+_UKRAINIAN_ONLY = set("іїєґІЇЄҐ")
+_RUSSIAN_ONLY = set("ыэёъЫЭЁЪ")
+
+
+def _detect_cyrillic(words: list[str]) -> str:
+    """
+    Language of Cyrillic text. langdetect alone confuses short Russian with
+    Bulgarian ("Что означает аббревиатура VUCA?" -> "bg"), so letters that
+    exist in only one alphabet decide first.
+    """
+    joined = " ".join(words)
+    if any(ch in _UKRAINIAN_ONLY for ch in joined):
+        return "uk"
+    if any(ch in _RUSSIAN_ONLY for ch in joined):
+        return "ru"
+    try:
+        code = detect(joined)
+    except LangDetectException:
+        return "ru"
+    # bg/mk on text without their own letters is almost always Russian here.
+    return "ru" if code in {"bg", "mk"} else code
+
+
 def _detect_language_code(text: str) -> str | None:
     """
     ISO 639-1 code (e.g. "en", "de", "ru") of the given text, or None if
@@ -38,14 +67,30 @@ def _detect_language_code(text: str) -> str | None:
     with very high "confidence"). Callers then fall back to the language
     of earlier messages (_detect_conversation_language).
 
+    Two things the student did NOT write in their own language are ignored:
+    - quoted titles/terms („…“, "…", «…»);
+    - in a non-Latin-script question, the Latin-script words (English terms
+      such as "Europe Engage", "service-learning"): "Как Europe Engage
+      определяет service-learning?" used to come out as "et" (Estonian)
+      and the bot answered in Estonian.
+
     No name lookup here on purpose — passing the raw code to the LLM (see
     _language_directive_block) works for any of the ~55 languages
     langdetect supports, not just ones we've bothered to name.
     """
     text = (text or "").strip()
+    without_quotes = _QUOTED.sub(" ", text).strip()
+    if len(without_quotes) >= 3:
+        text = without_quotes
     if len(text) < 3:
         return None
-    if len(text) < _MIN_CHARS_FOR_RELIABLE_DETECTION and not _has_non_latin_letters(text):
+
+    if _has_non_latin_letters(text):
+        native = [w for w in re.findall(r"\w+", text) if _has_non_latin_letters(w)]
+        if native and any("\u0400" <= ch <= "\u04FF" for w in native for ch in w):
+            return _detect_cyrillic(native)
+        text = " ".join(native) or text
+    elif len(text) < _MIN_CHARS_FOR_RELIABLE_DETECTION:
         return None
     try:
         return detect(text)
@@ -61,10 +106,24 @@ _TITLE_SYSTEM_PROMPT = (
 
 
 class AIService:
-    def __init__(self, llm: BaseLLM, retriever: Retriever = None, translator: Translator = None):
+    def __init__(
+        self,
+        llm: BaseLLM,
+        retriever: Retriever = None,
+        translator: Translator = None,
+        retrieval_n_results: int = 12,
+    ):
+        """
+        translator: needed for _translate_for_retrieval (non-EN/DE questions
+            are translated to English before the vector search). Without it
+            that step is silently skipped.
+        retrieval_n_results: how many chunks are sent to the LLM as context.
+            A parameter (not hard-coded) so eval/run_eval.py can compare values.
+        """
         self.llm = llm
         self.retriever = retriever
         self.translator = translator
+        self.retrieval_n_results = retrieval_n_results
 
     async def generate_title(self, user_message: str, assistant_message: str) -> str:
         t0 = time.perf_counter()
@@ -87,13 +146,11 @@ class AIService:
         retrieval_query = self._build_retrieval_query(messages)
         last_user_message = self._get_last_user_message(messages)
 
-        retrieval_query_for_search = await self._translate_for_retrieval(retrieval_query)
-        last_message_for_search = await self._translate_for_retrieval(last_user_message)
-
         formatted = self._format(messages)
-        system_prompt = await self._build_system_prompt(
-            retrieval_query_for_search, collection_name, course_ids, course_link, course_links,
-            last_message=last_message_for_search,
+        system_prompt = await self._build_system_prompt_with_fallback(
+            retrieval_query, last_user_message,
+            collection_name=collection_name, course_ids=course_ids,
+            course_link=course_link, course_links=course_links,
         )
         language_code = self._detect_conversation_language(messages)
         system_prompt += self._language_directive_block(language_code)
@@ -119,13 +176,11 @@ class AIService:
         retrieval_query = self._build_retrieval_query(messages)
         last_user_message = self._get_last_user_message(messages)
 
-        retrieval_query_for_search = await self._translate_for_retrieval(retrieval_query)
-        last_message_for_search = await self._translate_for_retrieval(last_user_message)
-
         formatted = self._format(messages)
-        system_prompt = await self._build_system_prompt(
-            retrieval_query_for_search, collection_name, course_ids, course_link, course_links,
-            last_message=last_message_for_search,
+        system_prompt = await self._build_system_prompt_with_fallback(
+            retrieval_query, last_user_message,
+            collection_name=collection_name, course_ids=course_ids,
+            course_link=course_link, course_links=course_links,
         )
         language_code = self._detect_conversation_language(messages)
         system_prompt += self._language_directive_block(language_code)
@@ -150,6 +205,56 @@ class AIService:
             yield token
 
         print(f"[timing] LLM generation total: {(time.perf_counter() - t_retrieval) * 1000:.0f} ms")
+
+    async def _translate_search_texts(self, retrieval_query: str, last_user_message: str) -> tuple[str, str]:
+        """
+        Both search texts, translated if needed. On the first question of a
+        chat they are the same text, so it is translated only once (saves a
+        whole LLM round trip for e.g. Russian questions).
+        """
+        retrieval_query_for_search = await self._translate_for_retrieval(retrieval_query)
+        if last_user_message == retrieval_query:
+            return retrieval_query_for_search, retrieval_query_for_search
+        last_message_for_search = await self._translate_for_retrieval(last_user_message)
+        return retrieval_query_for_search, last_message_for_search
+
+    def _needs_translation(self, *texts: str) -> bool:
+        if not self.translator:
+            return False
+        for text in texts:
+            code = _detect_language_code(text or "")
+            if code is not None and code not in _RETRIEVAL_SAFE_LANGUAGES:
+                return True
+        return False
+
+    async def _build_system_prompt_with_fallback(
+        self, retrieval_query: str, last_user_message: str, **scope
+    ) -> str:
+        """
+        Search with the student's ORIGINAL text first — the embedding model
+        is multilingual and matches Russian/Ukrainian questions to the
+        German/English materials on its own (eval: 16/16 RU/UK questions
+        found the answer chunk with AND without translation). Only when that
+        finds nothing at all, translate the search text to English and
+        search again. Saves a Mistral round trip (~1-3 s) on every non-EN/DE
+        question, keeps the old rescue for the rare case it is needed.
+        """
+        prompt = await self._build_system_prompt(
+            retrieval_query, last_message=last_user_message, **scope
+        )
+        has_scope = bool(scope.get("collection_name") or scope.get("course_ids"))
+        if (
+            prompt is not NO_CONTEXT_PROMPT
+            or not has_scope  # not enrolled anywhere: nothing to search, nothing to translate for
+            or not self._needs_translation(last_user_message, retrieval_query)
+        ):
+            return prompt
+
+        query_en, last_en = await self._translate_search_texts(retrieval_query, last_user_message)
+        if (query_en, last_en) == (retrieval_query, last_user_message):
+            return prompt
+        print("[retrieval-translate] nothing found with the original text, retrying in English")
+        return await self._build_system_prompt(query_en, last_message=last_en, **scope)
 
     async def _translate_for_retrieval(self, text: str) -> str:
         """
@@ -293,7 +398,7 @@ class AIService:
                 last_message=last_message or query,
                 combined_query=query,
                 collection_name=collection_name,
-                n_results=12,
+                n_results=self.retrieval_n_results,
                 course_link=course_link,
             )
         elif course_ids:
@@ -301,7 +406,7 @@ class AIService:
                 last_message=last_message or query,
                 combined_query=query,
                 course_ids=course_ids,
-                n_results=12,
+                n_results=self.retrieval_n_results,
                 course_links=course_links,
             )
         else:

@@ -11,6 +11,10 @@ psycopg[binary]==3.3.6
 alembic==1.20.0
 chromadb==1.5.9
 sentence-transformers==5.5.1
+# transformers 5.x crashes intermittently on Windows while loading the
+# embedding model ("access violation" in torch/storage.py, exit code
+# -1073741819). The 4.x loader is stable; sentence-transformers 5.5.1 supports it.
+transformers>=4.41,<5
 numpy==2.4.6
 mistralai==2.1.2
 httpx==0.28.1

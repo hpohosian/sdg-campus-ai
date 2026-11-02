@@ -6,6 +6,11 @@ except ModuleNotFoundError:
     from settings import settings
 os.environ["HF_HOME"] = settings.HF_HOME
 os.environ["HF_HUB_DISABLE_XET"] = "1"
+# transformers 5.x loads model weights in a thread pool. On Windows this
+# intermittently crashes the whole process with "access violation"
+# (exit code -1073741819, inside torch/storage.py while copying tensors).
+# Load weights in the main thread instead: ~1 s slower, never crashes.
+os.environ.setdefault("HF_DEACTIVATE_ASYNC_LOAD", "1")
 
 from sentence_transformers import SentenceTransformer
 from .chunker import Chunk
