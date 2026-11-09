@@ -30,7 +30,8 @@ def _rate_limit_info(e: Exception) -> tuple[str, float | None]:
     """
     headers = getattr(e, "headers", None)
     if headers is None:
-        raw = getattr(e, "raw_response", None)
+        # mistralai: e.raw_response, openai (KI:connect): e.response
+        raw = getattr(e, "raw_response", None) or getattr(e, "response", None)
         headers = getattr(raw, "headers", None)
     if not headers:
         return "", None

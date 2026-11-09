@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 
 from llm.base import BaseLLM
-from llm.mistral import MistralLLM
+from llm.factory import create_llm
 from settings import Settings
 
 from db.connection import get_db, get_moodle_db
@@ -38,8 +38,8 @@ def get_llm() -> BaseLLM:
     Created ONCE per process. Building the Mistral client costs ~500 ms
     (HTTP clients + SSL context), so it must not happen per request.
     """
-    settings = get_settings()
-    return MistralLLM(api_key=settings.MISTRAL_API_KEY)
+    # Provider (Mistral / KI:connect) chosen by LLM_PROVIDER in .env.
+    return create_llm()
 
 
 @lru_cache
@@ -143,3 +143,4 @@ def get_message_service(
         translator,
         image_storage,
     )
+    

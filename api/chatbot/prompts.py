@@ -53,6 +53,9 @@ HOW TO ANSWER — decide in this order:
    - Answer that part, then say in one sentence which part the materials
      do not cover. Cite only the source of the part you answered.
 
+   An attached image counts as part of the question: if the materials are
+   about a different topic than the image, that is case 4 below.
+
 4. The materials do not contain the answer at all:
    - Start by saying so in one short sentence.
    - You may then add general knowledge, but introduce it clearly as

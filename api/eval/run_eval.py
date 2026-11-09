@@ -153,6 +153,32 @@ _NOT_COVERED = re.compile(
 )
 
 
+_NUM = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _numbers(text: str) -> set[str]:
+    """Numbers with 2+ digits, thousands separators removed ("1.061" -> "1061", "134,8" stays)."""
+    out = set()
+    for n in _NUM.findall(text or ""):
+        n = re.sub(r"(?<=\d)[.,](?=\d{3}\b)", "", n)
+        if sum(ch.isdigit() for ch in n) >= 2:
+            out.add(n.replace(",", "."))
+    return out
+
+
+def ungrounded_numbers(answer: str, question: str, chunks: list[dict]) -> list[str]:
+    """
+    Numbers in the answer that appear neither in the question nor in any
+    chunk sent to the LLM — i.e. invented ("134,8 Milliarden" with a real
+    course PDF as source). Links (pluginfile/course URLs) are ignored.
+    """
+    text = re.sub(r"\(https?://[^)]*\)|https?://\S+", " ", answer or "")
+    known = _numbers(question)
+    for c in chunks:
+        known |= _numbers(c.get("text", ""))
+    return sorted(n for n in _numbers(text) if n not in known)
+
+
 def opens_with_not_covered(answer: str) -> bool:
     return bool(_NOT_COVERED.search((answer or "")[:300]))
 
@@ -224,7 +250,7 @@ class Evaluator:
         # Heavy imports only here, so --help works without .env / models.
         load_env_file()
         from settings import settings
-        from llm.mistral import MistralLLM
+        from llm.factory import create_llm
         from translation.translator import Translator
         from rag.vector_store import VectorStore
         from rag.retriever import Retriever
@@ -243,7 +269,7 @@ class Evaluator:
         self.store = VectorStore(embedding_model=EmbeddingModel())
         print(f"  done in {time.perf_counter() - t:.1f}s; collections: {sorted(self.store.list_collections())}")
 
-        self.llm = MistralLLM(api_key=settings.MISTRAL_API_KEY, model=args.answer_model or None)
+        self.llm = create_llm(model=args.answer_model or None)
         self.translator = None if args.no_retrieval_translation else Translator(llm=self.llm)
         self.answer_model = self.llm.model
         # The judge stays on the .env model even when --answer-model changes
@@ -495,7 +521,11 @@ class Evaluator:
         res["answer"] = answer
         res["verdict"] = res["judge_reason"] = None
         res["lang_detected"] = res["lang_ok"] = res["cites_expected"] = None
+        res["ungrounded_numbers"] = None
         if answer is not None:
+            # Only meaningful when course chunks were the basis of the answer.
+            if chunks:
+                res["ungrounded_numbers"] = ", ".join(ungrounded_numbers(answer, q["question"], chunks)) or None
             detected = self.detect_language(strip_source_line(answer))
             res["lang_detected"] = detected
             res["lang_ok"] = None if detected is None else detected == q["lang"]
@@ -524,7 +554,7 @@ CSV_FIELDS = [
     "id", "base_id", "group", "scope", "lang", "question",
     "retrieval_check", "retrieval_ok", "source_in_context", "rank", "score_expected", "diagnosis", "deep_rank", "deep_score", "kw_rank",
     "top_source", "top_score", "n_chunks",
-    "verdict", "judge_reason", "manual_right", "lang_detected", "lang_ok", "cites_expected",
+    "verdict", "judge_reason", "manual_right", "lang_detected", "lang_ok", "cites_expected", "ungrounded_numbers",
     "total_ms", "search_query", "expected", "answer", "error",
 ]
 
@@ -582,6 +612,10 @@ def print_summary(results: list[dict], config: dict) -> dict:
     if cite_rows:
         print(f"Citation   : expected source named in answer {count(cite_rows, 'cites_expected')}/{len(cite_rows)}")
     times = sorted(r["total_ms"] for r in results if r.get("total_ms"))
+    invented = [r for r in results if r.get("ungrounded_numbers")]
+    checked = [r for r in results if r.get("answer") and r.get("n_chunks")]
+    if checked:
+        print(f"Invented # : answers with numbers not in the materials {len(invented)}/{len(checked)}")
     if times:
         print(f"Time       : median {times[len(times) // 2]} ms, max {times[-1]} ms per question")
 
@@ -589,6 +623,7 @@ def print_summary(results: list[dict], config: dict) -> dict:
         r for r in results
         if r.get("error") or r.get("retrieval_ok") is False
         or r.get("verdict") in ("wrong", "partial", "error") or r.get("lang_ok") is False
+        or r.get("ungrounded_numbers")
     ]
     if problems:
         print("\nProblems:")
@@ -608,6 +643,8 @@ def print_summary(results: list[dict], config: dict) -> dict:
                 parts.append(f"answer {r['verdict'].upper()}: {r.get('judge_reason')}")
             if r.get("lang_ok") is False:
                 parts.append(f"language {r['lang_detected']} ≠ {r['lang']}")
+            if r.get("ungrounded_numbers"):
+                parts.append(f"NUMBERS NOT IN MATERIALS: {r['ungrounded_numbers']}")
             print(f"  #{r['id']:<3}[{r['group']}, {r['scope']}, {r['lang']}] " + " | ".join(parts))
     return summary
 

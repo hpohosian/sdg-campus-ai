@@ -6,6 +6,7 @@ from langdetect.lang_detect_exception import LangDetectException
 
 from chatbot.prompts import RAG_SYSTEM_PROMPT, RAG_CONTEXT_TEMPLATE, NO_CONTEXT_PROMPT
 from llm.base import BaseLLM
+from settings import settings
 from rag.retriever import Retriever
 from translation.translator import Translator
 
@@ -38,6 +39,14 @@ _QUOTED = re.compile(r"„[^“”\"]*[“”\"]|“[^”]*”|«[^»]*»|\"[^\"
 
 _UKRAINIAN_ONLY = set("іїєґІЇЄҐ")
 _RUSSIAN_ONLY = set("ыэёъЫЭЁЪ")
+
+
+_IMAGE_KEYWORDS_PROMPT = (
+    "Name the subject of this image as a search query: the topic and the "
+    "6-12 most specific terms, names and numbers visible in it (e.g. a slide "
+    "title, technical terms). Use the language of the text in the image. "
+    "Reply with the keywords only, on one line, no sentences."
+)
 
 
 def _detect_cyrillic(words: list[str]) -> str:
@@ -131,7 +140,10 @@ class AIService:
             {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
             {"role": "user", "content": f"Student: {user_message}\nAssistant: {assistant_message}"},
         ]
-        title = await self.llm.chat(messages)
+        # Own model possible (TITLE_MODEL): on rate-limited keys the title
+        # then does not use up the answer model's requests.
+        title_model = getattr(settings, "TITLE_MODEL", "") or None
+        title = await self.llm.chat(messages, **({"model": title_model} if title_model else {}))
         print(f"[timing] title generation: {(time.perf_counter() - t0) * 1000:.0f} ms")
         return title.strip().strip('"').strip("'")[:255]
 
@@ -143,8 +155,7 @@ class AIService:
         course_link: str = None,
         course_links: dict[int, str] = None,
     ):
-        retrieval_query = self._build_retrieval_query(messages)
-        last_user_message = self._get_last_user_message(messages)
+        retrieval_query, last_user_message = await self._search_texts(messages)
 
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt_with_fallback(
@@ -173,8 +184,7 @@ class AIService:
     ):
         t_start = time.perf_counter()
 
-        retrieval_query = self._build_retrieval_query(messages)
-        last_user_message = self._get_last_user_message(messages)
+        retrieval_query, last_user_message = await self._search_texts(messages)
 
         formatted = self._format(messages)
         system_prompt = await self._build_system_prompt_with_fallback(
@@ -205,6 +215,59 @@ class AIService:
             yield token
 
         print(f"[timing] LLM generation total: {(time.perf_counter() - t_retrieval) * 1000:.0f} ms")
+
+    async def _search_texts(self, messages) -> tuple[str, str]:
+        """
+        (retrieval_query, last_user_message) for the course-material search.
+
+        With an image in the latest message the TEXT is usually generic
+        ("what is this slide about?") and says nothing about the topic, so
+        the search returned some loosely related chunk and the answer cited
+        a course file that had nothing to do with the image. Then the image
+        is first described in a few keywords by the vision model, and those
+        keywords are searched for: an image on another topic finds nothing
+        in the course (-> answer without citation), an image of course
+        material finds the right chunks.
+        """
+        retrieval_query = self._build_retrieval_query(messages)
+        last_user_message = self._get_last_user_message(messages)
+
+        image_block = self._last_user_image_block(messages)
+        if image_block is None:
+            return retrieval_query, last_user_message
+
+        try:
+            t0 = time.perf_counter()
+            kw_model = getattr(settings, "IMAGE_KEYWORDS_MODEL", "") or None
+            keywords = (await self.llm.chat([{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": _IMAGE_KEYWORDS_PROMPT},
+                    image_block,
+                ],
+            }], **({"model": kw_model} if kw_model else {}), max_tokens=80)).strip()
+            print(f"[image-search] keywords: {keywords[:200]!r} ({(time.perf_counter() - t0) * 1000:.0f} ms)")
+        except Exception as e:
+            # Search with the text alone rather than failing the answer.
+            print(f"[image-search] keyword extraction failed: {e!r}")
+            return retrieval_query, last_user_message
+
+        last_with_image = f"{last_user_message} {keywords}".strip()
+        return f"{retrieval_query} {keywords}".strip(), last_with_image
+
+    @staticmethod
+    def _last_user_image_block(messages):
+        for msg in reversed(messages):
+            role = msg["role"] if isinstance(msg, dict) else msg.role
+            if role != "user":
+                continue
+            content = msg["content"] if isinstance(msg, dict) else msg.content
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "image_url":
+                        return block
+            return None
+        return None
 
     async def _translate_search_texts(self, retrieval_query: str, last_user_message: str) -> tuple[str, str]:
         """

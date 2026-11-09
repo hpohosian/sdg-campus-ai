@@ -51,7 +51,7 @@ async def main() -> None:
     from db.models.message import MessageModel
     from chatbot.repositories.message_repository import MessageRepository
     from chatbot.services.ai_service import _detect_language_code
-    from llm.mistral import MistralLLM
+    from llm.factory import create_llm
     from translation.translator import Translator
 
     db = ChatSessionLocal()
@@ -75,7 +75,7 @@ async def main() -> None:
         sys.exit(f"Session {session_id} has no messages.")
 
     model = args.model or settings.TRANSLATION_MODEL or settings.MISTRAL_MODEL
-    translator = Translator(llm=MistralLLM(api_key=settings.MISTRAL_API_KEY), model=model)
+    translator = Translator(llm=create_llm(), model=model)
     if args.mode == "whole":
         translator.PIECE_CHARS = 10 ** 9   # never split = old behaviour
 
@@ -116,3 +116,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

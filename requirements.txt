@@ -17,6 +17,8 @@ sentence-transformers==5.5.1
 transformers>=4.41,<5
 numpy==2.4.6
 mistralai==2.1.2
+# OpenAI-compatible client, used for KI:connect.nrw (llm/openai_compat.py)
+openai==3.46.0
 httpx==0.28.1
 langdetect==1.0.9
 PyMuPDF==1.27.2.3
