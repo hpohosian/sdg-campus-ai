@@ -3,6 +3,17 @@ from bs4 import BeautifulSoup
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+try:
+    from api.settings import settings
+except ModuleNotFoundError:
+    from settings import settings
+
+
+def _moodle_url(path: str) -> str:
+    """Absolute Moodle URL. Stored as "source_url" so citations of pages,
+    books and sections become links (and source cards), like PDFs."""
+    return f"{settings.MOODLE_BASE_URL.rstrip('/')}{path}"
+
 
 def clean_html(html: str) -> str:
     """Remove HTML tags and clean up whitespace."""
@@ -59,7 +70,7 @@ class MoodleDBLoader:
     def _load_sections(self, course_id: int) -> list[dict]:
         """Load course section summaries."""
         rows = self.db.execute(text("""
-            SELECT id, name, summary
+            SELECT id, name, summary, section
             FROM mdl_course_sections
             WHERE course = :course_id
             AND (summary IS NOT NULL AND summary != '')
@@ -76,8 +87,9 @@ class MoodleDBLoader:
                         "course_id": course_id,
                         "source_type": "section",
                         "source_name": row.name or f"Section {row.id}",
-                        "source": row.name,
+                        "source": row.name or f"Section {row.section}",
                         "section": row.name or "",
+                        "source_url": _moodle_url(f"/course/view.php?id={course_id}#section-{row.section}"),
                     }
                 })
         return docs
@@ -85,7 +97,7 @@ class MoodleDBLoader:
     def _load_pages(self, course_id: int) -> list[dict]:
         """Load mdl_page text content."""
         rows = self.db.execute(text("""
-            SELECT p.id, p.name, p.content, cs.name as section_name
+            SELECT p.id, p.name, p.content, cs.name as section_name, cm.id as cmid
             FROM mdl_page p
             LEFT JOIN mdl_course_modules cm ON cm.instance = p.id
                 AND cm.module = (SELECT id FROM mdl_modules WHERE name = 'page')
@@ -106,6 +118,10 @@ class MoodleDBLoader:
                         "source_name": row.name,
                         "source": row.name,
                         "section": row.section_name or "",
+                        "source_url": _moodle_url(
+                            f"/mod/page/view.php?id={row.cmid}" if row.cmid
+                            else f"/course/view.php?id={course_id}"
+                        ),
                     }
                 })
         return docs
@@ -113,9 +129,13 @@ class MoodleDBLoader:
     def _load_book_chapters(self, course_id: int) -> list[dict]:
         """Load book chapters."""
         rows = self.db.execute(text("""
-            SELECT b.name as book_name, bc.title, bc.content, bc.pagenum
+            SELECT b.name as book_name, bc.id as chapter_id, bc.title, bc.content, bc.pagenum,
+                   cm.id as cmid
             FROM mdl_book b
             JOIN mdl_book_chapters bc ON bc.bookid = b.id
+            LEFT JOIN mdl_course_modules cm ON cm.instance = b.id
+                AND cm.module = (SELECT id FROM mdl_modules WHERE name = 'book')
+                AND cm.course = b.course
             WHERE b.course = :course_id
             ORDER BY b.id, bc.pagenum
         """), {"course_id": course_id}).fetchall()
@@ -130,8 +150,12 @@ class MoodleDBLoader:
                         "course_id": course_id,
                         "source_type": "book_chapter",
                         "source_name": f"{row.book_name} — {row.title}",
-                        "source": row.book_name,
+                        "source": f"{row.book_name} — {row.title}",
                         "section": row.book_name,
+                        "source_url": _moodle_url(
+                            f"/mod/book/view.php?id={row.cmid}&chapterid={row.chapter_id}" if row.cmid
+                            else f"/course/view.php?id={course_id}"
+                        ),
                     }
                 })
         return docs
@@ -156,8 +180,12 @@ class MoodleDBLoader:
                         "course_id": course_id,
                         "source_type": "label",
                         "source_name": row.name or f"Label {row.id}",
-                        "source": row.name,
+                        "source": row.name or f"Label {row.id}",
                         "section": "",
+                        # Labels have no page of their own: link to the course. The
+                        # #label-… anchor marks it as a SOURCE link for the UI
+                        # (a bare course link is the "from <course>" part).
+                        "source_url": _moodle_url(f"/course/view.php?id={course_id}#label-{row.id}"),
                     }
                 })
         return docs

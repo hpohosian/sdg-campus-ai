@@ -873,7 +873,11 @@ define([
         renderSourceCards(contentEl) {
             if (!contentEl || contentEl.querySelector('.ai-sources')) return;
 
-            const FILE_SEL = 'a[href*="/pluginfile.php/"]';
+            // Source links: files (pluginfile.php), activities such as pages and
+            // books (/mod/...), and course sections / labels (course/view.php
+            // with an anchor). A course link WITHOUT anchor is the course part.
+            const FILE_SEL = 'a[href*="/pluginfile.php/"], a[href*="/mod/"], '
+                + 'a[href*="/course/view.php"][href*="#section-"], a[href*="/course/view.php"][href*="#label-"]';
             const para = Array.from(contentEl.querySelectorAll(':scope > p')).reverse().find(p => {
                 if (!p.querySelector(FILE_SEL)) return false;
                 let rest = p.textContent;
@@ -883,14 +887,17 @@ define([
             if (!para) return;
 
             const files = Array.from(para.querySelectorAll(FILE_SEL));
-            const courses = Array.from(para.querySelectorAll('a[href*="/course/view.php"]'));
+            const courses = Array.from(para.querySelectorAll('a[href*="/course/view.php"]'))
+                .filter(a => !a.matches(FILE_SEL));
 
             const firstLink = para.querySelector('a');
             const fullText = para.textContent;
             let label = fullText.slice(0, fullText.indexOf(firstLink.textContent)).replace(/[:\s]+$/, '').trim();
             if (label.length > 24) label = '';
 
-            const iconFor = (name) => {
+            const iconFor = (name, href) => {
+                if (/\/mod\/book\//.test(href)) return 'fa-book';
+                if (/\/mod\//.test(href) || /#(section|label)-/.test(href)) return 'fa-file-text-o';
                 const ext = (name.split('.').pop() || '').toLowerCase();
                 return ({
                     pdf: 'fa-file-pdf-o', doc: 'fa-file-word-o', docx: 'fa-file-word-o',
@@ -916,7 +923,7 @@ define([
                 card.rel = 'noopener noreferrer';
 
                 const icon = document.createElement('i');
-                icon.className = 'fa ' + iconFor(name);
+                icon.className = 'fa ' + iconFor(name, a.href);
                 icon.setAttribute('aria-hidden', 'true');
 
                 const text = document.createElement('span');
@@ -1083,7 +1090,7 @@ define([
 
             this.setActiveLanguage(item?.dataset.language || '');
 
-            await this.loadThread(sessionId, { versionNav: false });
+            const messages = await this.loadThread(sessionId, { versionNav: false });
 
             const chatTitle = document.getElementById('ai-chat-title');
             if (chatTitle) chatTitle.textContent = archived ? `${title} (archived)` : title;
@@ -1360,6 +1367,45 @@ define([
             let buffer = '';
             let fullText = '';
 
+            // Smooth typing: some providers (KI:connect) send the answer in
+            // big bursts instead of token by token. Received text goes into
+            // fullText; a frame loop reveals it a few characters per frame,
+            // faster the more is waiting, so it never falls behind for long.
+            let shownLen = 0;
+            let frame = null;
+            const renderText = (text) => {
+                try {
+                    bubbleTextEl.innerHTML = window.marked ? window.marked.parse(text) : text;
+                } catch (err) {
+                    bubbleTextEl.innerText = text;
+                }
+            };
+            const tick = () => {
+                frame = null;
+                const backlog = fullText.length - shownLen;
+                if (backlog <= 0) return;
+                // Background tab: no animation, just show everything.
+                shownLen = document.hidden
+                    ? fullText.length
+                    : shownLen + Math.max(2, Math.ceil(backlog / 12));
+                renderText(fullText.slice(0, shownLen));
+                this.scrollToBottom();
+                frame = requestAnimationFrame(tick);
+            };
+            const kick = () => { if (frame === null) frame = requestAnimationFrame(tick); };
+            const waitUntilShown = () => new Promise(resolve => {
+                const started = Date.now();
+                const check = () => {
+                    if (shownLen >= fullText.length || document.hidden || Date.now() - started > 4000) {
+                        resolve();
+                    } else {
+                        setTimeout(check, 30);
+                    }
+                };
+                check();
+            });
+
+            try {
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
@@ -1407,15 +1453,15 @@ define([
                     const token = parsed.token;
                     fullText += token;
                     this.state.partialText = fullText;
-
-                    try {
-                        bubbleTextEl.innerHTML = window.marked ? window.marked.parse(fullText) : fullText;
-                    } catch (err) {
-                        bubbleTextEl.innerText = fullText;
-                    }
-
-                    this.scrollToBottom();
+                    kick();
                 }
+            }
+
+            // Let the typing animation finish before the final render.
+            await waitUntilShown();
+            } finally {
+                if (frame !== null) cancelAnimationFrame(frame);
+                frame = null;
             }
 
             try {
@@ -1770,6 +1816,8 @@ define([
 
             // Not awaited: the chat is usable while translations stream in.
             if (pending.length) this.translatePending(sessionId, pending, run);
+
+            return messages;
         },
 
         async translatePending(sessionId, pending, run) {

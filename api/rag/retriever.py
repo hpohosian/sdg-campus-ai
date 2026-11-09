@@ -128,9 +128,12 @@ class Retriever:
         breaking.
         """
         source = chunk_metadata.get("source", "unknown")
-        file_url = chunk_metadata.get("file_url")
-        if file_url:
-            return f"[{source}]({file_url})"
+        # file_url: PDFs (pluginfile.php). source_url: pages, book chapters,
+        # sections, labels (moodle_db_loader.py, indexed after Nov 2026 —
+        # older chunks have neither and stay plain text until reindexed).
+        url = chunk_metadata.get("file_url") or chunk_metadata.get("source_url")
+        if url:
+            return f"[{source}]({url})"
         return source
 
     def retrieve(
