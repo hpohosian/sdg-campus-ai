@@ -1378,3 +1378,14 @@ body.pagelayout-embedded.ai-chatbot-page .ai-chatbot-layout {
     .ai-chatbot-sidebar { width: 220px; }
     .ai-language-picker-label { display: none; }
 }
+
+/* =====================================================================
+   Formulas (KaTeX) in chat answers (tables are styled above)
+   ===================================================================== */
+.ai-message-content .katex { font-size: 1.05em; }
+.ai-message-content .katex-display {
+    margin: 0.6em 0;
+    overflow-x: auto;      /* long formulas scroll instead of breaking the bubble */
+    overflow-y: hidden;
+    padding: 2px 0;
+}

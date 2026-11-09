@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!-- Third-party libraries bundled with local_ai_system (Moodle requires them
+     to be listed here, and they must be served from the plugin, not a CDN). -->
+<libraries>
+  <library>
+    <location>thirdparty/marked</location>
+    <name>marked</name>
+    <description>Markdown parser for chat answers.</description>
+    <version>15.0.12</version>
+    <license>MIT</license>
+    <licenseversion></licenseversion>
+    <repository>https://github.com/markedjs/marked</repository>
+  </library>
+  <library>
+    <location>thirdparty/katex</location>
+    <name>KaTeX</name>
+    <description>Renders math formulas (LaTeX) in chat answers. Only the woff2 fonts are included.</description>
+    <version>0.16.47</version>
+    <license>MIT</license>
+    <licenseversion></licenseversion>
+    <repository>https://github.com/KaTeX/KaTeX</repository>
+  </library>
+  <library>
+    <location>thirdparty/html2canvas</location>
+    <name>html2canvas</name>
+    <description>Renders the chat to an image for the PDF export.</description>
+    <version>1.4.1</version>
+    <license>MIT</license>
+    <licenseversion></licenseversion>
+    <repository>https://github.com/niklasvh/html2canvas</repository>
+  </library>
+  <library>
+    <location>thirdparty/jspdf</location>
+    <name>jsPDF</name>
+    <description>Builds the PDF file for the chat export.</description>
+    <version>2.5.1</version>
+    <license>MIT</license>
+    <licenseversion></licenseversion>
+    <repository>https://github.com/parallax/jsPDF</repository>
+  </library>
+</libraries>

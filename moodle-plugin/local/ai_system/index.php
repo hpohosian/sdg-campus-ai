@@ -18,10 +18,13 @@ $PAGE->set_heading('AI Chatbot');
 $PAGE->add_body_class('ai-chatbot-page');
 
 $PAGE->requires->css(new moodle_url('/local/ai_system/styles.css', ['v' => $plugin->version]));
-$PAGE->requires->js(
-    new moodle_url('https://cdn.jsdelivr.net/npm/marked/marked.min.js'),
-    true
-);
+$PAGE->requires->css(new moodle_url('/local/ai_system/thirdparty/katex/katex.min.css', ['v' => $plugin->version]));
+
+// Bundled libraries (thirdpartylibs.xml), no CDN. Loaded in <head>, i.e.
+// before RequireJS, so their UMD wrappers attach to window (window.marked,
+// window.katex) instead of registering as anonymous AMD modules.
+$PAGE->requires->js(new moodle_url('/local/ai_system/thirdparty/marked/marked.min.js', ['v' => $plugin->version]), true);
+$PAGE->requires->js(new moodle_url('/local/ai_system/thirdparty/katex/katex.min.js', ['v' => $plugin->version]), true);
 
 $embed = optional_param('embed', 0, PARAM_INT);
 

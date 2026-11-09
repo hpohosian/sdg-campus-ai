@@ -396,7 +396,7 @@ define([
             });
         },
 
-        // Lazily loads html2canvas + jsPDF from CDN, once, and caches the
+        // Lazily loads html2canvas + jsPDF (bundled in thirdparty/), once, and caches the
         // in-flight promise so rapid double-clicks don't inject the
         // <script> tags twice.
         //
@@ -428,11 +428,13 @@ define([
             });
 
             this._exportLibsPromise = (async () => {
+                // Bundled with the plugin (thirdpartylibs.xml), not from a CDN.
+                const base = (window.M && window.M.cfg ? window.M.cfg.wwwroot : '') + '/local/ai_system/thirdparty';
                 if (typeof window.html2canvas !== 'function') {
-                    await loadGlobalScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+                    await loadGlobalScript(base + '/html2canvas/html2canvas.min.js');
                 }
                 if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
-                    await loadGlobalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                    await loadGlobalScript(base + '/jspdf/jspdf.umd.min.js');
                 }
                 if (typeof window.html2canvas !== 'function' || typeof window.jspdf?.jsPDF !== 'function') {
                     throw new Error('PDF export libraries failed to initialize on window.');
@@ -1207,6 +1209,56 @@ define([
             if (window.marked) window.marked.setOptions({ breaks: true, gfm: true });
         },
 
+        // =========================
+        // MARKDOWN + MATH → HTML (every message goes through here)
+        // =========================
+        // The markdown parser eats the backslashes of LaTeX ("\(" becomes
+        // "(", "\varepsilon" breaks), so formulas are taken OUT before
+        // parsing and replaced by placeholders, and rendered with KaTeX
+        // afterwards. Recognised: $$...$$ and \[...\] (display),
+        // \(...\) and $...$ (inline; "$5 and $10" is NOT math because a
+        // closing $ must not follow a space). Code (```...``` and `...`)
+        // is left untouched. An unfinished formula during streaming simply
+        // stays as text until its closing delimiter arrives.
+        renderMarkdown(text) {
+            text = text || '';
+            const marked = window.marked;
+            const katex = window.katex;
+            if (!marked) return text;
+            if (!katex) return marked.parse(text);
+
+            const formulas = [];
+            const stash = (tex, display) => {
+                formulas.push({ tex, display });
+                return `KATEXMATH${formulas.length - 1}X`;
+            };
+            const extract = (part) => part
+                .replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => stash(tex, true))
+                .replace(/\\\[([\s\S]+?)\\\]/g, (m, tex) => stash(tex, true))
+                .replace(/\\\(([\s\S]+?)\\\)/g, (m, tex) => stash(tex, false))
+                .replace(/(^|[^\\$\w])\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g,
+                    (m, pre, tex) => pre + stash(tex, false));
+
+            // Split off code blocks / inline code, extract math only from the rest.
+            const pieces = text.split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/g);
+            const prepared = pieces.map((piece, i) => (i % 2 === 1 ? piece : extract(piece))).join('');
+
+            let html = marked.parse(prepared);
+            if (!formulas.length) return html;
+
+            return html.replace(/KATEXMATH(\d+)X/g, (m, idx) => {
+                const f = formulas[Number(idx)];
+                if (!f) return m;
+                try {
+                    return katex.renderToString(f.tex.trim(), {
+                        displayMode: f.display, throwOnError: false, output: 'html'
+                    });
+                } catch (err) {
+                    return f.display ? `$$${f.tex}$$` : `$${f.tex}$`;
+                }
+            });
+        },
+
         updateUIState() {
             const input = document.getElementById('ai-message-input');
             const sendBtn = document.getElementById('ai-send-btn');
@@ -1375,7 +1427,7 @@ define([
             let frame = null;
             const renderText = (text) => {
                 try {
-                    bubbleTextEl.innerHTML = window.marked ? window.marked.parse(text) : text;
+                    bubbleTextEl.innerHTML = this.renderMarkdown(text);
                 } catch (err) {
                     bubbleTextEl.innerText = text;
                 }
@@ -1465,7 +1517,7 @@ define([
             }
 
             try {
-                bubbleTextEl.innerHTML = window.marked ? window.marked.parse(fullText || '') : fullText;
+                bubbleTextEl.innerHTML = this.renderMarkdown(fullText);
             } catch (err) {
                 bubbleTextEl.innerText = fullText;
             }
@@ -1600,7 +1652,7 @@ define([
             this.removeMessagesAfter(wrap);
 
             const contentEl = wrap.querySelector('.ai-message-content');
-            contentEl.innerHTML = window.marked ? window.marked.parse(newContent) : newContent;
+            contentEl.innerHTML = this.renderMarkdown(newContent);
             wrap.dataset.rawContent = newContent;
 
             this.state.isStreaming = true;
@@ -1875,7 +1927,7 @@ define([
             const text = wrap.querySelector('.ai-message-content');
             if (!text) return;
             wrap.dataset.rawContent = content || '';
-            text.innerHTML = window.marked.parse(content || '');
+            text.innerHTML = this.renderMarkdown(content);
             if (role === 'assistant') this.renderSourceCards(text);
         },
 
@@ -1945,7 +1997,7 @@ define([
 
             const text = document.createElement('div');
             text.className = 'ai-message-content';
-            text.innerHTML = window.marked.parse(content || '');
+            text.innerHTML = this.renderMarkdown(content);
             if (role === 'assistant') this.renderSourceCards(text);
 
             const meta = document.createElement('div');

@@ -87,6 +87,11 @@ LANGUAGE
   question, even though the materials are mostly German. Only file names,
   course names and proper names stay as they are.
 
+FORMATTING (the chat renders Markdown and LaTeX)
+- Math: LaTeX between $...$ inline, or $$...$$ on its own line for larger
+  formulas. Never write LaTeX without these delimiters.
+- Tabular data (comparisons, numbers per item): a Markdown table.
+
 If the question is unclear, ask a short clarifying question.
 """
 
