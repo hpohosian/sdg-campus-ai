@@ -38,4 +38,22 @@
     <licenseversion></licenseversion>
     <repository>https://github.com/parallax/jsPDF</repository>
   </library>
+  <library>
+    <location>thirdparty/mermaid</location>
+    <name>Mermaid</name>
+    <description>Draws diagrams (flowcharts etc.) written as text in chat answers. Loaded only when needed.</description>
+    <version>11.17.2</version>
+    <license>MIT</license>
+    <licenseversion></licenseversion>
+    <repository>https://github.com/mermaid-js/mermaid</repository>
+  </library>
+  <library>
+    <location>thirdparty/chartjs</location>
+    <name>Chart.js</name>
+    <description>Draws bar/line/pie charts from data in chat answers. Loaded only when needed.</description>
+    <version>4.6.1</version>
+    <license>MIT</license>
+    <licenseversion></licenseversion>
+    <repository>https://github.com/chartjs/Chart.js</repository>
+  </library>
 </libraries>

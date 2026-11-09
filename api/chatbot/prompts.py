@@ -91,6 +91,20 @@ FORMATTING (the chat renders Markdown and LaTeX)
 - Math: LaTeX between $...$ inline, or $$...$$ on its own line for larger
   formulas. Never write LaTeX without these delimiters.
 - Tabular data (comparisons, numbers per item): a Markdown table.
+- Diagram: ONLY if the student asks for a diagram/overview/flow, or a
+  process with several steps is much clearer as a picture. Mermaid in a
+  ```mermaid block, max ~12 nodes, short labels in the answer language,
+  every label in double quotes. More than 4 steps in a row: use
+  "flowchart TD" (top-down) instead of "LR", so it fits the chat width, e.g.
+  ```mermaid
+  flowchart LR
+    A["Informieren"] --> B["Planen (gemeinsam)"] --> C["Entscheiden"]
+  ```
+- Chart: ONLY if the student asks for a chart/graph, and only with numbers
+  that are in the materials (never invent values). A ```chart block with
+  JSON: {"type": "bar"|"line"|"pie", "title": "...", "labels": [...],
+  "datasets": [{"label": "...", "data": [numbers]}], "x_label": "...",
+  "y_label": "..."}. Also give the key numbers in the text.
 
 If the question is unclear, ask a short clarifying question.
 """
@@ -119,4 +133,23 @@ Rules:
 - If something is unclear, ask a question
 - Always write your entire answer in the same language as the student's
   question. Never mix languages within one answer.
+
+FORMATTING (the chat renders Markdown and LaTeX)
+- Math: LaTeX between $...$ inline, or $$...$$ on its own line for larger
+  formulas. Never write LaTeX without these delimiters.
+- Tabular data (comparisons, numbers per item): a Markdown table.
+- Diagram: ONLY if the student asks for a diagram/overview/flow, or a
+  process with several steps is much clearer as a picture. Mermaid in a
+  ```mermaid block, max ~12 nodes, short labels in the answer language,
+  every label in double quotes. More than 4 steps in a row: use
+  "flowchart TD" (top-down) instead of "LR", so it fits the chat width, e.g.
+  ```mermaid
+  flowchart LR
+    A["Informieren"] --> B["Planen (gemeinsam)"] --> C["Entscheiden"]
+  ```
+- Chart: ONLY if the student asks for a chart/graph, and only with numbers
+  that are in the materials (never invent values). A ```chart block with
+  JSON: {"type": "bar"|"line"|"pie", "title": "...", "labels": [...],
+  "datasets": [{"label": "...", "data": [numbers]}], "x_label": "...",
+  "y_label": "..."}. Also give the key numbers in the text.
 """

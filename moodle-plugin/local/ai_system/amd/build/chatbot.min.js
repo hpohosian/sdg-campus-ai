@@ -911,16 +911,47 @@ define([
             const list = document.createElement('div');
             list.className = 'ai-sources-list';
 
+            // One card per source: the same file cited for several pages
+            // (file.pdf#page=2, file.pdf#page=3) becomes ONE card "S. 2–3".
+            const pageWord = /quelle/i.test(label) ? 'S.'
+                : /источник|джерело/i.test(label) ? 'с.' : 'p.';
+            const formatPages = (pages) => {
+                const sorted = Array.from(new Set(pages)).sort((x, y) => x - y);
+                const parts = [];
+                for (let k = 0; k < sorted.length; k++) {
+                    let end = k;
+                    while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) end++;
+                    parts.push(end > k ? `${sorted[k]}–${sorted[end]}` : `${sorted[k]}`);
+                    k = end;
+                }
+                return parts.join(', ');
+            };
+            const groups = new Map();
             files.forEach((a, i) => {
+                const href = a.getAttribute('href') || '';
+                const key = href.replace(/#page=\d+$/, '');
+                const pageMatch = /#page=(\d+)/.exec(href);
+                let group = groups.get(key);
+                if (!group) {
+                    group = { a, course: courses[i] || courses[0], pages: [] };
+                    groups.set(key, group);
+                }
+                if (pageMatch) group.pages.push(Number(pageMatch[1]));
+            });
+
+            groups.forEach((group) => {
+                const a = group.a;
                 let name = a.textContent.trim();
                 if (!name) {
                     try { name = decodeURIComponent(a.pathname.split('/').pop() || ''); } catch (e) { name = a.pathname; }
                 }
-                const course = courses[i] || courses[0];
+                const course = group.course;
+                // The card opens the first cited page.
+                const firstPage = group.pages.length ? Math.min(...group.pages) : null;
 
                 const card = document.createElement('a');
                 card.className = 'ai-source-card';
-                card.href = a.href;
+                card.href = firstPage ? a.href.replace(/#page=\d+$/, '') + '#page=' + firstPage : a.href;
                 card.target = '_blank';
                 card.rel = 'noopener noreferrer';
 
@@ -937,16 +968,14 @@ define([
                 nameEl.title = name;
                 text.appendChild(nameEl);
 
-                // file.pdf#page=12 -> "p. 12" after the course name; the link
-                // itself opens the PDF on that page.
-                const pageMatch = /#page=(\d+)/.exec(a.getAttribute('href') || '');
+                const pagesText = group.pages.length ? `${pageWord} ${formatPages(group.pages)}` : '';
 
-                if (course || pageMatch) {
+                if (course || pagesText) {
                     const courseEl = document.createElement('span');
                     courseEl.className = 'ai-source-course';
                     courseEl.textContent = [
                         course ? course.textContent.trim() : '',
-                        pageMatch ? 'p. ' + pageMatch[1] : ''
+                        pagesText
                     ].filter(Boolean).join(' · ');
                     text.appendChild(courseEl);
                 }
@@ -1214,6 +1243,337 @@ define([
 
         initMarkdown() {
             if (window.marked) window.marked.setOptions({ breaks: true, gfm: true });
+        },
+
+        // =========================
+        // BUNDLED LIBRARIES LOADED ON DEMAND (thirdparty/)
+        // =========================
+        // Loads a script once and caches the promise. RequireJS is active on
+        // Moodle pages: UMD builds would register as an anonymous AMD module
+        // instead of setting window.X, so `define` is hidden while the
+        // script runs.
+        loadVendor(path) {
+            this._vendor = this._vendor || {};
+            if (this._vendor[path]) return this._vendor[path];
+            const base = (window.M && window.M.cfg ? window.M.cfg.wwwroot : '') + '/local/ai_system/thirdparty/';
+            this._vendor[path] = new Promise((resolve, reject) => {
+                const originalDefine = window.define;
+                window.define = undefined;
+                const el = document.createElement('script');
+                el.src = base + path;
+                el.onload = () => { window.define = originalDefine; resolve(); };
+                el.onerror = () => {
+                    window.define = originalDefine;
+                    delete this._vendor[path];          // allow a retry later
+                    reject(new Error('Failed to load ' + path));
+                };
+                document.head.appendChild(el);
+            });
+            return this._vendor[path];
+        },
+
+        // =========================
+        // DIAGRAMS (```mermaid) AND CHARTS (```chart) IN ANSWERS
+        // =========================
+        // The model writes a fenced block; marked turns it into
+        // <pre><code class="language-mermaid|language-chart">. Here such
+        // blocks are replaced by the drawing. While the answer is still
+        // streaming the CSS shows a placeholder instead of the raw code.
+        // If drawing fails (invalid syntax from the model), the code is
+        // shown as it is (class ai-rich-failed), the answer stays readable.
+        // Mermaid (~3.5 MB) and Chart.js are only loaded when an answer
+        // actually contains such a block.
+        async renderRichBlocks(container) {
+            if (!container) return;
+            const blocks = Array.from(container.querySelectorAll(
+                'pre > code.language-mermaid, pre > code.language-chart'
+            ));
+            for (const code of blocks) {
+                const pre = code.parentElement;
+                if (!pre || pre.dataset.richDone) continue;
+                pre.dataset.richDone = '1';
+                const source = code.textContent;
+                try {
+                    const isDiagram = code.classList.contains('language-mermaid');
+                    const figure = isDiagram ? await this.drawMermaid(source) : await this.drawChart(source);
+                    pre.replaceWith(figure);
+                    this.addRichToolbar(figure, isDiagram ? 'diagram' : 'chart');
+                } catch (err) {
+                    console.warn('[ChatBot] Could not draw block, showing its source instead:', err);
+                    pre.classList.add('ai-rich-failed');
+                }
+            }
+
+            // Markdown tables get the same toolbar (PNG / enlarge).
+            container.querySelectorAll('table').forEach(table => {
+                if (table.closest('.ai-rich')) return;
+                const wrap = document.createElement('div');
+                wrap.className = 'ai-rich ai-rich-table';
+                table.parentNode.insertBefore(wrap, table);
+                wrap.appendChild(table);
+                this.addRichToolbar(wrap, 'table');
+            });
+        },
+
+        // Small buttons in the corner of a diagram / chart / table:
+        // enlarge (full-screen view) and download as PNG.
+        addRichToolbar(figure, kind) {
+            if (figure.parentElement?.classList.contains('ai-rich-frame')) return;
+            // The figure scrolls sideways (wide diagrams). The buttons live in a
+            // non-scrolling frame around it, so they stay in the corner while
+            // the diagram is scrolled.
+            const frame = document.createElement('div');
+            frame.className = 'ai-rich-frame';
+            figure.parentNode.insertBefore(frame, figure);
+            frame.appendChild(figure);
+            const bar = document.createElement('div');
+            bar.className = 'ai-rich-toolbar';
+            const button = (icon, label, onClick) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'ai-rich-btn';
+                b.title = label;
+                b.setAttribute('aria-label', label);
+                b.innerHTML = `<i class="fa ${icon}" aria-hidden="true"></i>`;
+                b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+                bar.appendChild(b);
+            };
+            button('fa-expand', 'Enlarge', () => this.openRichViewer(figure));
+            button('fa-download', 'Download as PNG', () => this.downloadRichPng(figure, kind));
+            frame.appendChild(bar);
+        },
+
+        // Full-screen view of a diagram / chart / table. Click or Esc closes.
+        openRichViewer(figure) {
+            const overlay = document.createElement('div');
+            overlay.className = 'ai-rich-viewer';
+            const inner = document.createElement('div');
+            inner.className = 'ai-rich-viewer-inner ai-message-content';
+            const content = figure.cloneNode(true);
+            content.querySelector(':scope > .ai-rich-toolbar')?.remove();
+            // A chart is a <canvas>: its drawing is not cloned, use a picture of it.
+            const srcCanvas = figure.querySelector('canvas');
+            const dstCanvas = content.querySelector('canvas');
+            if (srcCanvas && dstCanvas) {
+                const img = document.createElement('img');
+                img.src = srcCanvas.toDataURL('image/png');
+                img.style.maxWidth = '100%';
+                dstCanvas.replaceWith(img);
+            }
+            // Fit the screen, but enlarge a small diagram at most 1.6x
+            // (a 2-box diagram should not become screen-filling).
+            const bigSvg = content.querySelector('.ai-rich-diagram svg');
+            const naturalW = bigSvg ? Number(bigSvg.getAttribute('width')) : 0;
+            if (bigSvg && naturalW) bigSvg.style.width = `min(100%, ${Math.round(naturalW * 1.6)}px)`;
+
+            inner.appendChild(content);
+            overlay.appendChild(inner);
+
+            // × in the top right corner of the screen (also: click outside, Esc).
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'ai-rich-viewer-close';
+            closeBtn.setAttribute('aria-label', 'Close');
+            closeBtn.title = 'Close';
+            // An SVG cross is centred geometrically; the "×" glyph sits on the
+            // font's baseline and always looks slightly off-centre.
+            closeBtn.innerHTML = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16">'
+                + '<path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" stroke-width="2" '
+                + 'stroke-linecap="round" fill="none"/></svg>';
+            overlay.appendChild(closeBtn);
+
+            const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+            const onKey = (e) => { if (e.key === 'Escape') close(); };
+            closeBtn.addEventListener('click', close);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', onKey);
+            document.body.appendChild(overlay);
+        },
+
+        // PNG of only this diagram / chart / table (html2canvas is bundled).
+        async downloadRichPng(figure, kind) {
+            const name = { diagram: 'diagram', chart: 'chart', table: 'table' }[kind] || 'figure';
+            const save = (dataUrl) => {
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = `${name}-${new Date().toISOString().slice(0, 10)}.png`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            };
+            try {
+                const canvas = figure.querySelector('canvas');
+                if (kind === 'chart' && canvas) {
+                    // Chart.js draws on a transparent canvas: put it on a white/dark background.
+                    const out = document.createElement('canvas');
+                    out.width = canvas.width;
+                    out.height = canvas.height;
+                    const ctx = out.getContext('2d');
+                    ctx.fillStyle = getComputedStyle(figure).backgroundColor || '#ffffff';
+                    if (/rgba\(0, 0, 0, 0\)|transparent/.test(ctx.fillStyle)) ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, out.width, out.height);
+                    ctx.drawImage(canvas, 0, 0);
+                    save(out.toDataURL('image/png'));
+                    return;
+                }
+                const bg = getComputedStyle(document.body).getPropertyValue('--ai-bg-0').trim() || '#ffffff';
+
+                const svg = figure.querySelector('svg');
+                if (kind === 'diagram' && svg) {
+                    // The whole diagram, also the part scrolled out of view:
+                    // draw the SVG itself onto a canvas (labels are plain SVG
+                    // text, see drawMermaid), at 2x for sharpness.
+                    const w = Number(svg.getAttribute('width')) || svg.getBoundingClientRect().width;
+                    const h = Number(svg.getAttribute('height')) || svg.getBoundingClientRect().height;
+                    const xml = new XMLSerializer().serializeToString(svg);
+                    const img = new Image();
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = () => reject(new Error('SVG could not be loaded as image'));
+                        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+                    });
+                    const pad = 16, scale = 2;
+                    const out = document.createElement('canvas');
+                    out.width = (w + 2 * pad) * scale;
+                    out.height = (h + 2 * pad) * scale;
+                    const ctx = out.getContext('2d');
+                    ctx.scale(scale, scale);
+                    ctx.fillStyle = bg;
+                    ctx.fillRect(0, 0, w + 2 * pad, h + 2 * pad);
+                    ctx.drawImage(img, pad, pad, w, h);
+                    save(out.toDataURL('image/png'));
+                    return;
+                }
+
+                // Table: only the table itself (not the full-width wrapper).
+                await this.loadVendor('html2canvas/html2canvas.min.js');
+                const target = figure.querySelector('table') || figure;
+                const bar = figure.parentElement?.querySelector(':scope > .ai-rich-toolbar');
+                if (bar) bar.style.visibility = 'hidden';
+                let shot;
+                try {
+                    // Tables are display:block (scrollable) in the chat, i.e. as wide
+                    // as the bubble: crop to the width of their rows.
+                    const rowWidth = Math.max(0, ...Array.from(target.querySelectorAll('tr'))
+                        .map(tr => Math.ceil(tr.getBoundingClientRect().width)));
+                    shot = await window.html2canvas(target, {
+                        backgroundColor: bg, scale: 2,
+                        width: Math.max(rowWidth, 1) || target.scrollWidth, height: target.scrollHeight,
+                        windowWidth: Math.max(document.documentElement.clientWidth, target.scrollWidth + 40),
+                    });
+                } finally {
+                    if (bar) bar.style.visibility = '';
+                }
+                save(shot.toDataURL('image/png'));
+            } catch (err) {
+                console.error('[ChatBot] PNG export failed:', err);
+                Notification.alert('Export', 'The image could not be created.', 'OK');
+            }
+        },
+
+        async drawMermaid(source) {
+            await this.loadVendor('mermaid/mermaid.min.js');
+            const mermaid = window.mermaid;
+            const theme = document.body.dataset.theme === 'dark' ? 'dark' : 'default';
+            if (this._mermaidTheme !== theme) {
+                // securityLevel strict: no HTML labels / click handlers from model text.
+                // htmlLabels false: labels as plain SVG text (no <foreignObject>),
+                // so the diagram can be exported as PNG.
+                mermaid.initialize({
+                    startOnLoad: false, securityLevel: 'strict', theme,
+                    htmlLabels: false, flowchart: { htmlLabels: false, useMaxWidth: false },
+                });
+                this._mermaidTheme = theme;
+            }
+            // Validate first: a failed render() leaves Mermaid's own error
+            // graphic in the page. Models often put ( ) / : etc. into unquoted
+            // labels, e.g. A[Vorbereitung (optional)] — then a second try with
+            // every [label] / {label} quoted.
+            const valid = async (text) => (await mermaid.parse(text, { suppressErrors: true })) !== false;
+            let text = source;
+            if (!(await valid(text))) {
+                const fixed = this.quoteMermaidLabels(source);
+                if (fixed === source || !(await valid(fixed))) throw new Error('invalid Mermaid diagram');
+                text = fixed;
+            }
+            const id = 'ai-mermaid-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
+            let svg;
+            try {
+                ({ svg } = await mermaid.render(id, text));
+            } finally {
+                // Mermaid's temporary render container, should it be left behind.
+                document.getElementById('d' + id)?.remove();
+            }
+            const figure = document.createElement('div');
+            figure.className = 'ai-rich ai-rich-diagram';
+            figure.innerHTML = svg;
+            // Natural size, never squeezed to the bubble width (a 6-step
+            // flow became unreadably small). Too wide -> horizontal scroll.
+            const svgEl = figure.querySelector('svg');
+            const vb = svgEl && svgEl.viewBox && svgEl.viewBox.baseVal;
+            if (svgEl && vb && vb.width) {
+                svgEl.style.maxWidth = 'none';
+                svgEl.setAttribute('width', Math.round(vb.width));
+                svgEl.setAttribute('height', Math.round(vb.height));
+            }
+            return figure;
+        },
+
+        // A[text] -> A["text"], B{text} -> B{"text"}; already quoted labels stay.
+        quoteMermaidLabels(source) {
+            const quote = (text) => '"' + text.replace(/"/g, '#quot;') + '"';
+            return source
+                .replace(/(\b[\w-]+)\[(?!["\[(\/\\])([^\]\n]+)\]/g, (m, id, text) => `${id}[${quote(text)}]`)
+                .replace(/(\b[\w-]+)\{(?![{"])([^}\n]+)\}/g, (m, id, text) => `${id}{${quote(text)}}`);
+        },
+
+        async drawChart(source) {
+            const spec = JSON.parse(source);
+            const allowed = ['bar', 'line', 'pie', 'doughnut'];
+            const type = allowed.includes(spec.type) ? spec.type : 'bar';
+            if (!Array.isArray(spec.labels) || !Array.isArray(spec.datasets) || !spec.datasets.length) {
+                throw new Error('chart block needs "labels" and "datasets"');
+            }
+            await this.loadVendor('chartjs/chart.umd.min.js');
+
+            const figure = document.createElement('div');
+            figure.className = 'ai-rich ai-rich-chart';
+            const canvas = document.createElement('canvas');
+            figure.appendChild(canvas);
+
+            const dark = document.body.dataset.theme === 'dark';
+            const textColor = dark ? '#e8e6e1' : '#2b2a27';
+            const gridColor = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+
+            // Created after the figure is in the page (Chart.js needs a size).
+            requestAnimationFrame(() => {
+                new window.Chart(canvas, {
+                    type,
+                    data: {
+                        labels: spec.labels.map(String),
+                        datasets: spec.datasets.map(d => ({
+                            label: String(d.label || ''),
+                            data: (d.data || []).map(Number),
+                        })),
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        animation: false,
+                        plugins: {
+                            title: { display: !!spec.title, text: String(spec.title || ''), color: textColor },
+                            legend: { labels: { color: textColor } },
+                        },
+                        scales: (type === 'pie' || type === 'doughnut') ? {} : {
+                            x: { ticks: { color: textColor }, grid: { color: gridColor },
+                                 title: { display: !!spec.x_label, text: String(spec.x_label || ''), color: textColor } },
+                            y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true,
+                                 title: { display: !!spec.y_label, text: String(spec.y_label || ''), color: textColor } },
+                        },
+                    },
+                });
+            });
+            return figure;
         },
 
         // =========================
@@ -1530,6 +1890,7 @@ define([
             }
 
             this.renderSourceCards(bubbleTextEl);
+            this.renderRichBlocks(bubbleTextEl);
 
             const wrap = bubbleTextEl.closest('.ai-message');
             if (wrap) wrap.dataset.rawContent = fullText;
@@ -1935,7 +2296,10 @@ define([
             if (!text) return;
             wrap.dataset.rawContent = content || '';
             text.innerHTML = this.renderMarkdown(content);
-            if (role === 'assistant') this.renderSourceCards(text);
+            if (role === 'assistant') {
+                this.renderSourceCards(text);
+                this.renderRichBlocks(text);
+            }
         },
 
         async loadVersionNav() {
@@ -2005,7 +2369,10 @@ define([
             const text = document.createElement('div');
             text.className = 'ai-message-content';
             text.innerHTML = this.renderMarkdown(content);
-            if (role === 'assistant') this.renderSourceCards(text);
+            if (role === 'assistant') {
+                this.renderSourceCards(text);
+                this.renderRichBlocks(text);
+            }
 
             const meta = document.createElement('div');
             meta.className = 'ai-message-meta';
