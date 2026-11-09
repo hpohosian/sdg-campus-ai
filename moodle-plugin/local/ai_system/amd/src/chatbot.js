@@ -937,10 +937,17 @@ define([
                 nameEl.title = name;
                 text.appendChild(nameEl);
 
-                if (course) {
+                // file.pdf#page=12 -> "p. 12" after the course name; the link
+                // itself opens the PDF on that page.
+                const pageMatch = /#page=(\d+)/.exec(a.getAttribute('href') || '');
+
+                if (course || pageMatch) {
                     const courseEl = document.createElement('span');
                     courseEl.className = 'ai-source-course';
-                    courseEl.textContent = course.textContent.trim();
+                    courseEl.textContent = [
+                        course ? course.textContent.trim() : '',
+                        pageMatch ? 'p. ' + pageMatch[1] : ''
+                    ].filter(Boolean).join(' · ');
                     text.appendChild(courseEl);
                 }
 

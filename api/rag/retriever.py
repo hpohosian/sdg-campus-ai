@@ -132,6 +132,11 @@ class Retriever:
         # sections, labels (moodle_db_loader.py, indexed after Nov 2026 —
         # older chunks have neither and stay plain text until reindexed).
         url = chunk_metadata.get("file_url") or chunk_metadata.get("source_url")
+        # PDF chunks indexed since Nov 2026 know their page: link straight to
+        # it (browsers' PDF viewers open file.pdf#page=N on that page).
+        page = chunk_metadata.get("page")
+        if url and page and chunk_metadata.get("file_url"):
+            url = f"{url}#page={page}"
         if url:
             return f"[{source}]({url})"
         return source

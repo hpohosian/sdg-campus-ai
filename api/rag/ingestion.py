@@ -1,9 +1,59 @@
+import bisect
+import re
 import os
 from dataclasses import dataclass
 
 from .chunker import TextChunker
 from .embeddings import EmbeddingModel
 from .vector_store import VectorStore
+
+_WS = re.compile(r"\s+")
+
+
+def _norm(text: str) -> str:
+    return _WS.sub(" ", text or "").strip()
+
+
+def assign_pages(chunks, page_texts: list[str]) -> None:
+    """
+    Sets chunk.metadata["page"] (1-based) for chunks of a PDF.
+
+    The chunker does not keep character offsets, so each chunk is found
+    again in the whole text: whitespace is normalised on both sides (the
+    chunker re-joins paragraphs), and a piece from the MIDDLE of the chunk
+    is searched — the start may be overlap from the previous chunk, i.e.
+    from the previous page. A chunk spanning two pages gets the page where
+    its middle is. Not found (should not happen) -> no "page" key.
+    """
+    starts, parts, pos = [], [], 0
+    for page in page_texts:
+        norm = _norm(page)
+        starts.append(pos)
+        parts.append(norm)
+        pos += len(norm) + 1                    # +1 for the joining space
+    full = " ".join(parts)
+
+    search_from = 0
+    for chunk in chunks:
+        text = _norm(chunk.text)
+        if not text:
+            continue
+        mid = len(text) // 2
+        probes = [text[max(0, mid - 30): mid + 30], text[-60:], text[:60]]
+        found = -1
+        for probe in probes:
+            if len(probe) < 10:
+                continue
+            found = full.find(probe, max(0, search_from - 2000))
+            if found < 0:
+                found = full.find(probe)
+            if found >= 0:
+                break
+        if found < 0:
+            continue
+        search_from = found
+        page = bisect.bisect_right(starts, found)   # 1-based page number
+        chunk.metadata = {**chunk.metadata, "page": page}
 
 
 @dataclass
@@ -51,6 +101,7 @@ class IngestionPipeline:
         collection_name: str,
         metadata: dict = None,
         source: str = "unknown",
+        page_texts: list[str] | None = None,
     ) -> IngestionResult:
         """
         Ingest raw text into the vector store.
@@ -67,6 +118,8 @@ class IngestionPipeline:
         try:
             # Step 1: chunk
             chunks = self.chunker.split(text, metadata=metadata)
+            if page_texts:
+                assign_pages(chunks, page_texts)
             if not chunks:
                 return IngestionResult(
                     collection_name=collection_name,
@@ -165,6 +218,7 @@ class IngestionPipeline:
                 collection_name=collection_name,
                 metadata=doc.get("metadata", {}),
                 source=doc.get("source", "unknown"),
+                page_texts=doc.get("page_texts"),
             )
             results.append(result)
 
@@ -173,3 +227,4 @@ class IngestionPipeline:
         print(f"[ingestion] Done: {success}/{len(documents)} documents, {total} total chunks")
 
         return results
+    

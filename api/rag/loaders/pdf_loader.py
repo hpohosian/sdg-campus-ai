@@ -31,10 +31,15 @@ class MoodlePDFLoader:
         documents = []
 
         for pdf in pdf_files:
-            text_content = self._extract_pdf_text(pdf["contenthash"])
+            page_texts = self._extract_pdf_pages(pdf["contenthash"])
+            text_content = "\n\n".join(page_texts).strip()
             if text_content and len(text_content) > 100:
                 documents.append({
                     "text": text_content,
+                    # Per-page texts: ingestion uses them to store the page
+                    # number of every chunk ("page"), so citations can link
+                    # to the exact page (file.pdf#page=N).
+                    "page_texts": page_texts,
                     "metadata": {
                         "course_id": course_id,
                         "source_type": "pdf",
@@ -114,21 +119,23 @@ class MoodlePDFLoader:
             contenthash,
         )
 
-    def _extract_pdf_text(self, contenthash: str) -> str:
-        """Extract text from PDF using PyMuPDF."""
+    def _extract_pdf_pages(self, contenthash: str) -> list[str]:
+        """Text of every page (index 0 = page 1), using PyMuPDF."""
         file_path = self._get_file_path(contenthash)
 
         if not os.path.exists(file_path):
-            return ""
+            return []
 
         try:
             doc = fitz.open(file_path)
-            pages_text = []
-            for page in doc:
-                pages_text.append(page.get_text())
+            pages_text = [page.get_text() for page in doc]
             doc.close()
-            return "\n\n".join(pages_text).strip()
+            return pages_text
         except Exception as e:
             print(f"[pdf_loader] Error reading {contenthash}: {e}")
-            return ""
-        
+            return []
+
+    def _extract_pdf_text(self, contenthash: str) -> str:
+        """Extract the whole text of a PDF (pages joined)."""
+        return "\n\n".join(self._extract_pdf_pages(contenthash)).strip()
+    
