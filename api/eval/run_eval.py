@@ -65,9 +65,14 @@ of KEY FACTS. For EACH key fact decide whether the answer states it.
   it into "quote" (verbatim, short). For absent facts, quote "".
 - Check facts independently. Do not judge anything else (style, extra
   details, language, source line).
+- Separately, set "claims_not_covered" to true if the answer anywhere SAYS
+  that the course materials do not contain / do not cover / do not mention
+  the answer to the question (in any language, e.g. "I don't see this
+  covered", "nicht in den Materialien", "в материалах нет"). Saying that
+  only about a side detail that is not asked for does not count.
 
 Reply with JSON only:
-{"facts": [{"n": 1, "present": true, "quote": "..."}, ...]}"""
+{"facts": [{"n": 1, "present": true, "quote": "..."}, ...], "claims_not_covered": false}"""
 
 
 JUDGE_SYSTEM_PROMPT = """You grade the answers of a university course chatbot.
@@ -135,6 +140,21 @@ async def with_retry(factory, what: str, tries: int = 4):
             wait = 3 * 2 ** attempt
             print(f"  [retry] {what}: {e!r} — again in {wait}s")
             await asyncio.sleep(wait)
+
+
+# Second, deterministic signal for "says the materials don't cover it"
+# (the judge alone may miss it). Only the FIRST 300 characters are checked:
+# the problem case is an answer that OPENS with a refusal.
+_NOT_COVERED = re.compile(
+    r"\bi don'?t see\b|not (covered|mentioned|included) in|do(es)? not (cover|mention|contain|specify)"
+    r"|nicht in den (bereitgestellten |vorliegenden )?(kurs)?materialien|enthalten keine|keine (angaben|informationen)"
+    r"|в (предоставленных |учебных )?материалах (нет|не )|не (содержат|упомина)|у матеріалах (немає|не )",
+    re.I,
+)
+
+
+def opens_with_not_covered(answer: str) -> bool:
+    return bool(_NOT_COVERED.search((answer or "")[:300]))
 
 
 _SOURCE_LINE = re.compile(r"^\s*(source|sources|quelle|quellen|источник)\b.*$", re.I | re.M)
@@ -223,9 +243,13 @@ class Evaluator:
         self.store = VectorStore(embedding_model=EmbeddingModel())
         print(f"  done in {time.perf_counter() - t:.1f}s; collections: {sorted(self.store.list_collections())}")
 
-        self.llm = MistralLLM(api_key=settings.MISTRAL_API_KEY)
+        self.llm = MistralLLM(api_key=settings.MISTRAL_API_KEY, model=args.answer_model or None)
         self.translator = None if args.no_retrieval_translation else Translator(llm=self.llm)
         self.answer_model = self.llm.model
+        # The judge stays on the .env model even when --answer-model changes
+        # the chatbot's model, so runs with different chatbot models are
+        # graded by the same judge and stay comparable.
+        self.judge_model = args.judge_model or settings.MISTRAL_MODEL
 
         class RecordingRetriever(Retriever):
             """The production Retriever, remembering what each search returned."""
@@ -349,7 +373,7 @@ class Evaluator:
             )},
         ]
         kwargs = {"temperature": 0, "response_format": {"type": "json_object"}}
-        kwargs["model"] = self.args.judge_model or self.answer_model
+        kwargs["model"] = self.judge_model
         raw = await with_retry(lambda: self.llm.chat(messages, **kwargs), f"judge #{q['id']}")
         return parse_judge(raw)
 
@@ -362,10 +386,12 @@ class Evaluator:
             {"role": "user", "content": f"QUESTION:\n{q['question']}\n\nANSWER:\n{answer}\n\nKEY FACTS:\n{listed}"},
         ]
         kwargs = {"temperature": 0, "response_format": {"type": "json_object"},
-                  "model": self.args.judge_model or self.answer_model}
+                  "model": self.judge_model}
         raw = await with_retry(lambda: self.llm.chat(messages, **kwargs), f"judge #{q['id']}")
         try:
-            items = json.loads(raw).get("facts", [])
+            parsed = json.loads(raw)
+            items = parsed.get("facts", [])
+            claims_not_covered = bool(parsed.get("claims_not_covered"))
         except (json.JSONDecodeError, AttributeError):
             return "error", f"unparseable judge output: {raw[:200]!r}"
 
@@ -396,6 +422,12 @@ class Evaluator:
         else:
             verdict = "wrong"
         reason = f"{found}/{len(facts)} key facts" + (f"; missing: {'; '.join(missing)}" if missing else "")
+
+        # "I don't see this in your materials ... (then the right answer)":
+        # confusing for the student even if the facts are there.
+        if (claims_not_covered or opens_with_not_covered(answer)) and found > 0:
+            verdict = "partial" if verdict == "correct" else verdict
+            reason = "CONTRADICTION: says not covered but answers; " + reason
         return verdict, reason
 
     async def run_question(self, q: dict, course_names: dict[int, str], history: list[dict]) -> dict:
@@ -506,7 +538,7 @@ def print_summary(results: list[dict], config: dict) -> dict:
     summary = {"n": n}
 
     print("\n" + "=" * 72)
-    print(f"RUN: {config['label'] or '-'}   n_results={config['n_results']}  min_score={config['min_score']}  "
+    print(f"RUN: {config['label'] or '-'}   model={config.get('answer_model')}   n_results={config['n_results']}  min_score={config['min_score']}  "
           f"retrieval_translation={not config['no_retrieval_translation']}  hybrid={config.get('hybrid', False)}  "
           f"as_chats={config['as_chats']}")
     print("=" * 72)
@@ -682,7 +714,8 @@ async def run_eval(args, questions, course_names) -> None:
         "no_retrieval_translation": args.no_retrieval_translation, "as_chats": args.as_chats,
         "hybrid": not args.no_hybrid,
         "retrieval_only": args.retrieval_only, "answer_model": ev.answer_model,
-        "judge_model": args.judge_model or ev.answer_model,
+        "judge_model": ev.judge_model,
+        "answer_model_override": args.answer_model,
         "only": args.only, "group": args.group,
     }
     summary = print_summary(results, config)
@@ -758,6 +791,8 @@ def main() -> None:
     p.add_argument("--no-retrieval-translation", action="store_true", help="do not translate non-EN/DE search queries")
     p.add_argument("--no-hybrid", action="store_true", help="vector search only (no BM25 keyword search)")
     p.add_argument("--deep-n", type=int, default=60, help="how deep to look when diagnosing a retrieval miss")
+    p.add_argument("--answer-model",
+                   help="Mistral model the CHATBOT answers with (default: MISTRAL_MODEL from .env)")
     p.add_argument("--judge-model",
                    help="Mistral model for the judge (default: the chatbot's MISTRAL_MODEL). "
                         "Must be available in your Mistral subscription.")

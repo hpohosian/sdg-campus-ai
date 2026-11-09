@@ -73,6 +73,18 @@ $functions = [
         'loginrequired' => true,
     ],
 
+    'local_ai_system_translate_message' => [
+        'classname'   => 'local_ai_system\external\chatbot_api',
+        'methodname'  => 'translate_message',
+        'description' => 'Translate one message into the session language (progressive chat translation)',
+        'type'        => 'read',
+        'ajax'        => true,
+        'loginrequired' => true,
+        // Several translations run in parallel; without this Moodle's session
+        // lock would make them wait for each other one by one.
+        'readonlysession' => true,
+    ],
+
     'local_ai_system_save_partial_message' => [
         'classname'   => 'local_ai_system\external\chatbot_api',
         'methodname'  => 'save_partial_message',

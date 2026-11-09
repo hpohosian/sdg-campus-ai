@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse, FileResponse
 import json
+import traceback
 import os
 import mimetypes
 
@@ -48,18 +49,50 @@ def _validate_image_size(request: SendMessageRequest) -> None:
 @router.get("/{session_id}/messages", response_model=list[MessageResponse])
 async def get_session_messages(
     session_id: str,
+    cached_only: bool = False,
     user_id: int = Depends(get_current_user_id),
     session_service: SessionService = Depends(get_session_service),
     message_service: MessageService = Depends(get_message_service),
 ):
+    """
+    cached_only=true: answer at once, untranslated messages come back in the
+    original with translation_pending=true (see translate_message below).
+    """
     session = await session_service.get_session(session_id)
 
     if session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    messages = await message_service.get_session_messages_for_display(session_id)  # CHANGED
+    messages = await message_service.get_session_messages_for_display(session_id, cached_only=cached_only)
 
     return messages
+
+
+# =========================
+# TRANSLATE ONE MESSAGE (progressive chat translation)
+# =========================
+@router.post("/{session_id}/messages/{message_id}/translate", response_model=MessageResponse)
+async def translate_message(
+    session_id: str,
+    message_id: int,
+    user_id: int = Depends(get_current_user_id),
+    session_service: SessionService = Depends(get_session_service),
+    message_service: MessageService = Depends(get_message_service),
+):
+    """
+    The message in the session's current language (cached after the first
+    call). Counted by the GENERAL rate limit, not the strict LLM one: a long
+    chat sends one request per message.
+    """
+    session = await session_service.get_session(session_id)
+
+    if session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    try:
+        return await message_service.translate_message_for_display(session_id, message_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # =========================
@@ -135,6 +168,13 @@ async def stream_message(
                 # the partial text.
                 if await http_request.is_disconnected():
                     return
+        except Exception:
+            # LLM still unavailable after retries (or any other failure):
+            # tell the browser instead of breaking the stream with a traceback.
+            traceback.print_exc()
+            yield f"data: {json.dumps({'error': 'llm_unavailable'})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
         finally:
             await tokens.aclose()
 
@@ -184,6 +224,13 @@ async def edit_message_stream(
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             yield "data: [DONE]\n\n"
             return
+        except Exception:
+            # LLM still unavailable after retries (or any other failure):
+            # tell the browser instead of breaking the stream with a traceback.
+            traceback.print_exc()
+            yield f"data: {json.dumps({'error': 'llm_unavailable'})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
         finally:
             # No-op when the stream finished; on Stop it makes the service save the partial text.
             await tokens.aclose()
@@ -227,6 +274,13 @@ async def regenerate_message_stream(
                     return
         except ValueError as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+        except Exception:
+            # LLM still unavailable after retries (or any other failure):
+            # tell the browser instead of breaking the stream with a traceback.
+            traceback.print_exc()
+            yield f"data: {json.dumps({'error': 'llm_unavailable'})}\n\n"
             yield "data: [DONE]\n\n"
             return
         finally:

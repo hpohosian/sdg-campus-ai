@@ -5,7 +5,7 @@ from chatbot.repositories.session_repository import SessionRepository
 from chatbot.repositories.message_translation_repository import MessageTranslationRepository  # NEW
 from chatbot.course_links import format_course_link, build_course_links
 
-from chatbot.services.ai_service import AIService
+from chatbot.services.ai_service import AIService, _detect_language_code
 from translation.translator import Translator  # NEW
 from settings import settings
 
@@ -58,12 +58,30 @@ class MessageService:
     # =========================
     # GET SESSION MESSAGES FOR DISPLAY 
     # =========================
-    async def get_session_messages_for_display(self, session_id: str):
+    async def get_session_messages_for_display(self, session_id: str, cached_only: bool = False):
+        """
+        The active thread in the session's language.
+
+        cached_only=False: translates every untranslated message before
+            returning (the student waits for the slowest one).
+        cached_only=True: returns at once — cached translations where they
+            exist, the original text plus translation_pending=True where
+            not. The browser then calls translate_message_for_display() per
+            pending message and swaps each one in as soon as it is ready.
+            A chat that is already fully translated (or shown in the
+            original) has nothing pending and appears complete immediately.
+        """
         session = self.session_repo.get(session_id)
         if not session:
             raise ValueError("Session not found")
 
         messages = self.message_repo.get_active_thread(session_id)
+
+        if cached_only:
+            return [
+                self._to_response(m, *self._cached_or_pending(m, session.language))
+                for m in messages
+            ]
 
         # Translate messages concurrently instead of one after another.
         # The semaphore caps parallel LLM calls to stay clear of API rate limits.
@@ -87,19 +105,44 @@ class MessageService:
                 print(f"[translate] message {m.id} failed: {content!r}")
                 content = m.content
 
-            result.append(
-                MessageResponse(
-                    id=m.id,
-                    session_id=m.session_id,
-                    role=m.role,
-                    content=content,
-                    image_url=self._build_image_url(m.session_id, m.id) if m.image_path else None,
-                    tokens_used=m.tokens_used,
-                    created_at=m.created_at,
-                )
-            )
+            result.append(self._to_response(m, content))
 
         return result
+
+    async def translate_message_for_display(self, session_id: str, message_id: int) -> MessageResponse:
+        """One message of the session, translated into the session's language (and cached)."""
+        session = self.session_repo.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+        message = self.message_repo.get(message_id)
+        if not message or message.session_id != session_id:
+            raise ValueError("Message not found")
+        content = await self._translate_message(message, session.language)
+        return self._to_response(message, content)
+
+    def _cached_or_pending(self, message, target_language: str | None) -> tuple[str, bool]:
+        """(content to show now, still needs translating?) — never calls the LLM."""
+        if not target_language:
+            return message.content, False
+        cached = self.translation_repo.get(message.id, target_language)
+        if cached:
+            return cached.content, False
+        if _detect_language_code(message.content) == target_language:
+            self.translation_repo.create(message.id, target_language, message.content)
+            return message.content, False
+        return message.content, True
+
+    def _to_response(self, m, content: str, translation_pending: bool = False) -> MessageResponse:
+        return MessageResponse(
+            id=m.id,
+            session_id=m.session_id,
+            role=m.role,
+            content=content,
+            image_url=self._build_image_url(m.session_id, m.id) if m.image_path else None,
+            tokens_used=m.tokens_used,
+            created_at=m.created_at,
+            translation_pending=translation_pending,
+        )
 
     @staticmethod
     def _build_image_url(session_id: str, message_id: int) -> str:
@@ -123,6 +166,13 @@ class MessageService:
         cached = self.translation_repo.get(message.id, target_language)
         if cached:
             return cached.content
+
+        # Already in the target language (e.g. the student's own Russian
+        # questions when switching to Russian): nothing to translate.
+        # None (too short to tell) still goes to the translator.
+        if _detect_language_code(message.content) == target_language:
+            self.translation_repo.create(message.id, target_language, message.content)
+            return message.content
 
         translated = await self.translator.translate(message.content, target_language)
         self.translation_repo.create(message.id, target_language, translated)
@@ -572,3 +622,4 @@ class MessageService:
         if collection_name:
             return links.get(session.course_id), None
         return None, links
+    

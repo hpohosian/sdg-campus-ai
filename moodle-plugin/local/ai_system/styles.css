@@ -1057,6 +1057,20 @@ body.pagelayout-embedded.ai-chatbot-page .ai-chatbot-layout {
 
 @keyframes ai-spin { to { transform: rotate(360deg); } }
 
+/* message whose translation is still on its way (progressive chat translation) */
+.ai-message--translating .ai-message-content {
+    animation: ai-translating-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ai-translating-pulse {
+    0%, 100% { opacity: 0.45; }
+    50%      { opacity: 0.75; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ai-message--translating .ai-message-content { animation: none; opacity: 0.5; }
+}
+
 /* =====================================================================
    INPUT — floating pill
    ===================================================================== */

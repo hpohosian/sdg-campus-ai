@@ -10,6 +10,7 @@ define([
             courseId: 0,
             isStreaming: false,
             isTranslating: false,
+            translationRun: 0, // bumped on every (re)render: late translations of an older render are dropped
             controller: null,
             shouldAutoScroll: true,
             partialText: '',
@@ -667,17 +668,9 @@ define([
 
                         this.setActiveLanguage(language);
 
-                        const result = await Ajax.call([{
-                            methodname: 'local_ai_system_get_messages',
-                            args: { session_id: this.state.sessionId }
-                        }])[0];
-
-                        const container = document.getElementById('ai-messages-container');
-                        container.innerHTML = '';
-
-                        const messages = Array.isArray(result) ? result : (result.messages ?? []);
-                        messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
-                        await this.loadVersionNav();
+                        // Shows the chat at once (cached translations, originals
+                        // for the rest), then translates message by message.
+                        await this.loadThread(this.state.sessionId);
 
                         const item = document.querySelector(`.ai-session-item[data-session-id="${this.state.sessionId}"]`);
                         if (item) {
@@ -1090,16 +1083,7 @@ define([
 
             this.setActiveLanguage(item?.dataset.language || '');
 
-            const result = await Ajax.call([{
-                methodname: 'local_ai_system_get_messages',
-                args: { session_id: sessionId }
-            }])[0];
-
-            const messages = Array.isArray(result) ? result : (result.messages ?? []);
-
-            const container = document.getElementById('ai-messages-container');
-            container.innerHTML = '';
-            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
+            await this.loadThread(sessionId, { versionNav: false });
 
             const chatTitle = document.getElementById('ai-chat-title');
             if (chatTitle) chatTitle.textContent = archived ? `${title} (archived)` : title;
@@ -1411,6 +1395,12 @@ define([
 
                     if (parsed.error !== undefined) {
                         console.error('[ChatBot] Stream error:', parsed.error);
+                        // The AI service did not answer (e.g. Mistral rate limit even
+                        // after the backend's retries): say so instead of an empty bubble.
+                        if (parsed.error === 'llm_unavailable' && !fullText) {
+                            bubbleTextEl.innerText =
+                                'The AI service is busy right now. Please send your question again in a moment.';
+                        }
                         continue;
                     }
 
@@ -1743,17 +1733,102 @@ define([
             const sessionId = this.state.sessionId;
             if (!sessionId) return;
 
+            await this.loadThread(sessionId);
+        },
+
+        // =========================
+        // LOAD + RENDER THE ACTIVE THREAD (progressive translation)
+        // =========================
+        // Asks for the thread with cached_only: the backend answers at once —
+        // cached translations where they exist, the original text (marked
+        // translation_pending) where not. A chat shown in its original
+        // language, or one that is already fully translated, therefore
+        // appears complete immediately. Pending messages are rendered dimmed
+        // and replaced one by one as their translations arrive.
+        async loadThread(sessionId, { versionNav = true } = {}) {
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_get_messages',
-                args: { session_id: sessionId }
+                args: { session_id: sessionId, cached_only: true }
             }])[0];
 
             const messages = Array.isArray(result) ? result : (result.messages ?? []);
 
+            const run = ++this.state.translationRun;
             const container = document.getElementById('ai-messages-container');
             container.innerHTML = '';
-            messages.forEach(msg => this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id));
-            await this.loadVersionNav();
+
+            const pending = [];
+            messages.forEach(msg => {
+                const wrap = this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id);
+                if (msg.translation_pending && msg.id) {
+                    wrap.classList.add('ai-message--translating');
+                    pending.push({ id: msg.id, role: msg.role, wrap });
+                }
+            });
+
+            if (versionNav) await this.loadVersionNav();
+
+            // Not awaited: the chat is usable while translations stream in.
+            if (pending.length) this.translatePending(sessionId, pending, run);
+        },
+
+        async translatePending(sessionId, pending, run) {
+            const PARALLEL = 4; // browser -> Moodle requests at once; the backend parallelises further
+
+            // Every render bumps translationRun (opening another chat, switching
+            // language, editing...), so this alone drops results meant for a
+            // chat that is no longer on screen. Not compared with state.sessionId
+            // on purpose: archived chats render with sessionId = null.
+            const stale = () => run !== this.state.translationRun;
+
+            // Translations are FETCHED in parallel (fast), but SHOWN strictly
+            // top to bottom: message 1, then 2, then 3 ... A finished
+            // translation waits in `done` until every message above it has
+            // been shown, so the chat never fills in a random order.
+            const done = new Map();   // index -> translated text (null = failed, keep original)
+            let shown = 0;            // index of the next message to show
+            const flush = () => {
+                while (shown < pending.length && done.has(shown)) {
+                    const item = pending[shown];
+                    const content = done.get(shown);
+                    if (content !== null) this.setMessageContent(item.wrap, item.role, content);
+                    item.wrap.classList.remove('ai-message--translating');
+                    shown++;
+                }
+            };
+
+            let next = 0;             // index of the next message to fetch
+            const worker = async () => {
+                while (next < pending.length && !stale()) {
+                    const index = next++;
+                    const item = pending[index];
+                    let content = null;
+                    try {
+                        const res = await Ajax.call([{
+                            methodname: 'local_ai_system_translate_message',
+                            args: { session_id: sessionId, message_id: item.id }
+                        }])[0];
+                        content = res.content;
+                    } catch (e) {
+                        // Leave the original text; the next open retries (nothing was cached).
+                        console.error('[ChatBot] Translation failed for message', item.id, e);
+                    }
+                    if (stale()) return;
+                    done.set(index, content);
+                    flush();
+                }
+            };
+
+            await Promise.all(Array.from({ length: Math.min(PARALLEL, pending.length) }, worker));
+        },
+
+        // Replaces the text of a rendered message (keeps image, time, actions).
+        setMessageContent(wrap, role, content) {
+            const text = wrap.querySelector('.ai-message-content');
+            if (!text) return;
+            wrap.dataset.rawContent = content || '';
+            text.innerHTML = window.marked.parse(content || '');
+            if (role === 'assistant') this.renderSourceCards(text);
         },
 
         async loadVersionNav() {

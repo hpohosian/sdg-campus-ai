@@ -63,7 +63,7 @@ def get_retriever(
 def get_translator(
     llm: BaseLLM = Depends(get_llm),
 ) -> Translator:
-    return Translator(llm=llm)
+    return Translator(llm=llm, model=get_settings().TRANSLATION_MODEL or None)
 
 
 def get_ai_service(

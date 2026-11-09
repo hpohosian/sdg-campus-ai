@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     
     MISTRAL_VISION_MODEL: str = "mistral-medium-latest"
 
+    TRANSLATION_MODEL: str = ""
+
+    MISTRAL_MAX_RPS: float = 0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8"

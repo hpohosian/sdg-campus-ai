@@ -44,6 +44,10 @@ class MessageResponse(BaseModel):
     image_url: str | None = None
     tokens_used: int | None = None
     created_at: int
+    # True = `content` is still the original text; the client fetches the
+    # translation separately (POST .../messages/{id}/translate) and swaps
+    # it in, so a long chat appears at once and translates message by message.
+    translation_pending: bool = False
 
 
 class IndexCourseRequest(BaseModel):

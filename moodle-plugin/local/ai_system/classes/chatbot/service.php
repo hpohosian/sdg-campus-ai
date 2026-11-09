@@ -129,15 +129,34 @@ class service {
      */
     public function get_messages(
         string $session_id,
-        int $userid
+        int $userid,
+        bool $cached_only = false
     ): array {
 
+        // cached_only: the backend answers at once and marks messages that
+        // still need translating (translation_pending) instead of translating
+        // the whole chat first. The query string is not part of the request
+        // signature, it only switches this behaviour.
+        $query = $cached_only ? '?cached_only=true' : '';
+
         $messages = $this->client->get(
-            "/sessions/{$session_id}/messages",
+            "/sessions/{$session_id}/messages{$query}",
             $userid
         );
 
         return self::strip_null_image_urls($messages);
+    }
+
+    /**
+     * One message translated into the session's current language.
+     */
+    public function translate_message(string $session_id, int $message_id, int $userid = 0): array {
+        $message = $this->client->post(
+            "/sessions/{$session_id}/messages/{$message_id}/translate",
+            [],
+            self::user_or_current($userid)
+        );
+        return self::strip_null_image_urls([$message])[0];
     }
 
     /**

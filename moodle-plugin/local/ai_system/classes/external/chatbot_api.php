@@ -385,7 +385,13 @@ class chatbot_api extends external_api {
             'session_id' => new external_value(
                 PARAM_TEXT,
                 'Session ID'
-            )
+            ),
+            'cached_only' => new external_value(
+                PARAM_BOOL,
+                'Return at once; untranslated messages come back in the original with translation_pending',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -393,13 +399,15 @@ class chatbot_api extends external_api {
     // GET MESSAGES - MAIN LOGIC
     // =========================
     public static function get_messages(
-        $session_id
+        $session_id,
+        $cached_only = false
     ) {
 
         $params = self::validate_parameters(
             self::get_messages_parameters(),
             [
-                'session_id' => $session_id
+                'session_id' => $session_id,
+                'cached_only' => $cached_only,
             ]
         );
 
@@ -418,7 +426,8 @@ class chatbot_api extends external_api {
 
         return $service->get_messages(
             $params['session_id'],
-            $USER->id
+            $USER->id,
+            (bool) $params['cached_only']
         );
     }
 
@@ -454,9 +463,52 @@ class chatbot_api extends external_api {
                     PARAM_TEXT,
                     'Timestamp',
                     VALUE_OPTIONAL
-                )
+                ),
+
+                'translation_pending' => new external_value(
+                    PARAM_BOOL,
+                    'Content is still the original; fetch the translation with local_ai_system_translate_message',
+                    VALUE_OPTIONAL
+                ),
             ])
         );
+    }
+
+    // =========================
+    // TRANSLATE ONE MESSAGE (progressive chat translation)
+    // =========================
+    public static function translate_message_parameters() {
+        return new external_function_parameters([
+            'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
+            'message_id' => new external_value(PARAM_INT, 'Message ID'),
+        ]);
+    }
+
+    public static function translate_message($session_id, $message_id) {
+        $params = self::validate_parameters(
+            self::translate_message_parameters(),
+            ['session_id' => $session_id, 'message_id' => $message_id]
+        );
+
+        $context = \context_system::instance();
+        self::validate_context($context);
+        require_capability('local/ai_system:use_chatbot', $context);
+
+        global $USER;
+        $service = new \local_ai_system\chatbot\service();
+        $message = $service->translate_message($params['session_id'], (int) $params['message_id'], (int) $USER->id);
+
+        return [
+            'id'      => (int) ($message['id'] ?? $params['message_id']),
+            'content' => (string) ($message['content'] ?? ''),
+        ];
+    }
+
+    public static function translate_message_returns() {
+        return new external_single_structure([
+            'id'      => new external_value(PARAM_INT, 'Message ID'),
+            'content' => new external_value(PARAM_RAW, 'Message text in the session language'),
+        ]);
     }
 
 
