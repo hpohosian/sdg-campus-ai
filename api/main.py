@@ -8,6 +8,7 @@ from chatbot.routers.session_router import router as session_router
 from chatbot.routers.message_router import router as message_router
 from chatbot.routers.rag_router import router as rag_router
 from chatbot.routers.privacy_router import router as privacy_router
+from chatbot.routers.quiz_router import router as quiz_router
 from middleware.timing import TimingMiddleware
 from middleware.auth import HMACAuthMiddleware
 from middleware.rate_limit import RateLimitMiddleware
@@ -84,6 +85,7 @@ app.include_router(session_router)
 app.include_router(message_router)
 app.include_router(rag_router)
 app.include_router(privacy_router)
+app.include_router(quiz_router)
 
 
 @app.get("/health")

@@ -12,6 +12,7 @@ from settings import settings
 from chatbot.schemas import MessageResponse
 
 from chatbot.services.image_storage import ImageStorage
+from chatbot.quiz.service import quiz_request_view, quiz_view, text_for_llm
 
 
 # How many translation LLM calls may run at the same time when a session
@@ -36,6 +37,7 @@ class MessageService:
         translation_repo: MessageTranslationRepository,
         translator: Translator,
         image_storage: ImageStorage,
+        quiz_repo=None,
     ):
         self.message_repo = message_repo
         self.session_repo = session_repo
@@ -47,6 +49,10 @@ class MessageService:
         self.translation_repo = translation_repo
         self.translator = translator
         self.image_storage = image_storage
+        # Answers of quiz messages (shown with the quiz). None = no quizzes
+        # (e.g. scripts that build a MessageService without one).
+        self.quiz_repo = quiz_repo
+        self._quiz_answers: dict = {}
 
     # =========================
     # GET SESSION MESSAGES 
@@ -76,6 +82,7 @@ class MessageService:
             raise ValueError("Session not found")
 
         messages = self.message_repo.get_active_thread(session_id)
+        self._quiz_answers = self._load_quiz_answers(messages)
 
         if cached_only:
             return [
@@ -120,8 +127,16 @@ class MessageService:
         content = await self._translate_message(message, session.language)
         return self._to_response(message, content)
 
+    def _load_quiz_answers(self, messages) -> dict:
+        ids = [m.id for m in messages if getattr(m, "content_type", "text") == "quiz"]
+        if not ids or self.quiz_repo is None:
+            return {}
+        return self.quiz_repo.get_answers(ids)
+
     def _cached_or_pending(self, message, target_language: str | None) -> tuple[str, bool]:
         """(content to show now, still needs translating?) — never calls the LLM."""
+        if (message.content_type or "text") != "text":
+            return message.content, False   # quizzes: not translated (yet)
         if not target_language:
             return message.content, False
         cached = self.translation_repo.get(message.id, target_language)
@@ -133,6 +148,15 @@ class MessageService:
         return message.content, True
 
     def _to_response(self, m, content: str, translation_pending: bool = False) -> MessageResponse:
+        content_type = getattr(m, "content_type", None) or "text"
+        quiz = None
+        if content_type == "quiz":
+            answers = getattr(self, "_quiz_answers", {}).get(m.id)
+            if answers is None and self.quiz_repo is not None:
+                answers = self.quiz_repo.get_answers([m.id]).get(m.id, [])
+            quiz, content = quiz_view(m, answers), ""
+        elif content_type == "quiz_request":
+            quiz, content = quiz_request_view(m), ""
         return MessageResponse(
             id=m.id,
             session_id=m.session_id,
@@ -142,6 +166,8 @@ class MessageService:
             tokens_used=m.tokens_used,
             created_at=m.created_at,
             translation_pending=translation_pending,
+            content_type=content_type,
+            quiz=quiz,
         )
 
     @staticmethod
@@ -160,7 +186,7 @@ class MessageService:
     # TRANSLATE ONE MESSAGE
     # =========================
     async def _translate_message(self, message, target_language: str | None) -> str:
-        if not target_language:
+        if not target_language or (message.content_type or "text") != "text":
             return message.content
 
         cached = self.translation_repo.get(message.id, target_language)
@@ -279,7 +305,7 @@ class MessageService:
         user_message = await self.create_user_message(session_id, content, image_path=image_path, parent_id=parent_id)
         history = await self.get_session_messages(session_id)
 
-        history_dicts = [{"role": m.role, "content": m.content} for m in history]
+        history_dicts = [{"role": m.role, "content": text_for_llm(m)} for m in history]
         if image_base64:
             history_dicts[-1] = {
                 "role": "user",
@@ -345,7 +371,7 @@ class MessageService:
         result["user_message_id"] = user_message.id
 
         raw_history = await self.get_session_messages(session_id)
-        history = [{"role": msg.role, "content": msg.content} for msg in raw_history]
+        history = [{"role": msg.role, "content": text_for_llm(msg)} for msg in raw_history]
 
         if image_base64:
             history[-1] = {
@@ -438,7 +464,7 @@ class MessageService:
         )
 
         history = await self.get_session_messages(session_id)  # active thread, now ending at new_user_message
-        history_dicts = [{"role": m.role, "content": m.content} for m in history]
+        history_dicts = [{"role": m.role, "content": text_for_llm(m)} for m in history]
 
         full_response = ""
         _STOP_REQUESTED.discard(session_id)
@@ -505,7 +531,7 @@ class MessageService:
             session, collection_name, relevant_course_ids
         )
 
-        history_dicts = [{"role": m.role, "content": m.content} for m in history]
+        history_dicts = [{"role": m.role, "content": text_for_llm(m)} for m in history]
 
         full_response = ""
         try:
@@ -622,4 +648,3 @@ class MessageService:
         if collection_name:
             return links.get(session.course_id), None
         return None, links
-    

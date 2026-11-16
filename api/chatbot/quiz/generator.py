@@ -45,6 +45,24 @@ BLOCK_MAX_CHARS = 1800        # longer chunks are shortened ...
 TABLE_MAX_CHARS = 4000        # ... tables a bit less (they are dense)
 MIN_BLOCK_CHARS = 200         # too short to ask something sensible about
 
+# "laut Block 2", "(Block 3)", "according to block 1", "в блоке 2", "согласно блоку 4" ...
+# The model sometimes cites our internal block numbers; the student has no
+# idea what "Block 2" is. Such phrases are cut out; a question that still
+# mentions a block afterwards is dropped (and replaced by the retry).
+_BLOCK_REF = re.compile(
+    r"\s*\(?\s*(?:(?:laut|gemäß|nach|in|im|aus|according to|in|from|согласно|в|во|по|из)\s+)?"
+    r"(?:dem\s+|the\s+)?(?:block|блок[а-яё]*)\s*\d+\s*\)?",
+    re.IGNORECASE,
+)
+_BLOCK_LEFT = re.compile(r"\b(?:block|блок[а-яё]*)\s*\d+", re.IGNORECASE)
+
+
+def _remove_block_refs(text: str) -> str:
+    text = _BLOCK_REF.sub(" ", text)
+    text = re.sub(r"\s+([?.,!:;])", r"\1", text)   # "Was ermöglicht ... ?" -> "...?"
+    text = re.sub(r",,", "", text)                   # "Что, согласно блоку 2, означает" -> "Что означает"
+    return re.sub(r"\s{2,}", " ", text).strip()
+
 
 QUIZ_SYSTEM_PROMPT = """You write quiz questions that help students check their understanding of their course materials.
 
@@ -52,6 +70,7 @@ You get numbered blocks of course material. Write exactly {count} questions in {
 
 RULES
 - Every question must be answerable from ONE block alone. Put that block's number in "block". Never use knowledge from outside the blocks.
+- The student never sees the blocks: never mention "block", its number or "the text above" in a question, option or explanation. Write questions as if about the subject itself (not "According to block 2, what ..." but "What ...").
 - Ask about the subject matter: facts, concepts, relationships, reasons, numbers that matter. Never about file names, page numbers, authors of a document, its layout, or the organisation of the course itself (who coaches it, how many hours it takes, dates).
 - Each question has exactly 4 options and exactly one correct option ("correct" = its index, 0-3).
 - Wrong options must sound plausible to someone who did not study the material, but be clearly wrong according to the block.
@@ -266,15 +285,17 @@ class QuizGenerator:
                 correct = item.get("correct")
                 correct = [int(c) for c in correct] if isinstance(correct, list) else [int(correct)]
                 question = QuizQuestion(
-                    question=str(item.get("question", "")),
-                    options=[str(o) for o in item.get("options", [])],
+                    question=_remove_block_refs(str(item.get("question", ""))),
+                    options=[_remove_block_refs(str(o)) for o in item.get("options", [])],
                     correct=correct,
-                    explanation=str(item.get("explanation", "")),
+                    explanation=_remove_block_refs(str(item.get("explanation", ""))),
                     source=Retriever._format_source_label(chunk["metadata"]) if chunk else "",
                     page=(chunk["metadata"].get("page") or None) if chunk else None,
                 )
                 if len(question.options) != 4:
                     raise ValueError(f"{len(question.options)} options instead of 4")
+                if any(_BLOCK_LEFT.search(t) for t in [question.question, question.explanation, *question.options]):
+                    raise ValueError("mentions an internal block number")
             except (ValidationError, ValueError, TypeError) as e:
                 print(f"[quiz] question skipped: {str(e).splitlines()[0][:150]}")
                 continue

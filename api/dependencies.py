@@ -25,6 +25,9 @@ from rag.vector_store import VectorStore
 from rag.retriever import Retriever
 
 from chatbot.services.image_storage import ImageStorage
+from chatbot.repositories.quiz_repository import QuizRepository
+from chatbot.quiz.generator import QuizGenerator
+from chatbot.quiz.service import QuizService
 
 
 @lru_cache
@@ -125,6 +128,10 @@ def get_course_repository(db: DBSession = Depends(get_moodle_db)) -> CourseRepos
     return CourseRepository(db)
 
 
+def get_quiz_repository(db: DBSession = Depends(get_db)) -> QuizRepository:
+    return QuizRepository(db)
+
+
 def get_message_service(
     message_repo: MessageRepository = Depends(get_message_repository),
     session_repo: SessionRepository = Depends(get_session_repository),
@@ -133,6 +140,7 @@ def get_message_service(
     translation_repo: MessageTranslationRepository = Depends(get_message_translation_repository),
     translator: Translator = Depends(get_translator),
     image_storage: ImageStorage = Depends(get_image_storage),
+    quiz_repo: QuizRepository = Depends(get_quiz_repository),
 ):
     return MessageService(
         message_repo,
@@ -142,5 +150,17 @@ def get_message_service(
         translation_repo,
         translator,
         image_storage,
+        quiz_repo=quiz_repo,
     )
-    
+
+
+def get_quiz_service(
+    message_repo: MessageRepository = Depends(get_message_repository),
+    session_repo: SessionRepository = Depends(get_session_repository),
+    quiz_repo: QuizRepository = Depends(get_quiz_repository),
+    llm: BaseLLM = Depends(get_llm),
+    retriever: Retriever = Depends(get_retriever),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    generator = QuizGenerator(llm=llm, retriever=retriever, model=get_settings().QUIZ_MODEL or None)
+    return QuizService(message_repo, session_repo, quiz_repo, generator, auth.enrolled_courses)

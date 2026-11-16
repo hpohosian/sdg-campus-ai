@@ -32,6 +32,7 @@ WINDOW_SECONDS = 60.0
 _LLM_PATH = re.compile(
     r"^/sessions/[^/]+/messages(?:/stream)?$"
     r"|^/sessions/[^/]+/messages/\d+/(?:edit|regenerate)/stream$"
+    r"|^/sessions/[^/]+/quiz$"
 )
 
 

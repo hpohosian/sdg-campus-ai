@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateSessionRequest(BaseModel):
@@ -48,6 +50,25 @@ class MessageResponse(BaseModel):
     # translation separately (POST .../messages/{id}/translate) and swaps
     # it in, so a long chat appears at once and translates message by message.
     translation_pending: bool = False
+    # "text" (markdown in `content`), "quiz_request" or "quiz". For the two
+    # quiz types `content` is empty and the data is in `quiz` (see
+    # chatbot/quiz/service.py: quiz_view / quiz_request_view).
+    content_type: str = "text"
+    quiz: dict | None = None
+
+
+class CreateQuizRequest(BaseModel):
+    scope: Literal["chat", "course"] = "course"
+    count: int = 5
+    topic: str | None = Field(default=None, max_length=300)
+    # Language of the UI; empty = chat language / language of the chat.
+    language: str | None = Field(default=None, max_length=5)
+
+
+class QuizAnswerRequest(BaseModel):
+    question_index: int = Field(ge=0)
+    # Indexes of the chosen options (one for single choice).
+    answer: list[int] = Field(min_length=1, max_length=10)
 
 
 class IndexCourseRequest(BaseModel):
