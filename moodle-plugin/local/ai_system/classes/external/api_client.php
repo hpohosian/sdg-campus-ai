@@ -10,7 +10,8 @@ require_once($CFG->libdir . '/filelib.php');
  * Non-streaming HTTP client for the FastAPI backend.
  *
  * Authentication headers (signature, user id, enrolled courses) come from
- * request_signer, the same code the streaming ajax scripts use.
+ * request_signer, the same code the streaming ajax scripts use (through
+ * backend_http, which also creates the Moodle curl object).
  */
 class api_client {
 
@@ -22,20 +23,15 @@ class api_client {
 
     /**
      * Debug log, only while Moodle's developer debugging is on. Request and
-     * response bodies contain chat messages, so they must not be written
-     * to a file on production systems.
+     * response bodies contain chat messages, so they must not be logged on
+     * production systems. Goes to the PHP error log (never into the Moodle
+     * code folder, which must stay read-only for the web server).
      */
     private function log(string $message): void {
-        global $CFG;
-
         if (!debugging('', DEBUG_DEVELOPER)) {
             return;
         }
-        file_put_contents(
-            $CFG->dirroot . '/debug.log',
-            "[" . date('H:i:s') . "] " . $message . "\n",
-            FILE_APPEND
-        );
+        error_log('local_ai_system: ' . $message);
     }
 
     private function extractUserId(array $body): int {
@@ -54,17 +50,14 @@ class api_client {
         $this->log("BODY: " . $payload);
 
         // The signature covers exactly the $payload that is sent below.
-        $headers = array_merge(
-            ['Content-Type: application/json'],
-            request_signer::headers($method, $path, $payload, $user_id)
-        );
+        $headers = backend_http::headers($method, $path, $payload, $user_id);
 
         if ($internal) {
             $headers[] = 'X-Internal-Api-Key: ' . $this->internal_key;
         }
 
-        $curl = new \curl();
-        $curl->ignore_security_hosts = true;
+        // Moodle's curl wrapper, set up for the backend: see backend_http.
+        $curl = backend_http::new_curl();
         $curl->setHeader($headers);
 
         switch ($method) {

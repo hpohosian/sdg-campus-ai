@@ -27,7 +27,6 @@ global $USER;
 // FASTAPI CONFIG
 // ==========================
 $path = "/sessions/{$session_id}/messages/{$message_id}/image";
-$url  = \local_ai_system\external\request_signer::base_url() . $path;
 
 // ==========================
 // BODY + SIGNED HEADERS
@@ -36,48 +35,22 @@ $url  = \local_ai_system\external\request_signer::base_url() . $path;
 // ==========================
 $payload = json_encode(['content' => '']);
 
-// Signed headers (timestamp, signature, user id, enrolled courses): see
-// classes/external/request_signer.php. The signature covers method, path,
-// user, courses and body, so none of them can be changed on the way.
-$headers = array_merge(
-    ['Content-Type: application/json'],
-    \local_ai_system\external\request_signer::headers('POST', $path, $payload, (int) $USER->id)
-);
-
 // ==========================
-// FETCH + RELAY
+// FETCH + RELAY (signed, through Moodle's curl wrapper: see classes/external/backend_http.php)
 // ==========================
-$ch = curl_init();
+$result = \local_ai_system\external\backend_http::post($path, $payload, (int) $USER->id, 15);
 
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HEADER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-
-$response = curl_exec($ch);
-
-if (curl_errno($ch)) {
+if ($result['error'] !== '') {
     http_response_code(502);
-    curl_close($ch);
+    exit;
+}
+if ($result['code'] !== 200) {
+    http_response_code($result['code'] ?: 502);
     exit;
 }
 
-$header_size  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-$http_code    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$content_type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-curl_close($ch);
-
-$body = substr($response, $header_size);
-
-if ($http_code !== 200) {
-    http_response_code($http_code ?: 502);
-    exit;
-}
-
-header('Content-Type: ' . ($content_type ?: 'application/octet-stream'));
+$body = $result['body'];
+header('Content-Type: ' . ($result['content_type'] ?: 'application/octet-stream'));
 // Private cache: the browser (this user only) may cache it, shared/proxy
 // caches must not — these are per-user chat attachments, not public assets.
 header('Cache-Control: private, max-age=86400');

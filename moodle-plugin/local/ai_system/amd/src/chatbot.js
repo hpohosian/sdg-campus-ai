@@ -1,7 +1,8 @@
 define([
     'core/ajax',
-    'core/notification'
-], function(Ajax, Notification) {
+    'core/notification',
+    'core/log'
+], function(Ajax, Notification, Log) {
 
     const ChatBot = {
 
@@ -10,7 +11,7 @@ define([
             courseId: 0,
             isStreaming: false,
             isTranslating: false,
-            translationRun: 0, // bumped on every (re)render: late translations of an older render are dropped
+            translationRun: 0, // Bumped on every (re)render: late translations of an older render are dropped
             controller: null,
             shouldAutoScroll: true,
             partialText: '',
@@ -28,8 +29,12 @@ define([
             // "popup stretches full width" bugs).
             const menu = document.getElementById('ai-context-menu');
             const popup = document.getElementById('ai-rename-popup');
-            if (menu && menu.parentElement !== document.body) document.body.appendChild(menu);
-            if (popup && popup.parentElement !== document.body) document.body.appendChild(popup);
+            if (menu && menu.parentElement !== document.body) {
+ document.body.appendChild(menu);
+}
+            if (popup && popup.parentElement !== document.body) {
+ document.body.appendChild(popup);
+}
 
             this.initMarkdown();
             this.initTheme();
@@ -68,7 +73,9 @@ define([
 
             container.addEventListener('click', (e) => {
                 const link = e.target.closest('a');
-                if (!link || !container.contains(link)) return;
+                if (!link || !container.contains(link)) {
+ return;
+}
                 e.preventDefault();
                 window.open(link.href, '_blank', 'noopener,noreferrer');
             });
@@ -79,32 +86,44 @@ define([
         // =========================
         initTheme() {
             let saved = null;
-            try { saved = localStorage.getItem('ai_system_theme'); } catch (e) { /* ignore */ }
+            try {
+ saved = localStorage.getItem('ai_system_theme');
+} catch (e) { /* Ignore */ }
 
             if (saved === 'dark') {
-                document.body.dataset.theme = 'dark';           // CHANGED: было document.getElementById('ai-chatbot-layout')
+                document.body.dataset.theme = 'dark'; // CHANGED: было document.getElementById('ai-chatbot-layout')
                 const icon = document.getElementById('ai-theme-icon');
-                if (icon) icon.className = 'fa fa-moon-o';
+                if (icon) {
+ icon.className = 'fa fa-moon-o';
+}
             }
         },
 
         bindThemeToggle() {
             const btn = document.getElementById('ai-theme-toggle');
             const icon = document.getElementById('ai-theme-icon');
-            if (!btn) return;
+            if (!btn) {
+ return;
+}
 
             btn.addEventListener('click', () => {
-                const isDark = document.body.dataset.theme === 'dark';   // CHANGED
+                const isDark = document.body.dataset.theme === 'dark'; // CHANGED
 
                 if (isDark) {
-                    delete document.body.dataset.theme;                  // CHANGED
-                    if (icon) icon.className = 'fa fa-sun-o';
+                    delete document.body.dataset.theme; // CHANGED
+                    if (icon) {
+ icon.className = 'fa fa-sun-o';
+}
                 } else {
-                    document.body.dataset.theme = 'dark';                // CHANGED
-                    if (icon) icon.className = 'fa fa-moon-o';
+                    document.body.dataset.theme = 'dark'; // CHANGED
+                    if (icon) {
+ icon.className = 'fa fa-moon-o';
+}
                 }
 
-                try { localStorage.setItem('ai_system_theme', isDark ? 'light' : 'dark'); } catch (e) { /* ignore */ }
+                try {
+ localStorage.setItem('ai_system_theme', isDark ? 'light' : 'dark');
+} catch (e) { /* Ignore */ }
             });
         },
 
@@ -119,7 +138,9 @@ define([
             const weekGroup = document.getElementById('ai-sb-week-group');
             const monthGroup = document.getElementById('ai-sb-month-group');
             const previousGroup = document.getElementById('ai-sb-previous-group');
-            if (!todayContainer || !weekContainer || !monthContainer || !previousContainer) return;
+            if (!todayContainer || !weekContainer || !monthContainer || !previousContainer) {
+ return;
+}
 
             const now = new Date();
 
@@ -143,7 +164,9 @@ define([
 
             Array.from(todayContainer.children).forEach(el => {
                 const ts = parseInt(el.dataset.createdAt, 10);
-                if (!ts || ts >= todayCutoff) return; // stays in Today
+                if (!ts || ts >= todayCutoff) {
+ return;
+} // Stays in Today
 
                 if (ts >= weekCutoff) {
                     weekContainer.appendChild(el);
@@ -157,9 +180,15 @@ define([
                 }
             });
 
-            if (movedWeek && weekGroup) weekGroup.style.display = '';
-            if (movedMonth && monthGroup) monthGroup.style.display = '';
-            if (movedOlder && previousGroup) previousGroup.style.display = '';
+            if (movedWeek && weekGroup) {
+ weekGroup.style.display = '';
+}
+            if (movedMonth && monthGroup) {
+ monthGroup.style.display = '';
+}
+            if (movedOlder && previousGroup) {
+ previousGroup.style.display = '';
+}
         },
 
         // =========================
@@ -168,7 +197,9 @@ define([
         formatServerMessageTimes() {
             document.querySelectorAll('.ai-message-time[data-created-at]').forEach(el => {
                 const ts = parseInt(el.dataset.createdAt, 10);
-                if (!ts) return;
+                if (!ts) {
+ return;
+}
                 el.textContent = this.formatTime(new Date(ts * 1000));
             });
             this.bindMessageActions(document);
@@ -176,34 +207,48 @@ define([
 
         bindMessageActions(scope) {
             scope.querySelectorAll('.ai-msg-action-copy').forEach(btn => {
-                if (btn.dataset.bound) return;
+                if (btn.dataset.bound) {
+ return;
+}
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', () => {
                     const bubble = btn.closest('.ai-bubble-wrap')?.querySelector('.ai-message-content');
-                    if (!bubble) return;
+                    if (!bubble) {
+ return;
+}
                     navigator.clipboard.writeText(bubble.innerText).then(() => {
                         const icon = btn.querySelector('i');
                         icon.className = 'fa fa-check';
-                        setTimeout(() => { icon.className = 'fa fa-clone'; }, 1000);
+                        setTimeout(() => {
+ icon.className = 'fa fa-clone';
+}, 1000);
                     });
                 });
             });
 
             scope.querySelectorAll('.ai-msg-action-edit').forEach(btn => {
-                if (btn.dataset.bound) return;
+                if (btn.dataset.bound) {
+ return;
+}
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', () => {
                     const wrap = btn.closest('.ai-message');
-                    if (wrap) this.enterEditMode(wrap);
+                    if (wrap) {
+ this.enterEditMode(wrap);
+}
                 });
             });
 
             scope.querySelectorAll('.ai-msg-action-regen').forEach(btn => {
-                if (btn.dataset.bound) return;
+                if (btn.dataset.bound) {
+ return;
+}
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', () => {
                     const wrap = btn.closest('.ai-message');
-                    if (wrap) this.regenerateMessage(wrap);
+                    if (wrap) {
+ this.regenerateMessage(wrap);
+}
                 });
             });
         },
@@ -213,22 +258,30 @@ define([
         // =========================
         bindHeaderPin() {
             const btn = document.getElementById('ai-pin-header-btn');
-            if (!btn) return;
+            if (!btn) {
+ return;
+}
             btn.addEventListener('click', () => {
-                if (!this.state.sessionId) return;
+                if (!this.state.sessionId) {
+ return;
+}
                 this.togglePin(this.state.sessionId);
             });
         },
 
         togglePin(sessionId) {
             const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
-            if (!item) return;
+            if (!item) {
+ return;
+}
 
             const isPinned = !!this.state.pinned[sessionId];
             this.state.pinned[sessionId] = !isPinned;
 
             const pinIcon = item.querySelector('.ai-session-pin-icon');
-            if (pinIcon) pinIcon.classList.toggle('hidden', isPinned);
+            if (pinIcon) {
+ pinIcon.classList.toggle('hidden', isPinned);
+}
 
             const pinnedContainer = document.getElementById('ai-sb-pinned');
 
@@ -269,17 +322,23 @@ define([
             const attachBtn = document.getElementById('ai-attach-btn');
             const fileInput = document.getElementById('ai-image-input');
             const removeBtn = document.getElementById('ai-image-preview-remove');
-            if (!attachBtn || !fileInput) return;
+            if (!attachBtn || !fileInput) {
+ return;
+}
 
             attachBtn.addEventListener('click', () => {
-                if (this.state.isStreaming) return;
+                if (this.state.isStreaming) {
+ return;
+}
                 fileInput.click();
             });
 
             fileInput.addEventListener('change', () => {
                 const file = fileInput.files?.[0];
-                fileInput.value = ''; // allow re-selecting the same file later
-                if (!file) return;
+                fileInput.value = ''; // Allow re-selecting the same file later
+                if (!file) {
+ return;
+}
                 this.setPendingImage(file);
             });
 
@@ -298,7 +357,7 @@ define([
 
             const reader = new FileReader();
             reader.onload = () => {
-                this.state.pendingImage = { file, dataUrl: reader.result };
+                this.state.pendingImage = {file, dataUrl: reader.result};
                 this.renderImagePreview();
             };
             reader.readAsDataURL(file);
@@ -313,7 +372,9 @@ define([
             const wrap = document.getElementById('ai-image-preview');
             const thumb = document.getElementById('ai-image-preview-thumb');
             const name = document.getElementById('ai-image-preview-name');
-            if (!wrap || !thumb || !name) return;
+            if (!wrap || !thumb || !name) {
+ return;
+}
 
             const pending = this.state.pendingImage;
             if (!pending) {
@@ -332,19 +393,25 @@ define([
         // =========================
         bindImageLightbox() {
             const container = document.getElementById('ai-messages-container');
-            if (!container) return;
+            if (!container) {
+ return;
+}
 
             // Event delegation: works for images that exist now AND ones
             // added later (streamed replies, future history loads).
             container.addEventListener('click', (e) => {
                 const img = e.target.closest('.ai-message-image');
-                if (img) this.openImageLightbox(img.src, img.alt);
+                if (img) {
+ this.openImageLightbox(img.src, img.alt);
+}
             });
         },
 
         ensureLightboxEl() {
             let overlay = document.getElementById('ai-lightbox-overlay');
-            if (overlay) return overlay;
+            if (overlay) {
+ return overlay;
+}
 
             overlay = document.createElement('div');
             overlay.id = 'ai-lightbox-overlay';
@@ -364,7 +431,9 @@ define([
             });
 
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') this.closeImageLightbox();
+                if (e.key === 'Escape') {
+ this.closeImageLightbox();
+}
             });
 
             return overlay;
@@ -380,7 +449,9 @@ define([
 
         closeImageLightbox() {
             const overlay = document.getElementById('ai-lightbox-overlay');
-            if (overlay) overlay.classList.remove('open');
+            if (overlay) {
+ overlay.classList.remove('open');
+}
         },
 
         // =========================
@@ -388,10 +459,14 @@ define([
         // =========================
         bindExportPdf() {
             const btn = document.getElementById('ai-export-pdf-btn');
-            if (!btn) return;
+            if (!btn) {
+ return;
+}
 
             btn.addEventListener('click', () => {
-                if (btn.disabled) return;
+                if (btn.disabled) {
+ return;
+}
                 this.exportChatToPdf();
             });
         },
@@ -408,11 +483,13 @@ define([
         // hiding `window.define` while the script executes, forcing it
         // down the "plain browser global" branch of its UMD wrapper.
         ensureExportLibs() {
-            if (this._exportLibsPromise) return this._exportLibsPromise;
+            if (this._exportLibsPromise) {
+ return this._exportLibsPromise;
+}
 
             const loadGlobalScript = (src) => new Promise((resolve, reject) => {
                 const originalDefine = window.define;
-                window.define = undefined; // hide AMD from the UMD wrapper
+                window.define = undefined; // Hide AMD from the UMD wrapper
 
                 const el = document.createElement('script');
                 el.src = src;
@@ -427,7 +504,7 @@ define([
                 document.head.appendChild(el);
             });
 
-            this._exportLibsPromise = (async () => {
+            this._exportLibsPromise = (async() => {
                 // Bundled with the plugin (thirdpartylibs.xml), not from a CDN.
                 const base = (window.M && window.M.cfg ? window.M.cfg.wwwroot : '') + '/local/ai_system/thirdparty';
                 if (typeof window.html2canvas !== 'function') {
@@ -492,8 +569,12 @@ define([
             }
 
             const originalIconClass = icon?.className;
-            if (btn) btn.disabled = true;
-            if (icon) icon.className = 'fa fa-spinner fa-spin';
+            if (btn) {
+ btn.disabled = true;
+}
+            if (icon) {
+ icon.className = 'fa fa-spinner fa-spin';
+}
 
             let exportNode = null;
 
@@ -511,7 +592,7 @@ define([
                     useCORS: true
                 });
 
-                const { jsPDF } = window.jspdf;
+                const {jsPDF} = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
 
                 const pageWidth = pdf.internal.pageSize.getWidth();
@@ -544,12 +625,18 @@ define([
 
                 pdf.save(`${safeTitle}.pdf`);
             } catch (e) {
-                console.error('[ChatBot] PDF export failed:', e);
+                Log.error('[ChatBot] PDF export failed:', e);
                 window.alert('Sorry, something went wrong while generating the PDF. Please try again.');
             } finally {
-                if (exportNode) exportNode.remove();
-                if (btn) btn.disabled = false;
-                if (icon) icon.className = originalIconClass;
+                if (exportNode) {
+ exportNode.remove();
+}
+                if (btn) {
+ btn.disabled = false;
+}
+                if (icon) {
+ icon.className = originalIconClass;
+}
             }
         },
 
@@ -560,11 +647,15 @@ define([
             const toggle = document.getElementById('ai-course-toggle');
             const dropdown = document.getElementById('ai-course-dropdown');
             const currentLabel = document.getElementById('ai-course-current-label');
-            if (!toggle || !dropdown) return;
+            if (!toggle || !dropdown) {
+ return;
+}
 
             toggle.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (toggle.classList.contains('disabled')) return;
+                if (toggle.classList.contains('disabled')) {
+ return;
+}
                 toggle.classList.toggle('open');
                 dropdown.classList.toggle('hidden');
             });
@@ -576,9 +667,11 @@ define([
 
             const options = dropdown.querySelectorAll('.ai-course-option');
             options.forEach(option => {
-                if (option.dataset.courseId === '0') option.classList.add('selected');
+                if (option.dataset.courseId === '0') {
+ option.classList.add('selected');
+}
 
-                option.addEventListener('click', async (e) => {
+                option.addEventListener('click', async(e) => {
                     e.stopPropagation();
                     const courseId = parseInt(option.dataset.courseId, 10) || 0;
                     this.state.courseId = courseId;
@@ -603,23 +696,25 @@ define([
                         try {
                             await Ajax.call([{
                                 methodname: 'local_ai_system_update_session',
-                                args: { session_id: this.state.sessionId, course_id: courseId }
+                                args: {session_id: this.state.sessionId, course_id: courseId}
                             }])[0];
                         } catch (err) {
-                            console.error('[ChatBot] Failed to update session course_id:', err);
+                            Log.error('[ChatBot] Failed to update session course_id:', err);
                         }
                     }
                 });
             });
         },
-        
+
 
         // Locked only once the active chat actually has at least one
         // message (not just because a session row exists) — an empty
         // freshly-created chat still allows switching the course.
         setCourseLock(locked) {
             const toggle = document.getElementById('ai-course-toggle');
-            if (!toggle) return;
+            if (!toggle) {
+ return;
+}
             toggle.classList.toggle('disabled', !!locked);
         },
 
@@ -629,7 +724,9 @@ define([
         bindLanguagePicker() {
             const toggle = document.getElementById('ai-language-toggle');
             const dropdown = document.getElementById('ai-language-dropdown');
-            if (!toggle || !dropdown) return;
+            if (!toggle || !dropdown) {
+ return;
+}
 
             toggle.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -644,7 +741,7 @@ define([
 
             const options = dropdown.querySelectorAll('.ai-language-option');
             options.forEach(option => {
-                option.addEventListener('click', async (e) => {
+                option.addEventListener('click', async(e) => {
                     e.stopPropagation();
 
                     if (!this.state.sessionId || this.state.isTranslating) {
@@ -665,7 +762,7 @@ define([
                     try {
                         await Ajax.call([{
                             methodname: 'local_ai_system_update_session',
-                            args: { session_id: this.state.sessionId, language }
+                            args: {session_id: this.state.sessionId, language}
                         }])[0];
 
                         this.setActiveLanguage(language);
@@ -694,7 +791,9 @@ define([
         setActiveLanguage(language) {
             const dropdown = document.getElementById('ai-language-dropdown');
             const currentLabel = document.getElementById('ai-language-current-label');
-            if (!dropdown || !currentLabel) return;
+            if (!dropdown || !currentLabel) {
+ return;
+}
 
             dropdown.querySelectorAll('.ai-language-option').forEach(o => o.classList.remove('selected'));
             const target = dropdown.querySelector(`.ai-language-option[data-language="${language || ''}"]`);
@@ -707,7 +806,9 @@ define([
         showTranslatingOverlay(isReset) {
             const overlay = document.getElementById('ai-translating-overlay');
             const label = document.getElementById('ai-translating-label');
-            if (!overlay || !label) return;
+            if (!overlay || !label) {
+ return;
+}
             label.textContent = isReset ? overlay.dataset.labelLoading : overlay.dataset.labelTranslating;
             overlay.classList.remove('hidden');
         },
@@ -721,14 +822,17 @@ define([
         // =========================
         openContextMenu(sessionId, btn, opts) {
             const menu = document.getElementById('ai-context-menu');
-            if (!menu) return;
+            if (!menu) {
+ return;
+}
 
             menu.dataset.sessionId = sessionId;
             menu.dataset.archived = opts.archived ? '1' : '0';
             menu.querySelector('.ai-ctx-pin-label').textContent = opts.pinned ? 'Unpin' : 'Pin chat';
             menu.querySelector('.ai-ctx-archive-label').textContent = opts.archived ? 'Unarchive' : 'Archive';
-            menu.querySelector('.ai-ctx-archive-icon').className = 'fa ' + (opts.archived ? 'fa-inbox' : 'fa-archive') + ' ai-ctx-archive-icon';
-            
+            const archiveIcon = opts.archived ? 'fa-inbox' : 'fa-archive';
+            menu.querySelector('.ai-ctx-archive-icon').className = 'fa ' + archiveIcon + ' ai-ctx-archive-icon';
+
             menu.classList.remove('hidden');
             menu.style.visibility = 'hidden';
             const menuHeight = menu.offsetHeight;
@@ -752,7 +856,9 @@ define([
 
         bindContextMenuActions() {
             const menu = document.getElementById('ai-context-menu');
-            if (!menu) return;
+            if (!menu) {
+ return;
+}
 
             menu.querySelector('.ai-ctx-pin').addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -778,7 +884,7 @@ define([
                 input.select();
             });
 
-            menu.querySelector('.ai-ctx-archive').addEventListener('click', async (e) => {
+            menu.querySelector('.ai-ctx-archive').addEventListener('click', async(e) => {
                 e.stopPropagation();
                 const sessionId = menu.dataset.sessionId;
                 const archived = menu.dataset.archived === '1';
@@ -791,17 +897,23 @@ define([
 
                 await Ajax.call([{
                     methodname: archived ? 'local_ai_system_dearchive_session' : 'local_ai_system_archive_session',
-                    args: { session_id: sessionId }
+                    args: {session_id: sessionId}
                 }])[0];
 
-                if (item) item.remove();
+                if (item) {
+ item.remove();
+}
 
                 if (archived) {
                     this.addSessionToSidebar(sessionId, title, language, wasPinned);
                     const input = document.getElementById('ai-message-input');
                     const sendBtn = document.getElementById('ai-send-btn');
-                    if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
-                    if (sendBtn) sendBtn.disabled = false;
+                    if (input) {
+ input.disabled = false; input.placeholder = 'Type your message...';
+}
+                    if (sendBtn) {
+ sendBtn.disabled = false;
+}
                 } else {
                     this.addSessionToArchive(sessionId, title, language, wasPinned);
                     if (this.state.sessionId === sessionId) {
@@ -813,20 +925,24 @@ define([
                 }
             });
 
-            menu.querySelector('.ai-ctx-delete').addEventListener('click', async (e) => {
+            menu.querySelector('.ai-ctx-delete').addEventListener('click', async(e) => {
                 e.stopPropagation();
                 const sessionId = menu.dataset.sessionId;
                 this.closeContextMenu();
 
-                if (!confirm('Delete this chat?')) return;
+                if (!confirm('Delete this chat?')) {
+ return;
+}
 
                 await Ajax.call([{
                     methodname: 'local_ai_system_delete_session',
-                    args: { session_id: sessionId }
+                    args: {session_id: sessionId}
                 }])[0];
 
                 const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
-                if (item) item.remove();
+                if (item) {
+ item.remove();
+}
 
                 if (this.state.sessionId === sessionId) {
                     this.state.sessionId = null;
@@ -838,19 +954,23 @@ define([
         },
 
         bindRenamePopup() {
-            document.getElementById('ai-rename-save')?.addEventListener('click', async () => {
+            document.getElementById('ai-rename-save')?.addEventListener('click', async() => {
                 const popup = document.getElementById('ai-rename-popup');
                 const sessionId = popup.dataset.sessionId;
                 const title = document.getElementById('ai-rename-input').value.trim();
-                if (!title) return;
+                if (!title) {
+ return;
+}
 
                 await Ajax.call([{
                     methodname: 'local_ai_system_update_session',
-                    args: { session_id: sessionId, title }
+                    args: {session_id: sessionId, title}
                 }])[0];
 
                 const el = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"] .ai-session-title`);
-                if (el) el.textContent = title;
+                if (el) {
+ el.textContent = title;
+}
 
                 if (this.state.sessionId === sessionId) {
                     document.getElementById('ai-chat-title').textContent = title;
@@ -873,7 +993,9 @@ define([
         // link ("Quelle", "Source", ...) becomes the small label above them.
         // =========================
         renderSourceCards(contentEl) {
-            if (!contentEl || contentEl.querySelector('.ai-sources')) return;
+            if (!contentEl || contentEl.querySelector('.ai-sources')) {
+ return;
+}
 
             // Source links: files (pluginfile.php), activities such as pages and
             // books (/mod/...), and course sections / labels (course/view.php
@@ -881,12 +1003,18 @@ define([
             const FILE_SEL = 'a[href*="/pluginfile.php/"], a[href*="/mod/"], '
                 + 'a[href*="/course/view.php"][href*="#section-"], a[href*="/course/view.php"][href*="#label-"]';
             const para = Array.from(contentEl.querySelectorAll(':scope > p')).reverse().find(p => {
-                if (!p.querySelector(FILE_SEL)) return false;
+                if (!p.querySelector(FILE_SEL)) {
+ return false;
+}
                 let rest = p.textContent;
-                p.querySelectorAll('a').forEach(a => { rest = rest.replace(a.textContent, ''); });
+                p.querySelectorAll('a').forEach(a => {
+ rest = rest.replace(a.textContent, '');
+});
                 return rest.replace(/[\s.,:;\u2013\u2014-]/g, '').length <= 40;
             });
-            if (!para) return;
+            if (!para) {
+ return;
+}
 
             const files = Array.from(para.querySelectorAll(FILE_SEL));
             const courses = Array.from(para.querySelectorAll('a[href*="/course/view.php"]'))
@@ -895,11 +1023,17 @@ define([
             const firstLink = para.querySelector('a');
             const fullText = para.textContent;
             let label = fullText.slice(0, fullText.indexOf(firstLink.textContent)).replace(/[:\s]+$/, '').trim();
-            if (label.length > 24) label = '';
+            if (label.length > 24) {
+ label = '';
+}
 
             const iconFor = (name, href) => {
-                if (/\/mod\/book\//.test(href)) return 'fa-book';
-                if (/\/mod\//.test(href) || /#(section|label)-/.test(href)) return 'fa-file-text-o';
+                if (/\/mod\/book\//.test(href)) {
+ return 'fa-book';
+}
+                if (/\/mod\//.test(href) || /#(section|label)-/.test(href)) {
+ return 'fa-file-text-o';
+}
                 const ext = (name.split('.').pop() || '').toLowerCase();
                 return ({
                     pdf: 'fa-file-pdf-o', doc: 'fa-file-word-o', docx: 'fa-file-word-o',
@@ -920,7 +1054,9 @@ define([
                 const parts = [];
                 for (let k = 0; k < sorted.length; k++) {
                     let end = k;
-                    while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) end++;
+                    while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) {
+ end++;
+}
                     parts.push(end > k ? `${sorted[k]}–${sorted[end]}` : `${sorted[k]}`);
                     k = end;
                 }
@@ -933,17 +1069,23 @@ define([
                 const pageMatch = /#page=(\d+)/.exec(href);
                 let group = groups.get(key);
                 if (!group) {
-                    group = { a, course: courses[i] || courses[0], pages: [] };
+                    group = {a, course: courses[i] || courses[0], pages: []};
                     groups.set(key, group);
                 }
-                if (pageMatch) group.pages.push(Number(pageMatch[1]));
+                if (pageMatch) {
+ group.pages.push(Number(pageMatch[1]));
+}
             });
 
             groups.forEach((group) => {
                 const a = group.a;
                 let name = a.textContent.trim();
                 if (!name) {
-                    try { name = decodeURIComponent(a.pathname.split('/').pop() || ''); } catch (e) { name = a.pathname; }
+                    try {
+ name = decodeURIComponent(a.pathname.split('/').pop() || '');
+} catch (e) {
+ name = a.pathname;
+}
                 }
                 const course = group.course;
                 // The card opens the first cited page.
@@ -1003,10 +1145,14 @@ define([
         bindSidebarSearch() {
             const input = document.getElementById('ai-sb-search-input');
             const kbd = document.getElementById('ai-sb-search-kbd');
-            if (!input) return;
+            if (!input) {
+ return;
+}
 
             const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
-            if (kbd) kbd.textContent = isMac ? '\u2318K' : 'Ctrl K';
+            if (kbd) {
+ kbd.textContent = isMac ? '\u2318K' : 'Ctrl K';
+}
 
             const apply = () => {
                 const q = input.value.trim().toLowerCase();
@@ -1017,7 +1163,9 @@ define([
                     const title = (el.querySelector('.ai-session-title')?.textContent || '').toLowerCase();
                     const match = !q || title.includes(q);
                     el.classList.toggle('hidden', !match);
-                    if (match && !el.classList.contains('ai-session-archived')) visibleInList++;
+                    if (match && !el.classList.contains('ai-session-archived')) {
+ visibleInList++;
+}
                 });
 
                 document.querySelectorAll('#ai-chatbot-layout .ai-sb-group').forEach(group => {
@@ -1029,7 +1177,9 @@ define([
                 });
 
                 const none = document.getElementById('ai-sb-no-results');
-                if (none) none.classList.toggle('hidden', !q || visibleInList > 0);
+                if (none) {
+ none.classList.toggle('hidden', !q || visibleInList > 0);
+}
             };
 
             input.addEventListener('input', apply);
@@ -1058,7 +1208,9 @@ define([
                 card.addEventListener('click', () => {
                     const input = document.getElementById('ai-message-input');
                     const text = card.querySelector('.ai-suggest-text')?.textContent.trim();
-                    if (!input || !text) return;
+                    if (!input || !text) {
+ return;
+}
                     input.value = text;
                     input.dispatchEvent(new Event('input'));
                     input.focus();
@@ -1077,7 +1229,9 @@ define([
         bindArchiveToggle() {
             const toggle = document.getElementById('ai-archive-toggle');
             const dropdown = document.getElementById('ai-archive-dropdown');
-            if (!toggle || !dropdown) return;
+            if (!toggle || !dropdown) {
+ return;
+}
 
             toggle.addEventListener('click', () => {
                 toggle.classList.toggle('open');
@@ -1099,14 +1253,14 @@ define([
                     const sessionId = item.dataset.sessionId;
                     const archived = item.classList.contains('ai-session-archived');
                     const pinned = !!this.state.pinned[sessionId];
-                    this.openContextMenu(sessionId, menuBtn, { archived, pinned });
+                    this.openContextMenu(sessionId, menuBtn, {archived, pinned});
                     return;
                 }
 
                 const item = e.target.closest('.ai-session-item');
                 const layout = document.getElementById('ai-chatbot-layout');
                 if (item && layout && layout.contains(item)) {
-                    this.closeContextMenu();          // NEW: закрываем меню перед загрузкой другого чата
+                    this.closeContextMenu(); // NEW: закрываем меню перед загрузкой другого чата
                     this.loadSession(item.dataset.sessionId);
                     return;
                 }
@@ -1124,25 +1278,37 @@ define([
             const item = document.querySelector(`.ai-session-item[data-session-id="${sessionId}"]`);
             const title = item ? item.querySelector('.ai-session-title').textContent.trim() : 'Chat';
             const archived = item ? item.classList.contains('ai-session-archived') : false;
-            if (!archived) this.closeArchivePanel();
+            if (!archived) {
+ this.closeArchivePanel();
+}
 
             this.setActiveLanguage(item?.dataset.language || '');
 
-            const messages = await this.loadThread(sessionId, { versionNav: false });
+            const messages = await this.loadThread(sessionId, {versionNav: false});
 
             const chatTitle = document.getElementById('ai-chat-title');
-            if (chatTitle) chatTitle.textContent = archived ? `${title} (archived)` : title;
+            if (chatTitle) {
+ chatTitle.textContent = archived ? `${title} (archived)` : title;
+}
 
             const input = document.getElementById('ai-message-input');
             const sendBtn = document.getElementById('ai-send-btn');
 
             if (archived) {
-                if (input) { input.disabled = true; input.placeholder = 'Unarchive to send messages'; }
-                if (sendBtn) sendBtn.disabled = true;
+                if (input) {
+ input.disabled = true; input.placeholder = 'Unarchive to send messages';
+}
+                if (sendBtn) {
+ sendBtn.disabled = true;
+}
                 this.state.sessionId = null;
             } else {
-                if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
-                if (sendBtn) sendBtn.disabled = false;
+                if (input) {
+ input.disabled = false; input.placeholder = 'Type your message...';
+}
+                if (sendBtn) {
+ sendBtn.disabled = false;
+}
                 this.state.sessionId = sessionId;
             }
 
@@ -1151,7 +1317,9 @@ define([
             this.setCourseLock(archived || messages.length > 0);
 
             document.querySelectorAll('.ai-session-item').forEach(e => e.classList.remove('active'));
-            if (item) item.classList.add('active');
+            if (item) {
+ item.classList.add('active');
+}
         },
 
         formatTime(date) {
@@ -1190,10 +1358,14 @@ define([
 
         addSessionToArchive(sessionId, title, language = '', pinned = false) {
             const dropdown = document.getElementById('ai-archive-dropdown');
-            if (!dropdown) return;
+            if (!dropdown) {
+ return;
+}
 
             const empty = dropdown.querySelector('.ai-archive-empty');
-            if (empty) empty.remove();
+            if (empty) {
+ empty.remove();
+}
 
             const el = this.renderSessionItem(sessionId, title, language, pinned);
             el.className = 'ai-session-item ai-session-archived';
@@ -1201,12 +1373,14 @@ define([
         },
 
         async ensureSession() {
-            if (this.state.sessionId) return this.state.sessionId;
+            if (this.state.sessionId) {
+ return this.state.sessionId;
+}
 
             try {
                 const result = await Ajax.call([{
                     methodname: 'local_ai_system_create_session',
-                    args: { course_id: this.state.courseId }
+                    args: {course_id: this.state.courseId}
                 }])[0];
 
                 this.state.sessionId = result.session_id;
@@ -1214,7 +1388,7 @@ define([
 
                 return this.state.sessionId;
             } catch (e) {
-                console.error('ensureSession failed:', e);
+                Log.error('ensureSession failed:', e);
                 return null;
             }
         },
@@ -1225,24 +1399,28 @@ define([
 
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_create_session',
-                args: { title, course_id: this.state.courseId }
+                args: {title, course_id: this.state.courseId}
             }])[0];
 
             this.state.sessionId = result.session_id;
             this.addSessionToSidebar(result.session_id, title, '', false);
             this.setCourseLock(false); // CHANGED: creating a chat no longer locks the course — only sending a message does
 
-            return { sessionId: result.session_id, title };
+            return {sessionId: result.session_id, title};
         },
 
         scrollToBottom() {
-            if (!this.shouldAutoScroll) return;
+            if (!this.shouldAutoScroll) {
+ return;
+}
             const container = document.getElementById('ai-messages-container');
             container.scrollTop = container.scrollHeight;
         },
 
         initMarkdown() {
-            if (window.marked) window.marked.setOptions({ breaks: true, gfm: true });
+            if (window.marked) {
+ window.marked.setOptions({breaks: true, gfm: true});
+}
         },
 
         // =========================
@@ -1254,17 +1432,21 @@ define([
         // script runs.
         loadVendor(path) {
             this._vendor = this._vendor || {};
-            if (this._vendor[path]) return this._vendor[path];
+            if (this._vendor[path]) {
+ return this._vendor[path];
+}
             const base = (window.M && window.M.cfg ? window.M.cfg.wwwroot : '') + '/local/ai_system/thirdparty/';
             this._vendor[path] = new Promise((resolve, reject) => {
                 const originalDefine = window.define;
                 window.define = undefined;
                 const el = document.createElement('script');
                 el.src = base + path;
-                el.onload = () => { window.define = originalDefine; resolve(); };
+                el.onload = () => {
+ window.define = originalDefine; resolve();
+};
                 el.onerror = () => {
                     window.define = originalDefine;
-                    delete this._vendor[path];          // allow a retry later
+                    delete this._vendor[path]; // Allow a retry later
                     reject(new Error('Failed to load ' + path));
                 };
                 document.head.appendChild(el);
@@ -1284,13 +1466,17 @@ define([
         // Mermaid (~3.5 MB) and Chart.js are only loaded when an answer
         // actually contains such a block.
         async renderRichBlocks(container) {
-            if (!container) return;
+            if (!container) {
+ return;
+}
             const blocks = Array.from(container.querySelectorAll(
                 'pre > code.language-mermaid, pre > code.language-chart'
             ));
             for (const code of blocks) {
                 const pre = code.parentElement;
-                if (!pre || pre.dataset.richDone) continue;
+                if (!pre || pre.dataset.richDone) {
+ continue;
+}
                 pre.dataset.richDone = '1';
                 const source = code.textContent;
                 try {
@@ -1299,14 +1485,16 @@ define([
                     pre.replaceWith(figure);
                     this.addRichToolbar(figure, isDiagram ? 'diagram' : 'chart');
                 } catch (err) {
-                    console.warn('[ChatBot] Could not draw block, showing its source instead:', err);
+                    Log.warn('[ChatBot] Could not draw block, showing its source instead:', err);
                     pre.classList.add('ai-rich-failed');
                 }
             }
 
             // Markdown tables get the same toolbar (PNG / enlarge).
             container.querySelectorAll('table').forEach(table => {
-                if (table.closest('.ai-rich')) return;
+                if (table.closest('.ai-rich')) {
+ return;
+}
                 const wrap = document.createElement('div');
                 wrap.className = 'ai-rich ai-rich-table';
                 table.parentNode.insertBefore(wrap, table);
@@ -1318,7 +1506,9 @@ define([
         // Small buttons in the corner of a diagram / chart / table:
         // enlarge (full-screen view) and download as PNG.
         addRichToolbar(figure, kind) {
-            if (figure.parentElement?.classList.contains('ai-rich-frame')) return;
+            if (figure.parentElement?.classList.contains('ai-rich-frame')) {
+ return;
+}
             // The figure scrolls sideways (wide diagrams). The buttons live in a
             // non-scrolling frame around it, so they stay in the corner while
             // the diagram is scrolled.
@@ -1335,7 +1525,9 @@ define([
                 b.title = label;
                 b.setAttribute('aria-label', label);
                 b.innerHTML = `<i class="fa ${icon}" aria-hidden="true"></i>`;
-                b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+                b.addEventListener('click', (e) => {
+ e.stopPropagation(); onClick();
+});
                 bar.appendChild(b);
             };
             button('fa-expand', 'Enlarge', () => this.openRichViewer(figure));
@@ -1364,7 +1556,9 @@ define([
             // (a 2-box diagram should not become screen-filling).
             const bigSvg = content.querySelector('.ai-rich-diagram svg');
             const naturalW = bigSvg ? Number(bigSvg.getAttribute('width')) : 0;
-            if (bigSvg && naturalW) bigSvg.style.width = `min(100%, ${Math.round(naturalW * 1.6)}px)`;
+            if (bigSvg && naturalW) {
+ bigSvg.style.width = `min(100%, ${Math.round(naturalW * 1.6)}px)`;
+}
 
             inner.appendChild(content);
             overlay.appendChild(inner);
@@ -1382,17 +1576,27 @@ define([
                 + 'stroke-linecap="round" fill="none"/></svg>';
             overlay.appendChild(closeBtn);
 
-            const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
-            const onKey = (e) => { if (e.key === 'Escape') close(); };
+            const close = () => {
+ overlay.remove(); document.removeEventListener('keydown', onKey);
+};
+            const onKey = (e) => {
+ if (e.key === 'Escape') {
+ close();
+}
+};
             closeBtn.addEventListener('click', close);
-            overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+            overlay.addEventListener('click', (e) => {
+ if (e.target === overlay) {
+ close();
+}
+});
             document.addEventListener('keydown', onKey);
             document.body.appendChild(overlay);
         },
 
         // PNG of only this diagram / chart / table (html2canvas is bundled).
         async downloadRichPng(figure, kind) {
-            const name = { diagram: 'diagram', chart: 'chart', table: 'table' }[kind] || 'figure';
+            const name = {diagram: 'diagram', chart: 'chart', table: 'table'}[kind] || 'figure';
             const save = (dataUrl) => {
                 const a = document.createElement('a');
                 a.href = dataUrl;
@@ -1410,7 +1614,9 @@ define([
                     out.height = canvas.height;
                     const ctx = out.getContext('2d');
                     ctx.fillStyle = getComputedStyle(figure).backgroundColor || '#ffffff';
-                    if (/rgba\(0, 0, 0, 0\)|transparent/.test(ctx.fillStyle)) ctx.fillStyle = '#ffffff';
+                    if (/rgba\(0, 0, 0, 0\)|transparent/.test(ctx.fillStyle)) {
+ ctx.fillStyle = '#ffffff';
+}
                     ctx.fillRect(0, 0, out.width, out.height);
                     ctx.drawImage(canvas, 0, 0);
                     save(out.toDataURL('image/png'));
@@ -1432,7 +1638,8 @@ define([
                         img.onerror = () => reject(new Error('SVG could not be loaded as image'));
                         img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
                     });
-                    const pad = 16, scale = 2;
+                    const pad = 16,
+scale = 2;
                     const out = document.createElement('canvas');
                     out.width = (w + 2 * pad) * scale;
                     out.height = (h + 2 * pad) * scale;
@@ -1449,7 +1656,9 @@ define([
                 await this.loadVendor('html2canvas/html2canvas.min.js');
                 const target = figure.querySelector('table') || figure;
                 const bar = figure.parentElement?.querySelector(':scope > .ai-rich-toolbar');
-                if (bar) bar.style.visibility = 'hidden';
+                if (bar) {
+ bar.style.visibility = 'hidden';
+}
                 let shot;
                 try {
                     // Tables are display:block (scrollable) in the chat, i.e. as wide
@@ -1462,11 +1671,13 @@ define([
                         windowWidth: Math.max(document.documentElement.clientWidth, target.scrollWidth + 40),
                     });
                 } finally {
-                    if (bar) bar.style.visibility = '';
+                    if (bar) {
+ bar.style.visibility = '';
+}
                 }
                 save(shot.toDataURL('image/png'));
             } catch (err) {
-                console.error('[ChatBot] PNG export failed:', err);
+                Log.error('[ChatBot] PNG export failed:', err);
                 Notification.alert('Export', 'The image could not be created.', 'OK');
             }
         },
@@ -1476,12 +1687,12 @@ define([
             const mermaid = window.mermaid;
             const theme = document.body.dataset.theme === 'dark' ? 'dark' : 'default';
             if (this._mermaidTheme !== theme) {
-                // securityLevel strict: no HTML labels / click handlers from model text.
+                // SecurityLevel strict: no HTML labels / click handlers from model text.
                 // htmlLabels false: labels as plain SVG text (no <foreignObject>),
                 // so the diagram can be exported as PNG.
                 mermaid.initialize({
                     startOnLoad: false, securityLevel: 'strict', theme,
-                    htmlLabels: false, flowchart: { htmlLabels: false, useMaxWidth: false },
+                    htmlLabels: false, flowchart: {htmlLabels: false, useMaxWidth: false},
                 });
                 this._mermaidTheme = theme;
             }
@@ -1489,17 +1700,19 @@ define([
             // graphic in the page. Models often put ( ) / : etc. into unquoted
             // labels, e.g. A[Vorbereitung (optional)] — then a second try with
             // every [label] / {label} quoted.
-            const valid = async (text) => (await mermaid.parse(text, { suppressErrors: true })) !== false;
+            const valid = async(text) => (await mermaid.parse(text, {suppressErrors: true})) !== false;
             let text = source;
             if (!(await valid(text))) {
                 const fixed = this.quoteMermaidLabels(source);
-                if (fixed === source || !(await valid(fixed))) throw new Error('invalid Mermaid diagram');
+                if (fixed === source || !(await valid(fixed))) {
+ throw new Error('invalid Mermaid diagram');
+}
                 text = fixed;
             }
             const id = 'ai-mermaid-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
             let svg;
             try {
-                ({ svg } = await mermaid.render(id, text));
+                ({svg} = await mermaid.render(id, text));
             } finally {
                 // Mermaid's temporary render container, should it be left behind.
                 document.getElementById('d' + id)?.remove();
@@ -1561,14 +1774,14 @@ define([
                         maintainAspectRatio: true,
                         animation: false,
                         plugins: {
-                            title: { display: !!spec.title, text: String(spec.title || ''), color: textColor },
-                            legend: { labels: { color: textColor } },
+                            title: {display: !!spec.title, text: String(spec.title || ''), color: textColor},
+                            legend: {labels: {color: textColor}},
                         },
                         scales: (type === 'pie' || type === 'doughnut') ? {} : {
-                            x: { ticks: { color: textColor }, grid: { color: gridColor },
-                                 title: { display: !!spec.x_label, text: String(spec.x_label || ''), color: textColor } },
-                            y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true,
-                                 title: { display: !!spec.y_label, text: String(spec.y_label || ''), color: textColor } },
+                            x: {ticks: {color: textColor}, grid: {color: gridColor},
+                                 title: {display: !!spec.x_label, text: String(spec.x_label || ''), color: textColor}},
+                            y: {ticks: {color: textColor}, grid: {color: gridColor}, beginAtZero: true,
+                                 title: {display: !!spec.y_label, text: String(spec.y_label || ''), color: textColor}},
                         },
                     },
                 });
@@ -1591,12 +1804,16 @@ define([
             text = text || '';
             const marked = window.marked;
             const katex = window.katex;
-            if (!marked) return text;
-            if (!katex) return marked.parse(text);
+            if (!marked) {
+ return text;
+}
+            if (!katex) {
+ return marked.parse(text);
+}
 
             const formulas = [];
             const stash = (tex, display) => {
-                formulas.push({ tex, display });
+                formulas.push({tex, display});
                 return `KATEXMATH${formulas.length - 1}X`;
             };
             const extract = (part) => part
@@ -1611,11 +1828,15 @@ define([
             const prepared = pieces.map((piece, i) => (i % 2 === 1 ? piece : extract(piece))).join('');
 
             let html = marked.parse(prepared);
-            if (!formulas.length) return html;
+            if (!formulas.length) {
+ return html;
+}
 
             return html.replace(/KATEXMATH(\d+)X/g, (m, idx) => {
                 const f = formulas[Number(idx)];
-                if (!f) return m;
+                if (!f) {
+ return m;
+}
                 try {
                     return katex.renderToString(f.tex.trim(), {
                         displayMode: f.display, throwOnError: false, output: 'html'
@@ -1630,8 +1851,12 @@ define([
             const input = document.getElementById('ai-message-input');
             const sendBtn = document.getElementById('ai-send-btn');
             const isStreaming = this.state.isStreaming;
-            if (input) input.disabled = isStreaming;
-            if (sendBtn) sendBtn.disabled = isStreaming;
+            if (input) {
+ input.disabled = isStreaming;
+}
+            if (sendBtn) {
+ sendBtn.disabled = isStreaming;
+}
         },
 
         bindUI() {
@@ -1646,28 +1871,36 @@ define([
 
             const send = () => {
                 const message = input.value.trim();
-                if (!message && !this.state.pendingImage) return;
+                if (!message && !this.state.pendingImage) {
+ return;
+}
                 input.value = '';
                 input.style.height = 'auto';
                 this.sendMessageStream(message);
             };
 
             sendBtn.addEventListener('click', () => {
-                if (this.state.isStreaming) return;
+                if (this.state.isStreaming) {
+ return;
+}
                 send();
             });
 
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    if (this.state.isStreaming) return;
+                    if (this.state.isStreaming) {
+ return;
+}
                     send();
                 }
             });
 
             if (stopBtn) {
-                stopBtn.addEventListener('click', async () => {
-                    if (!this.state.controller) return;
+                stopBtn.addEventListener('click', async() => {
+                    if (!this.state.controller) {
+ return;
+}
 
                     this.state.controller.abort();
                     this.state.isStreaming = false;
@@ -1682,10 +1915,10 @@ define([
                         try {
                             await Ajax.call([{
                                 methodname: 'local_ai_system_save_partial_message',
-                                args: { session_id: sessionId, content: partial }
+                                args: {session_id: sessionId, content: partial}
                             }])[0];
                         } catch (e) {
-                            console.error('[ChatBot] Failed to persist partial response:', e);
+                            Log.error('[ChatBot] Failed to persist partial response:', e);
                         }
                     }
                 });
@@ -1693,7 +1926,9 @@ define([
         },
 
         async sendMessageStream(message) {
-            if (this.state.isStreaming) return;
+            if (this.state.isStreaming) {
+ return;
+}
 
             const pendingImage = this.state.pendingImage;
 
@@ -1733,14 +1968,16 @@ define([
                 );
 
                 await this.consumeStream(response, bubble, (meta) => {
-                    if (meta.user_message_id) userWrap.dataset.messageId = meta.user_message_id;
+                    if (meta.user_message_id) {
+ userWrap.dataset.messageId = meta.user_message_id;
+}
                     const assistantWrap = bubble.closest('.ai-message');
                     if (assistantWrap && meta.assistant_message_id) {
                         assistantWrap.dataset.messageId = meta.assistant_message_id;
                     }
                 });
             } catch (e) {
-                console.error(e);
+                Log.error(e);
                 if (e && e.handled) {
                     // Refused before anything was saved: take the message back out of the
                     // conversation and into the input box (with its image), so it can be sent again.
@@ -1802,7 +2039,9 @@ define([
             const tick = () => {
                 frame = null;
                 const backlog = fullText.length - shownLen;
-                if (backlog <= 0) return;
+                if (backlog <= 0) {
+ return;
+}
                 // Background tab: no animation, just show everything.
                 shownLen = document.hidden
                     ? fullText.length
@@ -1811,7 +2050,11 @@ define([
                 this.scrollToBottom();
                 frame = requestAnimationFrame(tick);
             };
-            const kick = () => { if (frame === null) frame = requestAnimationFrame(tick); };
+            const kick = () => {
+ if (frame === null) {
+ frame = requestAnimationFrame(tick);
+}
+};
             const waitUntilShown = () => new Promise(resolve => {
                 const started = Date.now();
                 const check = () => {
@@ -1825,26 +2068,32 @@ define([
             });
 
             try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
+            for (;;) {
+                const {value, done} = await reader.read();
+                if (done) {
+ break;
+}
 
-                buffer += decoder.decode(value, { stream: true });
+                buffer += decoder.decode(value, {stream: true});
                 const lines = buffer.split('\n');
                 buffer = lines.pop();
 
                 for (let line of lines) {
                     line = line.trim();
-                    if (!line.startsWith('data:')) continue;
+                    if (!line.startsWith('data:')) {
+ continue;
+}
 
                     const raw = line.replace(/^data:\s?/, '');
-                    if (raw === '[DONE]') continue;
+                    if (raw === '[DONE]') {
+ continue;
+}
 
                     let parsed;
                     try {
                         parsed = JSON.parse(raw);
                     } catch (err) {
-                        console.error('[ChatBot] Failed to parse SSE payload, skipping:', raw, err);
+                        Log.error('[ChatBot] Failed to parse SSE payload, skipping:', raw, err);
                         continue;
                     }
 
@@ -1854,12 +2103,14 @@ define([
                     }
 
                     if (parsed.meta !== undefined) {
-                        if (onMeta) onMeta(parsed.meta);
+                        if (onMeta) {
+ onMeta(parsed.meta);
+}
                         continue;
                     }
 
                     if (parsed.error !== undefined) {
-                        console.error('[ChatBot] Stream error:', parsed.error);
+                        Log.error('[ChatBot] Stream error:', parsed.error);
                         // The AI service did not answer (e.g. Mistral rate limit even
                         // after the backend's retries): say so instead of an empty bubble.
                         if (parsed.error === 'llm_unavailable' && !fullText) {
@@ -1879,7 +2130,9 @@ define([
             // Let the typing animation finish before the final render.
             await waitUntilShown();
             } finally {
-                if (frame !== null) cancelAnimationFrame(frame);
+                if (frame !== null) {
+ cancelAnimationFrame(frame);
+}
                 frame = null;
             }
 
@@ -1893,7 +2146,9 @@ define([
             this.renderRichBlocks(bubbleTextEl);
 
             const wrap = bubbleTextEl.closest('.ai-message');
-            if (wrap) wrap.dataset.rawContent = fullText;
+            if (wrap) {
+ wrap.dataset.rawContent = fullText;
+}
 
             return fullText;
         },
@@ -1905,7 +2160,7 @@ define([
                 const data = JSON.parse(await response.text());
                 detail = String(data.detail || data.error || '');
             } catch (e) {
-                // body is not JSON, the status code alone has to do
+                // Body is not JSON, the status code alone has to do
             }
 
             switch (response.status) {
@@ -1927,7 +2182,7 @@ define([
             }
         },
 
-        finishStreamingUI(bubbleTextEl) {
+        finishStreamingUI() {
             this.state.isStreaming = false;
             this.state.controller = null;
             this.updateUIState();
@@ -1953,18 +2208,26 @@ define([
         // EDIT A USER MESSAGE
         // =========================
         enterEditMode(wrap) {
-            if (this.state.isStreaming) return;
-            if (wrap.querySelector('.ai-edit-wrap')) return; // already editing
+            if (this.state.isStreaming) {
+ return;
+}
+            if (wrap.querySelector('.ai-edit-wrap')) {
+ return;
+} // Already editing
 
             const bubble = wrap.querySelector('.ai-message-bubble');
             const contentEl = wrap.querySelector('.ai-message-content');
             const metaEl = wrap.querySelector('.ai-message-meta');
-            if (!bubble || !contentEl) return;
+            if (!bubble || !contentEl) {
+ return;
+}
 
             const rawContent = wrap.dataset.rawContent || contentEl.innerText;
 
             contentEl.style.display = 'none';
-            if (metaEl) metaEl.style.display = 'none';
+            if (metaEl) {
+ metaEl.style.display = 'none';
+}
 
             const editWrap = document.createElement('div');
             editWrap.className = 'ai-edit-wrap';
@@ -1990,26 +2253,32 @@ define([
             const exitEditMode = () => {
                 editWrap.remove();
                 contentEl.style.display = '';
-                if (metaEl) metaEl.style.display = '';
+                if (metaEl) {
+ metaEl.style.display = '';
+}
             };
 
             editWrap.querySelector('.ai-edit-cancel').addEventListener('click', exitEditMode);
 
             editWrap.querySelector('.ai-edit-save').addEventListener('click', () => {
                 const newContent = textarea.value.trim();
-                if (!newContent) return;
+                if (!newContent) {
+ return;
+}
                 exitEditMode();
                 this.submitEdit(wrap, newContent);
             });
         },
 
         async submitEdit(wrap, newContent) {
-            if (this.state.isStreaming) return;
+            if (this.state.isStreaming) {
+ return;
+}
 
             const messageId = wrap.dataset.messageId;
             const sessionId = this.state.sessionId;
             if (!messageId || !sessionId) {
-                console.error('[ChatBot] Cannot edit: missing message id or session id.');
+                Log.error('[ChatBot] Cannot edit: missing message id or session id.');
                 return;
             }
 
@@ -2037,7 +2306,7 @@ define([
                     {
                         method: 'POST',
                         signal: this.state.controller.signal,
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                         body: 'session_id=' + encodeURIComponent(sessionId)
                             + '&message_id=' + encodeURIComponent(messageId)
                             + '&content=' + encodeURIComponent(newContent)
@@ -2046,7 +2315,9 @@ define([
                 );
 
                 await this.consumeStream(response, bubble, (meta) => {
-                    if (meta.user_message_id) wrap.dataset.messageId = meta.user_message_id;
+                    if (meta.user_message_id) {
+ wrap.dataset.messageId = meta.user_message_id;
+}
                     const assistantWrap = bubble.closest('.ai-message');
                     if (assistantWrap && meta.assistant_message_id) {
                         assistantWrap.dataset.messageId = meta.assistant_message_id;
@@ -2056,7 +2327,7 @@ define([
                     }
                 });
             } catch (e) {
-                console.error('[ChatBot] Edit failed:', e);
+                Log.error('[ChatBot] Edit failed:', e);
             } finally {
                 this.finishStreamingUI(bubble);
             }
@@ -2066,12 +2337,14 @@ define([
         // REGENERATE AN ASSISTANT REPLY
         // =========================
         async regenerateMessage(wrap) {
-            if (this.state.isStreaming) return;
+            if (this.state.isStreaming) {
+ return;
+}
 
             const messageId = wrap.dataset.messageId;
             const sessionId = this.state.sessionId;
             if (!messageId || !sessionId) {
-                console.error('[ChatBot] Cannot regenerate: missing message id or session id.');
+                Log.error('[ChatBot] Cannot regenerate: missing message id or session id.');
                 return;
             }
 
@@ -2092,7 +2365,7 @@ define([
                     {
                         method: 'POST',
                         signal: this.state.controller.signal,
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                         body: 'session_id=' + encodeURIComponent(sessionId)
                             + '&message_id=' + encodeURIComponent(messageId)
                             + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
@@ -2109,7 +2382,7 @@ define([
                     }
                 });
             } catch (e) {
-                console.error('[ChatBot] Regenerate failed:', e);
+                Log.error('[ChatBot] Regenerate failed:', e);
             } finally {
                 this.finishStreamingUI(bubble);
             }
@@ -2129,14 +2402,20 @@ define([
         // =========================
         renderVersionNav(messageId, versionIndex, versionCount, siblingIds) {
             const wrap = document.querySelector(`.ai-message[data-message-id="${messageId}"]`);
-            if (!wrap) return;
+            if (!wrap) {
+ return;
+}
             const meta = wrap.querySelector('.ai-message-meta');
-            if (!meta) return;
+            if (!meta) {
+ return;
+}
 
             let nav = meta.querySelector('.ai-version-nav');
 
             if (!versionCount || versionCount <= 1) {
-                if (nav) nav.remove();
+                if (nav) {
+ nav.remove();
+}
                 return;
             }
 
@@ -2151,7 +2430,8 @@ define([
                     <i class="fa fa-chevron-left"></i>
                 </button>
                 <span class="ai-version-label">${versionIndex}/${versionCount}</span>
-                <button type="button" class="ai-version-next" aria-label="Next version" ${versionIndex >= versionCount ? 'disabled' : ''}>
+                <button type="button" class="ai-version-next" aria-label="Next version"
+                    ${versionIndex >= versionCount ? 'disabled' : ''}>
                     <i class="fa fa-chevron-right"></i>
                 </button>
             `;
@@ -2163,12 +2443,16 @@ define([
                 nav.addEventListener('click', (e) => {
                     const prevBtn = e.target.closest('.ai-version-prev');
                     const nextBtn = e.target.closest('.ai-version-next');
-                    if ((!prevBtn && !nextBtn) || this.state.isStreaming) return;
+                    if ((!prevBtn && !nextBtn) || this.state.isStreaming) {
+ return;
+}
 
                     const ids = JSON.parse(nav.dataset.siblingIds || '[]');
                     const currentIdx = parseInt(nav.dataset.currentIndex, 10) - 1; // 0-based
                     const targetIdx = prevBtn ? currentIdx - 1 : currentIdx + 1;
-                    if (targetIdx < 0 || targetIdx >= ids.length) return;
+                    if (targetIdx < 0 || targetIdx >= ids.length) {
+ return;
+}
 
                     this.activateVersion(ids[targetIdx]);
                 });
@@ -2177,19 +2461,21 @@ define([
 
         async activateVersion(messageId) {
             const sessionId = this.state.sessionId;
-            if (!sessionId || this.state.isStreaming) return;
+            if (!sessionId || this.state.isStreaming) {
+ return;
+}
 
             try {
                 await fetch(M.cfg.wwwroot + '/local/ai_system/ajax/activate_version.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     body: 'session_id=' + encodeURIComponent(sessionId)
                         + '&message_id=' + encodeURIComponent(messageId)
                         + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
                 });
                 await this.refreshMessages();
             } catch (e) {
-                console.error('[ChatBot] Failed to switch version:', e);
+                Log.error('[ChatBot] Failed to switch version:', e);
             }
         },
 
@@ -2197,7 +2483,9 @@ define([
         // same shape as loadSession(), minus touching the sidebar/title.
         async refreshMessages() {
             const sessionId = this.state.sessionId;
-            if (!sessionId) return;
+            if (!sessionId) {
+ return;
+}
 
             await this.loadThread(sessionId);
         },
@@ -2211,10 +2499,10 @@ define([
         // language, or one that is already fully translated, therefore
         // appears complete immediately. Pending messages are rendered dimmed
         // and replaced one by one as their translations arrive.
-        async loadThread(sessionId, { versionNav = true } = {}) {
+        async loadThread(sessionId, {versionNav = true} = {}) {
             const result = await Ajax.call([{
                 methodname: 'local_ai_system_get_messages',
-                args: { session_id: sessionId, cached_only: true }
+                args: {session_id: sessionId, cached_only: true}
             }])[0];
 
             const messages = Array.isArray(result) ? result : (result.messages ?? []);
@@ -2228,20 +2516,24 @@ define([
                 const wrap = this.appendMessage(msg.role, msg.content, msg.created_at, msg.image_url, msg.id);
                 if (msg.translation_pending && msg.id) {
                     wrap.classList.add('ai-message--translating');
-                    pending.push({ id: msg.id, role: msg.role, wrap });
+                    pending.push({id: msg.id, role: msg.role, wrap});
                 }
             });
 
-            if (versionNav) await this.loadVersionNav();
+            if (versionNav) {
+ await this.loadVersionNav();
+}
 
             // Not awaited: the chat is usable while translations stream in.
-            if (pending.length) this.translatePending(sessionId, pending, run);
+            if (pending.length) {
+ this.translatePending(sessionId, pending, run);
+}
 
             return messages;
         },
 
         async translatePending(sessionId, pending, run) {
-            const PARALLEL = 4; // browser -> Moodle requests at once; the backend parallelises further
+            const PARALLEL = 4; // Browser -> Moodle requests at once; the backend parallelises further
 
             // Every render bumps translationRun (opening another chat, switching
             // language, editing...), so this alone drops results meant for a
@@ -2253,20 +2545,22 @@ define([
             // top to bottom: message 1, then 2, then 3 ... A finished
             // translation waits in `done` until every message above it has
             // been shown, so the chat never fills in a random order.
-            const done = new Map();   // index -> translated text (null = failed, keep original)
-            let shown = 0;            // index of the next message to show
+            const done = new Map(); // Index -> translated text (null = failed, keep original)
+            let shown = 0; // Index of the next message to show
             const flush = () => {
                 while (shown < pending.length && done.has(shown)) {
                     const item = pending[shown];
                     const content = done.get(shown);
-                    if (content !== null) this.setMessageContent(item.wrap, item.role, content);
+                    if (content !== null) {
+ this.setMessageContent(item.wrap, item.role, content);
+}
                     item.wrap.classList.remove('ai-message--translating');
                     shown++;
                 }
             };
 
-            let next = 0;             // index of the next message to fetch
-            const worker = async () => {
+            let next = 0; // Index of the next message to fetch
+            const worker = async() => {
                 while (next < pending.length && !stale()) {
                     const index = next++;
                     const item = pending[index];
@@ -2274,26 +2568,30 @@ define([
                     try {
                         const res = await Ajax.call([{
                             methodname: 'local_ai_system_translate_message',
-                            args: { session_id: sessionId, message_id: item.id }
+                            args: {session_id: sessionId, message_id: item.id}
                         }])[0];
                         content = res.content;
                     } catch (e) {
                         // Leave the original text; the next open retries (nothing was cached).
-                        console.error('[ChatBot] Translation failed for message', item.id, e);
+                        Log.error('[ChatBot] Translation failed for message', item.id, e);
                     }
-                    if (stale()) return;
+                    if (stale()) {
+ return;
+}
                     done.set(index, content);
                     flush();
                 }
             };
 
-            await Promise.all(Array.from({ length: Math.min(PARALLEL, pending.length) }, worker));
+            await Promise.all(Array.from({length: Math.min(PARALLEL, pending.length)}, worker));
         },
 
         // Replaces the text of a rendered message (keeps image, time, actions).
         setMessageContent(wrap, role, content) {
             const text = wrap.querySelector('.ai-message-content');
-            if (!text) return;
+            if (!text) {
+ return;
+}
             wrap.dataset.rawContent = content || '';
             text.innerHTML = this.renderMarkdown(content);
             if (role === 'assistant') {
@@ -2304,12 +2602,14 @@ define([
 
         async loadVersionNav() {
             const sessionId = this.state.sessionId;
-            if (!sessionId) return;
+            if (!sessionId) {
+ return;
+}
 
             try {
                 const resp = await fetch(M.cfg.wwwroot + '/local/ai_system/ajax/versions_meta.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     body: 'session_id=' + encodeURIComponent(sessionId)
                         + '&sesskey=' + encodeURIComponent(M.cfg.sesskey)
                 });
@@ -2318,25 +2618,32 @@ define([
                     this.renderVersionNav(messageId, info.version_index, info.version_count, info.sibling_ids);
                 });
             } catch (e) {
-                console.error('[ChatBot] Failed to load version metadata:', e);
+                Log.error('[ChatBot] Failed to load version metadata:', e);
             }
         },
 
         applyGeneratedTitle(title) {
-            if (!title || !this.state.sessionId) return;
+            if (!title || !this.state.sessionId) {
+ return;
+}
 
             const chatTitle = document.getElementById('ai-chat-title');
-            if (chatTitle) chatTitle.textContent = title;
+            if (chatTitle) {
+ chatTitle.textContent = title;
+}
 
             const sidebarTitleEl = document.querySelector(
                 `.ai-session-item[data-session-id="${this.state.sessionId}"] .ai-session-title`
             );
-            if (sidebarTitleEl) sidebarTitleEl.textContent = title;
+            if (sidebarTitleEl) {
+ sidebarTitleEl.textContent = title;
+}
         },
 
         messageActionsHtml(role) {
             if (role === 'user') {
-                return `<button class="ai-msg-action-btn ai-msg-action-edit" aria-label="Edit"><i class="fa fa-pencil"></i></button>`;
+                return `<button class="ai-msg-action-btn ai-msg-action-edit" aria-label="Edit">`
+                    + `<i class="fa fa-pencil"></i></button>`;
             }
             return `
                 <button class="ai-msg-action-btn ai-msg-action-copy" aria-label="Copy"><i class="fa fa-clone"></i></button>
@@ -2349,7 +2656,9 @@ define([
 
             const wrap = document.createElement('div');
             wrap.className = `ai-message ai-message--${role}`;
-            if (messageId) wrap.dataset.messageId = messageId;
+            if (messageId) {
+ wrap.dataset.messageId = messageId;
+}
             wrap.dataset.rawContent = content || '';
 
             const bubbleWrap = document.createElement('div');
@@ -2442,7 +2751,9 @@ define([
 
         bindNewSession() {
             const btn = document.querySelector('.ai-chatbot-new-session');
-            if (!btn) return;
+            if (!btn) {
+ return;
+}
 
             btn.addEventListener('click', () => {
                 this.closeArchivePanel();
@@ -2464,8 +2775,12 @@ define([
             // An archived chat disables the input; a new chat must be writable again.
             const input = document.getElementById('ai-message-input');
             const sendBtn = document.getElementById('ai-send-btn');
-            if (input) { input.disabled = false; input.placeholder = 'Type your message...'; }
-            if (sendBtn) sendBtn.disabled = false;
+            if (input) {
+ input.disabled = false; input.placeholder = 'Type your message...';
+}
+            if (sendBtn) {
+ sendBtn.disabled = false;
+}
 
             this.clearPendingImage();
             this.setActiveLanguage('');
