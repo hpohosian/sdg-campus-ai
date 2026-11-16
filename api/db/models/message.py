@@ -14,6 +14,11 @@ class MessageModel(Base):
 
     content = Column(Text, nullable=False)
 
+    # What `content` holds: "text" (markdown, the normal case) or "quiz"
+    # (JSON, see chatbot/quiz/schemas.py — the frontend draws it as a quiz
+    # card). server_default: existing rows become "text" in the migration.
+    content_type = Column(String(16), nullable=False, default="text", server_default="text")
+
     # --- Versioning (edit / regenerate) ---
     # Every message points at the message it directly follows in the
     # conversation. NULL means "first message of the session". Editing a

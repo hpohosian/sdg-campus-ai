@@ -45,6 +45,7 @@ $string['privacy:metadata:chatbackend:courseid'] = 'The course a chat was linked
 $string['privacy:metadata:chatbackend:title'] = 'The title of the chat.';
 $string['privacy:metadata:chatbackend:content'] = 'The messages you wrote, the answers of the chatbot and their translations.';
 $string['privacy:metadata:chatbackend:images'] = 'Images you attached to messages.';
+$string['privacy:metadata:chatbackend:quizanswers'] = 'Your answers to self-study quizzes in the chat and whether they were correct. Only you can see them.';
 $string['privacy:metadata:chatbackend:times'] = 'When the chat was created and last used, and when each message was sent.';
 
 $string['privacy:metadata:mistral:content'] = 'The message content sent for processing';

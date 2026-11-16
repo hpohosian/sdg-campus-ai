@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session as DBSession
 from db.connection import get_db
 from db.models.message import MessageModel
 from db.models.message_translation import MessageTranslationModel
+from db.models.quiz_answer import QuizAnswerModel
 from db.models.session import SessionModel
 from settings import settings
 
@@ -99,8 +100,8 @@ def _delete_image_files(relative_paths: list[str]) -> int:
 
 
 def _delete_sessions(db: DBSession, session_ids: list[str]) -> dict:
-    """Deletes sessions with all messages, translations and image files."""
-    counts = {"sessions": 0, "messages": 0, "translations": 0, "images": 0}
+    """Deletes sessions with all messages, translations, quiz answers and image files."""
+    counts = {"sessions": 0, "messages": 0, "translations": 0, "quiz_answers": 0, "images": 0}
     if not session_ids:
         return counts
 
@@ -119,6 +120,9 @@ def _delete_sessions(db: DBSession, session_ids: list[str]) -> dict:
             message_ids = select(MessageModel.id).where(MessageModel.session_id.in_(part))
             counts["translations"] += db.execute(
                 delete(MessageTranslationModel).where(MessageTranslationModel.message_id.in_(message_ids))
+            ).rowcount
+            counts["quiz_answers"] += db.execute(
+                delete(QuizAnswerModel).where(QuizAnswerModel.message_id.in_(message_ids))
             ).rowcount
             counts["messages"] += db.execute(
                 delete(MessageModel).where(MessageModel.session_id.in_(part))
@@ -171,6 +175,7 @@ def user_export(body: UserRequest, db: DBSession = Depends(get_db)):
             select(MessageModel).where(MessageModel.session_id == s.session_id).order_by(MessageModel.id)
         ).scalars().all()
         translations: dict[int, list] = {}
+        quiz_answers: dict[int, list] = {}
         ids = [m.id for m in messages]
         for part in _chunks(ids):
             for t in db.execute(
@@ -178,6 +183,14 @@ def user_export(body: UserRequest, db: DBSession = Depends(get_db)):
             ).scalars():
                 translations.setdefault(t.message_id, []).append(
                     {"language": t.language, "content": t.content, "created_at": t.created_at}
+                )
+            for a in db.execute(
+                select(QuizAnswerModel).where(QuizAnswerModel.message_id.in_(part))
+                .order_by(QuizAnswerModel.question_index)
+            ).scalars():
+                quiz_answers.setdefault(a.message_id, []).append(
+                    {"question": a.question_index + 1, "answer": a.answer,
+                     "correct": bool(a.is_correct), "created_at": a.created_at}
                 )
         result.append({
             "session_id": s.session_id,
@@ -190,12 +203,14 @@ def user_export(body: UserRequest, db: DBSession = Depends(get_db)):
             "messages": [
                 {
                     "role": m.role,
+                    "content_type": m.content_type,
                     "content": m.content,
                     "is_active_version": bool(m.is_active),
                     "image": m.image_path,
                     "tokens_used": m.tokens_used,
                     "created_at": m.created_at,
                     "translations": translations.get(m.id, []),
+                    **({"quiz_answers": quiz_answers[m.id]} if m.id in quiz_answers else {}),
                 }
                 for m in messages
             ],

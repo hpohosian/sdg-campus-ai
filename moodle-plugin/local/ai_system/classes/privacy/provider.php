@@ -39,6 +39,7 @@ class provider implements
                 'title'    => 'privacy:metadata:chatbackend:title',
                 'content'  => 'privacy:metadata:chatbackend:content',
                 'images'   => 'privacy:metadata:chatbackend:images',
+                'quizanswers' => 'privacy:metadata:chatbackend:quizanswers',
                 'times'    => 'privacy:metadata:chatbackend:times',
             ],
             'privacy:metadata:chatbackend'
@@ -127,14 +128,27 @@ class provider implements
                             'created_at' => transform::datetime($translation['created_at']),
                         ];
                     }
+                    // Quiz answers (quizzes are a message type, the student's
+                    // answers are stored per question by the backend).
+                    $quizanswers = [];
+                    foreach (($message['quiz_answers'] ?? []) as $quizanswer) {
+                        $quizanswers[] = [
+                            'question'   => $quizanswer['question'],
+                            'answer'     => $quizanswer['answer'],
+                            'correct'    => $quizanswer['correct'],
+                            'created_at' => transform::datetime($quizanswer['created_at']),
+                        ];
+                    }
                     $messages[] = [
                         'role'              => $message['role'],
+                        'content_type'      => $message['content_type'] ?? 'text',
                         'content'           => $message['content'],
                         'is_active_version' => $message['is_active_version'],
                         'image'             => $message['image'],
                         'tokens_used'       => $message['tokens_used'],
                         'created_at'        => transform::datetime($message['created_at']),
                         'translations'      => $translations,
+                        'quiz_answers'      => $quizanswers,
                     ];
                 }
 

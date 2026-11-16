@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import select
 from db.models.message import MessageModel
 from db.models.message_translation import MessageTranslationModel
+from db.models.quiz_answer import QuizAnswerModel
 import time
 
 
@@ -93,11 +94,13 @@ class MessageRepository:
         image_path: str | None = None,
         parent_id: int | None = None,
         is_active: bool = True,
+        content_type: str = "text",
     ):
         message = MessageModel(
             session_id=session_id,
             role=role,
             content=content,
+            content_type=content_type,
             created_at=int(time.time()),
             tokens_used=tokens_used,
             image_path=image_path,
@@ -136,7 +139,7 @@ class MessageRepository:
     def delete_by_session(self, session_id: str) -> int:
         """
         Deletes every message row (all versions/siblings) for a session,
-        and their translations. Does NOT touch image files on disk —
+        their translations and quiz answers. Does NOT touch image files on disk —
         that's a separate, still-open task (see image_path on each row
         if a caller needs to clean those up afterwards).
         """
@@ -146,6 +149,9 @@ class MessageRepository:
         if message_ids:
             self.db.query(MessageTranslationModel).filter(
                 MessageTranslationModel.message_id.in_(message_ids)
+            ).delete(synchronize_session=False)
+            self.db.query(QuizAnswerModel).filter(
+                QuizAnswerModel.message_id.in_(message_ids)
             ).delete(synchronize_session=False)
 
         deleted = self.db.query(MessageModel).filter(

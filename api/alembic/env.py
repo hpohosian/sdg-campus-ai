@@ -15,6 +15,7 @@ from db.base import Base  # noqa: E402
 import db.models.session  # noqa: E402,F401
 import db.models.message  # noqa: E402,F401
 import db.models.message_translation  # noqa: E402,F401
+import db.models.quiz_answer  # noqa: E402,F401
 
 config = context.config
 
