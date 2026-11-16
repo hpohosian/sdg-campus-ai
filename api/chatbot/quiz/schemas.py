@@ -30,6 +30,7 @@ of the format. Other later types (gap text, free text) add their own
 fields; "type" tells the frontend how to draw a question.
 """
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -41,6 +42,15 @@ QUESTION_COUNTS = (3, 5, 10, 20)
 DEFAULT_QUESTION_COUNT = 5
 
 QuizScope = Literal["chat", "course"]
+
+# Any whitespace incl. line/paragraph separators (U+2028/2029) and
+# zero-width spaces: LLM output sometimes has them where a normal space
+# belongs ("kaum\u2028Informationen" showed as "kaumInformationen").
+_SPACES = re.compile(r"[\s\u200b\u2028\u2029\ufeff]+")
+
+
+def _clean(text: str) -> str:
+    return _SPACES.sub(" ", text or "").strip()
 
 
 class QuizQuestion(BaseModel):
@@ -54,15 +64,15 @@ class QuizQuestion(BaseModel):
     source: str = Field(default="", max_length=1000)
     page: int | None = None
 
-    @field_validator("question", "explanation", "source")
+    @field_validator("question", "explanation", "source", mode="before")
     @classmethod
-    def _strip(cls, value: str) -> str:
-        return value.strip()
+    def _strip(cls, value):
+        return _clean(value) if isinstance(value, str) else value
 
     @field_validator("options")
     @classmethod
     def _options(cls, options: list[str]) -> list[str]:
-        options = [o.strip() for o in options]
+        options = [_clean(o) for o in options]
         if any(not o for o in options):
             raise ValueError("empty answer option")
         if len({o.casefold() for o in options}) != len(options):

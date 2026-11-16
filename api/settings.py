@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # MISTRAL_VISION_MODEL. A fast model here saves ~1-3 s per image question.
     IMAGE_KEYWORDS_MODEL: str = ""
 
+    # Model that writes the quizzes (chatbot/quiz/generator.py). Empty =
+    # MISTRAL_MODEL. Needs a good model: it must stay faithful to the
+    # material and write plausible wrong options.
+    QUIZ_MODEL: str = ""
+
     # Which LLM API to use (llm/factory.py):
     #   "mistral"   - Mistral API with MISTRAL_API_KEY
     #   "kiconnect" - KI:connect.nrw / RWTHgpt (OpenAI-compatible) with

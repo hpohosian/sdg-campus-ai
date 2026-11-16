@@ -25,6 +25,20 @@ def clean_html(html: str) -> str:
     return text
 
 
+def _label_title(text: str, max_chars: int = 60) -> str:
+    """
+    Readable name for a label (shown on source cards and in citations).
+    Moodle's own mdl_label.name is the start of the HTML cut off with
+    entities and without spaces ("Format&nbsp;Die&nbsp;PtX…",
+    "Coaching-TandemDr. Sylvia…"), so it is built from the cleaned text:
+    the first words, cut at a word boundary.
+    """
+    if len(text) <= max_chars:
+        return text
+    cut = text[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:-–")
+    return cut + "…"
+
+
 class MoodleDBLoader:
     """
     Loads course content directly from Moodle database.
@@ -179,8 +193,8 @@ class MoodleDBLoader:
                     "metadata": {
                         "course_id": course_id,
                         "source_type": "label",
-                        "source_name": row.name or f"Label {row.id}",
-                        "source": row.name or f"Label {row.id}",
+                        "source_name": _label_title(text_content),
+                        "source": _label_title(text_content),
                         "section": "",
                         # Labels have no page of their own: link to the course. The
                         # #label-… anchor marks it as a SOURCE link for the UI
