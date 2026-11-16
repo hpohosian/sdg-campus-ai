@@ -3,7 +3,7 @@ import re
 import os
 from dataclasses import dataclass
 
-from .chunker import TextChunker
+from .chunker import Chunk, TextChunker
 from .embeddings import EmbeddingModel
 from .vector_store import VectorStore
 
@@ -102,6 +102,7 @@ class IngestionPipeline:
         metadata: dict = None,
         source: str = "unknown",
         page_texts: list[str] | None = None,
+        tables: list[dict] | None = None,
     ) -> IngestionResult:
         """
         Ingest raw text into the vector store.
@@ -110,6 +111,9 @@ class IngestionPipeline:
         collection_name: which ChromaDB collection to store in
         metadata: extra info attached to every chunk (course, lecture, etc.)
         source: human-readable name for logging
+        tables: [{"page": n, "text": markdown, "embed_text": description}] —
+                each one is stored as its own chunk, never cut by the chunker
+                (see loaders/pdf_tables.py)
         """
         metadata = metadata or {}
         if "source" not in metadata:
@@ -120,6 +124,13 @@ class IngestionPipeline:
             chunks = self.chunker.split(text, metadata=metadata)
             if page_texts:
                 assign_pages(chunks, page_texts)
+            for table in tables or []:
+                chunks.append(Chunk(
+                    text=table["text"],
+                    metadata={**metadata, "page": table["page"], "content_type": "table"},
+                    chunk_index=len(chunks),
+                    embed_text=table.get("embed_text", ""),
+                ))
             if not chunks:
                 return IngestionResult(
                     collection_name=collection_name,
@@ -219,6 +230,7 @@ class IngestionPipeline:
                 metadata=doc.get("metadata", {}),
                 source=doc.get("source", "unknown"),
                 page_texts=doc.get("page_texts"),
+                tables=doc.get("tables"),
             )
             results.append(result)
 
@@ -227,4 +239,3 @@ class IngestionPipeline:
         print(f"[ingestion] Done: {success}/{len(documents)} documents, {total} total chunks")
 
         return results
-    

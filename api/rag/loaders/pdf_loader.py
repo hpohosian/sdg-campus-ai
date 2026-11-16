@@ -9,6 +9,11 @@ try:
 except ModuleNotFoundError:
     from settings import settings
 
+try:
+    from api.rag.loaders.pdf_tables import extract_page
+except ModuleNotFoundError:
+    from rag.loaders.pdf_tables import extract_page
+
 
 class MoodlePDFLoader:
     """
@@ -31,15 +36,19 @@ class MoodlePDFLoader:
         documents = []
 
         for pdf in pdf_files:
-            page_texts = self._extract_pdf_pages(pdf["contenthash"])
+            page_texts, tables = self._extract_pdf(pdf["contenthash"])
             text_content = "\n\n".join(page_texts).strip()
-            if text_content and len(text_content) > 100:
+            table_chars = sum(len(t["text"]) for t in tables)
+            if len(text_content) + table_chars > 100:
                 documents.append({
                     "text": text_content,
                     # Per-page texts: ingestion uses them to store the page
                     # number of every chunk ("page"), so citations can link
                     # to the exact page (file.pdf#page=N).
                     "page_texts": page_texts,
+                    # Tables, each stored as its own chunk (not cut apart
+                    # by the chunker): see pdf_tables.py.
+                    "tables": tables,
                     "metadata": {
                         "course_id": course_id,
                         "source_type": "pdf",
@@ -49,7 +58,8 @@ class MoodlePDFLoader:
                         "section": "",
                     }
                 })
-                print(f"[pdf_loader] Loaded: {pdf['filename']} ({len(text_content)} chars)")
+                print(f"[pdf_loader] Loaded: {pdf['filename']} ({len(text_content)} chars"
+                      f"{f', {len(tables)} table chunks' if tables else ''})")
             else:
                 print(f"[pdf_loader] Skipped (no text): {pdf['filename']}")
 
@@ -119,23 +129,35 @@ class MoodlePDFLoader:
             contenthash,
         )
 
-    def _extract_pdf_pages(self, contenthash: str) -> list[str]:
-        """Text of every page (index 0 = page 1), using PyMuPDF."""
+    def _extract_pdf(self, contenthash: str) -> tuple[list[str], list[dict]]:
+        """
+        Text of every page (index 0 = page 1) WITHOUT tables, and the
+        tables as separate chunks: [{"page": n, "text": markdown,
+        "embed_text": short description for the search}].
+        """
         file_path = self._get_file_path(contenthash)
 
         if not os.path.exists(file_path):
-            return []
+            return [], []
 
         try:
             doc = fitz.open(file_path)
-            pages_text = [page.get_text() for page in doc]
+            pages_text, tables = [], []
+            for number, page in enumerate(doc, start=1):
+                text, page_tables = extract_page(page, number)
+                pages_text.append(text)
+                tables += [{"page": number, **t} for t in page_tables]
             doc.close()
-            return pages_text
+            return pages_text, tables
         except Exception as e:
             print(f"[pdf_loader] Error reading {contenthash}: {e}")
-            return []
+            return [], []
+
+    def _extract_pdf_pages(self, contenthash: str) -> list[str]:
+        """Text of every page (index 0 = page 1), tables not included."""
+        return self._extract_pdf(contenthash)[0]
 
     def _extract_pdf_text(self, contenthash: str) -> str:
         """Extract the whole text of a PDF (pages joined)."""
         return "\n\n".join(self._extract_pdf_pages(contenthash)).strip()
-    
+        

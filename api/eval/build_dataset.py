@@ -108,7 +108,7 @@ KEY_FACTS = {
          "formal network analysis"],
     16: ["Institute of Sociology (Institut für Soziologie)", "RWTH Aachen University"],
     17: ["March 2021", "founded by ZUG gGmbH", "located in Cottbus"],
-    18: ["Green Fuels Lausitz (Schwarze Pumpe)", "Green MeOH (Stade)", "200,000 t/year each"],
+    18: ["Green Fuels Lausitz", "Green MeOH", "200,000 t/year each"],  # the location is not asked for
     19: ["360 t/year", "in operation since 2021"],
     20: ["Shell Rheinland Raffinerie (Cologne)"],
     21: ["a long-term (ambitious) and a short-term standard",
@@ -272,4 +272,3 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit("usage: python -m eval.build_dataset path/to/chatbot_test.xlsx")
     main(sys.argv[1])
-    

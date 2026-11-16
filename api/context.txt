@@ -1,0 +1,73 @@
+Question: Welche PtL-Anlagen haben laut der Übersicht (Stand Juli 2023) die größte vorgesehene Kapazität?
+68 candidates, 14 sent to the model (min_score 0.3, n_results 12)
+
+  1. KEPT    score=0.670  vec=  1  bm25=  1  PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf S.2
+       Hinweise auf weitere geplante Anlagen werden gerne entgegengenommen. PtL-Anlagen in Deutschland Angekündigte u
+  2. KEPT    score=0.543  vec= 35  bm25=  3  Studie_PtL_Nachhaltigkeitsstandard.pdf S.28
+       o der PtL-Hersteller Abnahmeverträge für EE-Strom (Power Purchase  Agreement, PPA) mit Stromerzeugern vorweise
+  3. KEPT    score=0.321  vec=  -  bm25=  2  PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf S.1
+       Flugplatz in Drewitz (GRAL) 8	 KeroSyn100, Demonstrationsanlage Raffinerie Heide 9	 reFuels, MiRO Karlsruhe 10
+  4. KEPT    score=0.582  vec=  9  bm25= 16  Studie_PtL_Nachhaltigkeitsstandard.pdf S.28
+       Diese Höchststundenzahl  ergibt sich aus der Multiplikation der Gesamtzahl der Stunden in jedem  Kalenderjahr 
+  5. KEPT    score=0.575  vec= 12  bm25= 14  Studie_PtL_Nachhaltigkeitsstandard.pdf S.41
+       Entwicklung von PtX-Nachhaltigkeitsstandards und -indikatoren  Nachhaltigkeitsanforderungen und Indikatoren fü
+  6. KEPT    score=0.569  vec= 18  bm25= 11  Studie_PtL_Nachhaltigkeitsstandard.pdf S.26
+       Liegt eine weitgehend von EE dominierte Stromerzeugung vor, so wird das Kriterium  der Zusätzlichkeit von dem 
+  7. KEPT    score=0.551  vec= 27  bm25=  9  Studie_PtL_Nachhaltigkeitsstandard.pdf S.29
+       8  Da bislang nur der Entwurf vorliegt, steht die konkrete Endfassung noch aus, die dann selbstverständlich  a
+  8. KEPT    score=0.565  vec= 20  bm25= 15  Studie_PtL_Nachhaltigkeitsstandard.pdf S.53
+       Entwicklung von PtX-Nachhaltigkeitsstandards und -indikatoren  Nachhaltigkeitsanforderungen und Indikatoren fü
+  9. KEPT    score=0.574  vec= 14  bm25= 35  PtX Lab Lausitz&nbsp;Das PtX Lab Lausitz soll Wirt... S.-
+       Im Mittelpunkt der Arbeit steht die Fragestellung, welche Möglichkeiten es gibt, PtX-Produkte umweltverträglic
+ 10. KEPT    score=0.548  vec= 29  bm25= 26  Studie_PtL_Nachhaltigkeitsstandard.pdf S.69
+       Eine solche Pilotanwendung sollte genutzt  werden, um den Standard – wo notwendig – anzupassen und zu verbesse
+ 11. KEPT    score=0.546  vec= 30  bm25= 29  PtX_Lab_Lausitz__Factsheet.pdf S.2
+       Dies soll im  engen Austausch mit Forschungseinrichtungen, Indust­ rieunternehmen und nationalen, europäischen
+ 12. KEPT    score=0.540  vec= 38  bm25= 27  Studie_PtL_Nachhaltigkeitsstandard.pdf S.33
+       440 ppm gegenüber anderen  (konzentrierten) Quellen sehr gering. Für die Bindung und Bereitstellung von CO2  b
+ 13. cut     score=0.544  vec= 34  bm25= 39  Studie_PtL_Nachhaltigkeitsstandard.pdf S.16
+       Die spezifische Umweltperformance von PtL-Kraftstoffen ist vielversprechend  gegenüber fossilen Vergleichskraf
+ 14. cut     score=0.624  vec=  2  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.47
+       Dabei wird davon  ausgegangen, dass ein anspruchsvolles Projekt in absehbarer Zeit einen Wert von  <3 MJ/MJ Pt
+ 15. cut     score=0.610  vec=  3  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.45
+       Entwicklung von PtX-Nachhaltigkeitsstandards und -indikatoren  Nachhaltigkeitsanforderungen und Indikatoren fü
+ 16. cut     score=0.604  vec=  4  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.47
+       Entwicklung von PtX-Nachhaltigkeitsstandards und -indikatoren  Nachhaltigkeitsanforderungen und Indikatoren fü
+ 17. cut     score=0.409  vec=  -  bm25=  4  Studie_PtL_Nachhaltigkeitsstandard.pdf S.19
+       Letztere bietet sich an, da ihr  Nutzung spätestens seit der Entwicklung der ersten RED (Richtlinie 2009/28/EG
+ 18. cut     score=0.598  vec=  5  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.29
+       o der verwendete Strom während eines Ausgleichsvorgangs verbraucht  wird,  bei  dem  nachgewiesen  werden  kan
+ 19. cut     score=0.525  vec=  -  bm25=  5  Studie_PtL_Nachhaltigkeitsstandard.pdf S.44
+       Für den  Produktionspfad eines PtL-Kerosins ist jedoch ein durchaus relevanter Aufwand an  Material für Anlage
+ 20. cut     score=0.594  vec=  6  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.45
+       Auch hier gilt wie bei den vorangehenden denkbaren Kriterien der  Materialeffizienz und der Rohstoffkritikalit
+ 21. cut     score=0.434  vec=  -  bm25=  6  Studie_PtL_Nachhaltigkeitsstandard.pdf S.41
+       Von den  in Unterkapitel 3.2 genannten CO2-Quellen sind die Mineralverarbeitende Industrie,  Eisenmetallerzeug
+ 22. cut     score=0.585  vec=  7  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.46
+       Am Beispiel der UBA-Studie SYSEET (Liebich, 2020) können Default-Werte für den  Primärenergieverbrauch typisch
+ 23. cut     score=0.401  vec=  -  bm25=  7  Studie_PtL_Nachhaltigkeitsstandard.pdf S.39
+       Zudem zählen in fixen Mengen hergestellte Outputs  aus einem integrierten Prozess, welche weniger als 10 % des
+ 24. cut     score=0.583  vec=  8  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.51
+       Gerade angesichts des notwendigen Ausbaus der EE-Stromproduktion – gerade  auch für PtL – sollten daher die po
+ 25. cut     score=0.514  vec=  -  bm25=  8  Studie_PtL_Nachhaltigkeitsstandard.pdf S.44
+       Es ist jedoch gerade der Vorteil von PtL, dass der für seine Erzeugung  benötigte Rohstoff nicht als knappe Re
+ 26. cut     score=0.582  vec= 10  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.46
+       kurzfristiger Standard  Nach Daten aus Ökobilanzen für PtL (Liebich, 2020) (Dittrich, Liebich, Müller, Schoer,
+ 27. cut     score=0.353  vec=  -  bm25= 10  Studie_PtL_Nachhaltigkeitsstandard.pdf S.39
+       Diese berechnen sich aus:  e i = e i elastic + e i rigid - e ex-use  Dabei steht e i elastic für Emissionen au
+ 28. cut     score=0.580  vec= 11  bm25=  -  Studie_PtL_Nachhaltigkeitsstandard.pdf S.30
+       •  Für den langfristigen Standard ist Strom auf Basis von Wasserkraft ebenfalls  auszuschließen, da die Zusätz
+ 29. cut     score=0.448  vec=  -  bm25= 12  Studie_PtL_Nachhaltigkeitsstandard.pdf S.41
+       Tabelle 9:  Beitrag der CO2-Quellen zur THG-Bilanz von PtL-Produkten  nach verschiedenen Bilanzierungsansätzen
+ 30. cut     score=0.574  vec= 13  bm25=  -  PtX_Lab_Lausitz__Factsheet.pdf S.2
+       Gleiches gilt für  nachhaltige Grundstoffe, auf Basis von grünem Wasser­ stoff, für die chemische Industrie. D
+
+Tables added because text from their page was found: 2
+  PtL_Anlagen_in_Deutschland_Stand_Juli_2023.pdf S.2  (2927 Zeichen)
+  Studie_PtL_Nachhaltigkeitsstandard.pdf S.41  (909 Zeichen)
+
+Table chunks among the candidates: 4
+  place 35: score=0.426  Studie_PtL_Nachhaltigkeitsstandard.pdf S.31  not sent
+  place 39: score=0.361  Studie_PtL_Nachhaltigkeitsstandard.pdf S.50  not sent
+  place 60: score=0.425  Studie_PtL_Nachhaltigkeitsstandard.pdf S.29  not sent
+  place 62: score=0.454  Studie_PtL_Nachhaltigkeitsstandard.pdf S.60  not sent

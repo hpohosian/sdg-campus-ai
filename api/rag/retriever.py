@@ -23,6 +23,7 @@ class Retriever:
         hybrid: bool = True,
         candidates: int = 40,
         keyword_reserved: int = 3,
+        attach_tables: int = 2,
     ):
         """
         hybrid: combine vector search with keyword search (BM25). See
@@ -30,6 +31,8 @@ class Retriever:
         candidates: how many chunks EACH method contributes before fusion.
         keyword_reserved: the best N keyword hits always get a place in the
             result (if they pass min_score), see _hybrid_search.
+        attach_tables: at most this many PDF tables are added because text
+            from their page was found, see _attach_page_tables. 0 = off.
         """
         self.vector_store = vector_store
         self.min_score = min_score
@@ -37,6 +40,7 @@ class Retriever:
         self.hybrid = hybrid
         self.candidates = candidates
         self.keyword_reserved = keyword_reserved
+        self.attach_tables = attach_tables
 
     def _hybrid_search(self, query: str, collections: dict[str, int | None], n: int, where: dict = None) -> list[dict]:
         """
@@ -114,6 +118,56 @@ class Retriever:
         # is that these chunks are not cut off by the top-n limit.
         return reserved + rest
 
+    def _attach_page_tables(self, results: list[dict]) -> list[dict]:
+        """
+        Adds the PDF table(s) of a page whose text was found.
+
+        Tables are stored as their own chunks (loaders/pdf_tables.py). The
+        text around a table (title, intro) often matches a question much
+        better than the table itself — "Which plants have the largest
+        capacity according to the overview?" finds the page heading
+        "PtL-Anlagen in Deutschland …", while the table chunk loses against
+        dozens of chunks of a long study about the same topic. So: for every
+        found chunk, the tables of the same file and page come along, right
+        after it (at most `attach_tables` per answer, best-ranked pages first).
+        """
+        if not self.attach_tables or not results:
+            return results
+        have = {r.get("id") for r in results}
+        out, added = [], 0
+        for r in results:
+            out.append(r)
+            meta = r.get("metadata") or {}
+            name = r.get("collection")
+            if (added >= self.attach_tables or not name or meta.get("content_type") == "table"
+                    or not meta.get("source") or not meta.get("page")):
+                continue
+            try:
+                got = self.vector_store.get_or_create_collection(name).get(
+                    where={"$and": [
+                        {"source": meta["source"]},
+                        {"page": meta["page"]},
+                        {"content_type": "table"},
+                    ]},
+                    include=["documents", "metadatas"],
+                )
+            except Exception as e:  # never let this break the answer
+                print(f"[retriever] table lookup failed: {e}")
+                continue
+            for chunk_id, text, tmeta in zip(got["ids"], got["documents"], got["metadatas"]):
+                if chunk_id in have or added >= self.attach_tables:
+                    continue
+                tmeta = dict(tmeta or {})
+                if "course_id" in meta:
+                    tmeta["course_id"] = meta["course_id"]
+                out.append({
+                    "id": chunk_id, "text": text, "metadata": tmeta, "collection": name,
+                    "score": r.get("score"), "attached_to": r.get("id"),
+                })
+                have.add(chunk_id)
+                added += 1
+        return out
+
     @staticmethod
     def _format_source_label(chunk_metadata: dict) -> str:
         """
@@ -165,7 +219,7 @@ class Retriever:
         # Filter by minimum relevance score, then keep the best n
         filtered = [r for r in results if r["score"] >= threshold]
 
-        return filtered[:n]
+        return self._attach_page_tables(filtered[:n])
 
     def retrieve_as_context(
         self,
@@ -276,7 +330,7 @@ class Retriever:
 
         filtered = [r for r in all_results if r["score"] >= threshold]
 
-        return filtered[:n]
+        return self._attach_page_tables(filtered[:n])
 
     def retrieve_as_context_global(
         self,
@@ -441,4 +495,3 @@ class Retriever:
                 parts.append(f"[Source: {source_label}]\n{chunk['text']}")
 
         return "\n\n".join(parts)
-    

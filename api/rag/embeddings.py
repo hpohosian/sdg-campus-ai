@@ -62,7 +62,9 @@ class EmbeddingModel:
         if not chunks:
             return []
 
-        texts = [chunk.text for chunk in chunks]
+        # embed_text: a shorter description for the search (tables), the
+        # stored and later shown text stays chunk.text.
+        texts = [chunk.embed_text or chunk.text for chunk in chunks]
 
         # Batch encoding is much faster than encoding one by one
         vectors = self.model.encode(

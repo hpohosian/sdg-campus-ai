@@ -7,6 +7,11 @@ class Chunk:
     text: str
     metadata: dict = field(default_factory=dict)
     chunk_index: int = 0
+    # Text used for the embedding instead of `text`, if set. Tables: the
+    # embedding model reads only ~128 tokens, which a markdown table spends
+    # on "| --- |" and its first rows; a short description (title, column
+    # names, row names) matches questions about the table much better.
+    embed_text: str = ""
 
 
 # Matches sentence-ending punctuation followed by whitespace or end of string.
