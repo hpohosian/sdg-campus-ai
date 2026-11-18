@@ -93,6 +93,9 @@ class QuizGenerator:
         self.llm = llm
         self.retriever = retriever
         self.model = model or None
+        # question text -> text of the block it was made from. Only for the
+        # quality test (eval/quiz_eval.py), which gives the block to a judge.
+        self.question_blocks: dict[str, str] = {}
 
     # ─────────────────────────────────────────
     # Public
@@ -299,6 +302,8 @@ class QuizGenerator:
             except (ValidationError, ValueError, TypeError) as e:
                 print(f"[quiz] question skipped: {str(e).splitlines()[0][:150]}")
                 continue
+            if chunk:
+                self.question_blocks[question.question] = chunk["text"]
             out.append(self._shuffle(question))
         return out
 
