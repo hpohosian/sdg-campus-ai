@@ -435,43 +435,59 @@ class chatbot_api extends external_api {
     // GET MESSAGES - RETURNS
     // =========================
     public static function get_messages_returns() {
+        return new external_multiple_structure(self::message_structure());
+    }
 
-        return new external_multiple_structure(
-            new external_single_structure([
+    /**
+     * One chat message (get_messages, create_quiz).
+     */
+    private static function message_structure(int $required = VALUE_REQUIRED) {
+        return new external_single_structure([
 
-                'id' => new external_value(
-                    PARAM_INT,
-                    'Message ID',
-                    VALUE_OPTIONAL
-                ),
+            'id' => new external_value(
+                PARAM_INT,
+                'Message ID',
+                VALUE_OPTIONAL
+            ),
 
-                'role' => new external_value(
-                    PARAM_TEXT
-                ),
+            'role' => new external_value(
+                PARAM_TEXT
+            ),
 
-                'content' => new external_value(
-                    PARAM_RAW
-                ),
+            'content' => new external_value(
+                PARAM_RAW
+            ),
 
-                'image_url' => new external_value(
-                    PARAM_URL,
-                    'URL to fetch the attached image, if any',
-                    VALUE_OPTIONAL
-                ),
+            'image_url' => new external_value(
+                PARAM_URL,
+                'URL to fetch the attached image, if any',
+                VALUE_OPTIONAL
+            ),
 
-                'created_at' => new external_value(
-                    PARAM_TEXT,
-                    'Timestamp',
-                    VALUE_OPTIONAL
-                ),
+            'created_at' => new external_value(
+                PARAM_TEXT,
+                'Timestamp',
+                VALUE_OPTIONAL
+            ),
 
-                'translation_pending' => new external_value(
-                    PARAM_BOOL,
-                    'Content is still the original; fetch the translation with local_ai_system_translate_message',
-                    VALUE_OPTIONAL
-                ),
-            ])
-        );
+            'translation_pending' => new external_value(
+                PARAM_BOOL,
+                'Content is still the original; fetch the translation with local_ai_system_translate_message',
+                VALUE_OPTIONAL
+            ),
+
+            'content_type' => new external_value(
+                PARAM_ALPHANUMEXT,
+                'text | quiz_request | quiz',
+                VALUE_OPTIONAL
+            ),
+
+            'quiz_json' => new external_value(
+                PARAM_RAW,
+                'Quiz data as JSON (only for content_type quiz / quiz_request)',
+                VALUE_OPTIONAL
+            ),
+        ], 'Message', $required);
     }
 
     // =========================
@@ -540,5 +556,131 @@ class chatbot_api extends external_api {
             'role'    => new external_value(PARAM_TEXT, 'Role', VALUE_OPTIONAL),
             'content' => new external_value(PARAM_RAW, 'Content', VALUE_OPTIONAL),
         ]);
+    }
+
+    // =========================
+    // QUIZ - CREATE
+    // =========================
+    public static function create_quiz_parameters() {
+        return new external_function_parameters([
+            'session_id' => new external_value(PARAM_TEXT, 'Session ID'),
+            'scope'      => new external_value(PARAM_ALPHA, 'course = whole course, chat = this chat',
+                                               VALUE_DEFAULT, 'course'),
+            'count'      => new external_value(PARAM_INT, 'Number of questions (3, 5, 10, 20)', VALUE_DEFAULT, 5),
+            'topic'      => new external_value(PARAM_TEXT, 'Optional topic', VALUE_DEFAULT, ''),
+            'language'   => new external_value(PARAM_ALPHANUMEXT, 'Quiz language; empty = current Moodle language',
+                                               VALUE_DEFAULT, ''),
+        ]);
+    }
+
+    public static function create_quiz($session_id, $scope = 'course', $count = 5, $topic = '', $language = '') {
+        global $USER;
+        $params = self::validate_parameters(self::create_quiz_parameters(), [
+            'session_id' => $session_id, 'scope' => $scope, 'count' => $count,
+            'topic' => $topic, 'language' => $language,
+        ]);
+
+        $context = \context_system::instance();
+        self::validate_context($context);
+        require_capability('local/ai_system:use_chatbot', $context);
+
+        $scope = $params['scope'] === 'chat' ? 'chat' : 'course';
+        // "de", "en", "de_du" (informal German) -> "de"
+        $language = $params['language'] !== '' ? $params['language'] : current_language();
+        $language = strtolower(substr($language, 0, 2));
+
+        $service = new \local_ai_system\chatbot\service();
+        $response = $service->create_quiz(
+            $params['session_id'], $scope, (int) $params['count'],
+            trim($params['topic']), $language, (int) $USER->id
+        );
+
+        if ($error = self::quiz_error($response)) {
+            return $error;
+        }
+        [$request, $quiz] = \local_ai_system\chatbot\service::normalise_messages(
+            [$response['request'] ?? [], $response['quiz'] ?? []]
+        );
+        return [
+            'request' => $request,
+            'quiz'    => $quiz,
+            'title'   => (string) ($response['title'] ?? ''),
+        ];
+    }
+
+    public static function create_quiz_returns() {
+        return new external_single_structure([
+            'request'       => self::message_structure(VALUE_OPTIONAL),
+            'quiz'          => self::message_structure(VALUE_OPTIONAL),
+            'title'         => new external_value(PARAM_TEXT, 'New chat title (empty = unchanged)', VALUE_OPTIONAL),
+            'error'         => new external_value(PARAM_ALPHANUMEXT, 'Error code', VALUE_OPTIONAL),
+            'error_message' => new external_value(PARAM_TEXT, 'Error text from the backend', VALUE_OPTIONAL),
+        ]);
+    }
+
+    // =========================
+    // QUIZ - ANSWER ONE QUESTION
+    // =========================
+    public static function answer_quiz_parameters() {
+        return new external_function_parameters([
+            'session_id'     => new external_value(PARAM_TEXT, 'Session ID'),
+            'message_id'     => new external_value(PARAM_INT, 'ID of the quiz message'),
+            'question_index' => new external_value(PARAM_INT, 'Question number, 0-based'),
+            'answer'         => new external_multiple_structure(
+                new external_value(PARAM_INT, 'Index of a chosen option'),
+                'Chosen option(s); one for single choice'
+            ),
+        ]);
+    }
+
+    public static function answer_quiz($session_id, $message_id, $question_index, $answer) {
+        global $USER;
+        $params = self::validate_parameters(self::answer_quiz_parameters(), [
+            'session_id' => $session_id, 'message_id' => $message_id,
+            'question_index' => $question_index, 'answer' => $answer,
+        ]);
+
+        $context = \context_system::instance();
+        self::validate_context($context);
+        require_capability('local/ai_system:use_chatbot', $context);
+
+        $service = new \local_ai_system\chatbot\service();
+        $response = $service->answer_quiz(
+            $params['session_id'], (int) $params['message_id'],
+            (int) $params['question_index'], $params['answer'], (int) $USER->id
+        );
+
+        if ($error = self::quiz_error($response)) {
+            return $error;
+        }
+        return [
+            'result_json' => json_encode($response['result'] ?? null, JSON_UNESCAPED_UNICODE),
+            'quiz_json'   => json_encode($response['quiz'] ?? null, JSON_UNESCAPED_UNICODE),
+        ];
+    }
+
+    public static function answer_quiz_returns() {
+        return new external_single_structure([
+            'result_json'   => new external_value(PARAM_RAW, 'The answered question (right option, explanation, source) as JSON', VALUE_OPTIONAL),
+            'quiz_json'     => new external_value(PARAM_RAW, 'The whole quiz with all answers so far as JSON', VALUE_OPTIONAL),
+            'error'         => new external_value(PARAM_ALPHANUMEXT, 'Error code', VALUE_OPTIONAL),
+            'error_message' => new external_value(PARAM_TEXT, 'Error text from the backend', VALUE_OPTIONAL),
+        ]);
+    }
+
+    /**
+     * The backend answers quiz errors with {"detail": {"code", "message"}}
+     * (or, for invalid input, {"detail": [ ...pydantic errors... ]}).
+     * Returned as error/error_message so the JS can show a fitting text.
+     */
+    private static function quiz_error(array $response): ?array {
+        if (!array_key_exists('detail', $response)) {
+            return null;
+        }
+        $detail = $response['detail'];
+        if (is_array($detail) && isset($detail['code'])) {
+            return ['error' => (string) $detail['code'], 'error_message' => (string) ($detail['message'] ?? '')];
+        }
+        return ['error' => 'bad_request', 'error_message' => is_string($detail) ? $detail : 'Invalid request'];
     }
 }

@@ -93,4 +93,26 @@ $functions = [
         'ajax'        => true,
         'loginrequired' => true,
     ],
+
+    'local_ai_system_create_quiz' => [
+        'classname'   => 'local_ai_system\external\chatbot_api',
+        'methodname'  => 'create_quiz',
+        'description' => 'Generate a self-study quiz from the course materials and add it to the chat',
+        'type'        => 'write',
+        'ajax'        => true,
+        'loginrequired' => true,
+        // Generating takes 10-30 s; the user's other requests (sidebar,
+        // other chats) must not wait for it behind Moodle's session lock.
+        'readonlysession' => true,
+    ],
+
+    'local_ai_system_answer_quiz' => [
+        'classname'   => 'local_ai_system\external\chatbot_api',
+        'methodname'  => 'answer_quiz',
+        'description' => 'Answer one quiz question (checked by the backend)',
+        'type'        => 'write',
+        'ajax'        => true,
+        'loginrequired' => true,
+        'readonlysession' => true,
+    ],
 ];

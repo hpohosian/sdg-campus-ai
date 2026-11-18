@@ -144,7 +144,7 @@ class service {
             $userid
         );
 
-        return self::strip_null_image_urls($messages);
+        return self::normalise_messages($messages);
     }
 
     /**
@@ -177,6 +177,81 @@ class service {
         unset($message);
 
         return $messages;
+    }
+
+    /**
+     * Messages as chatbot_api's return structure expects them:
+     *  - no "image_url": null (see strip_null_image_urls),
+     *  - quiz messages (content_type "quiz" / "quiz_request"): the nested
+     *    "quiz" object becomes the JSON string "quiz_json". The quiz data is
+     *    nested and grows with new question types; as a string it does not
+     *    need a Moodle return structure for every field (the JS parses it).
+     */
+    public static function normalise_messages(array $messages): array {
+        $messages = self::strip_null_image_urls($messages);
+        foreach ($messages as &$message) {
+            if (array_key_exists('quiz', $message)) {
+                if ($message['quiz'] !== null) {
+                    $message['quiz_json'] = json_encode($message['quiz'], JSON_UNESCAPED_UNICODE);
+                }
+                unset($message['quiz']);
+            }
+            if (empty($message['content_type'])) {
+                $message['content_type'] = 'text';
+            }
+        }
+        unset($message);
+        return $messages;
+    }
+
+    // =========================
+    // QUIZ (self-study; see api/chatbot/quiz/service.py)
+    // =========================
+
+    /**
+     * Generates a quiz (10-30 s) and appends it to the chat.
+     * Returns the backend answer: {"request", "quiz", "title"} or,
+     * on an error, {"detail": {"code", "message"}}.
+     */
+    public function create_quiz(
+        string $session_id,
+        string $scope,
+        int $count,
+        string $topic,
+        string $language,
+        int $userid = 0
+    ): array {
+        return $this->client->post(
+            "/sessions/{$session_id}/quiz",
+            [
+                'scope'    => $scope,
+                'count'    => $count,
+                'topic'    => $topic !== '' ? $topic : null,
+                'language' => $language !== '' ? $language : null,
+            ],
+            self::user_or_current($userid)
+        );
+    }
+
+    /**
+     * Answers one question; the backend checks it.
+     * Returns {"question_index", "result", "quiz"} or {"detail": {...}}.
+     */
+    public function answer_quiz(
+        string $session_id,
+        int $message_id,
+        int $question_index,
+        array $answer,
+        int $userid = 0
+    ): array {
+        return $this->client->post(
+            "/sessions/{$session_id}/quiz/{$message_id}/answer",
+            [
+                'question_index' => $question_index,
+                'answer'         => array_values(array_map('intval', $answer)),
+            ],
+            self::user_or_current($userid)
+        );
     }
 
     /**
